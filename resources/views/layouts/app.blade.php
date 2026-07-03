@@ -387,8 +387,8 @@
 
                 </p>
                 <div class="flex space-x-8">
-                    <a href="#" class="hover:text-white transition-colors">Privacy</a>
-                    <a href="#" class="hover:text-white transition-colors">Terms</a>
+                    <a href="{{ route('privacy') }}" class="hover:text-white transition-colors">Privacy</a>
+                    <a href="{{ route('terms') }}" class="hover:text-white transition-colors">Terms</a>
                 </div>
             </div>
         </div>

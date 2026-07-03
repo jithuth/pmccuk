@@ -217,6 +217,14 @@ Route::get('/contact', function () {
     return view('contact');
 })->name('contact');
 
+Route::get('/privacy', function () {
+    return view('privacy');
+})->name('privacy');
+
+Route::get('/terms', function () {
+    return view('terms');
+})->name('terms');
+
 Route::get('/student-corner', function () {
     return view('student_corner');
 })->name('student-corner');
