@@ -2,10 +2,23 @@
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\HasSmartDecryption;
+use Illuminate\Support\Str;
 
 class Member extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, HasSmartDecryption;
+
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            if (empty($model->guid)) {
+                $model->guid = (string) Str::uuid();
+            }
+        });
+    }
+    
     protected $table = 'members';
 
     protected $fillable = [
@@ -19,24 +32,6 @@ class Member extends Model
     ];
 
     protected $casts = [
-        'full_name'        => 'encrypted',
-        'email'           => 'encrypted',
-        'mobile_number'    => 'encrypted',
-        'photo'           => 'encrypted',
-        'family_photo'     => 'encrypted',
-        'dob'              => 'encrypted',
-        'spouse_name'      => 'encrypted',
-        'spouse_mobile'    => 'encrypted',
-        'spouse_dob'       => 'encrypted',
-        'emergency_name'   => 'encrypted',
-        'emergency_mobile' => 'encrypted',
-        'house_details'    => 'encrypted',
-        'post_code'        => 'encrypted',
-        'prev_membership_no' => 'encrypted',
-
-        'transaction_ref'  => 'encrypted',
-        'payment_proof'    => 'encrypted',
-        'bank_account_holder' => 'encrypted',
         'consent_given'    => 'boolean',
     ];
 
@@ -59,26 +54,24 @@ class Member extends Model
 
     public function getPhotoUrlAttribute()
     {
-        if (!$this->photo) return 'https://placehold.co/400x400?text=No+Photo';
+        // $this->photo is already intercepted and decrypted by the trait!
+        $photo = $this->photo;
+        if (!$photo) return 'https://placehold.co/400x400?text=No+Photo';
+        if (str_starts_with($photo, 'http')) return $photo;
         
-        // If it's already a full path or URL
-        if (str_starts_with($this->photo, 'http')) return $this->photo;
-        
-        // If it looks like a legacy photo (no slash)
-        if (!str_contains($this->photo, '/')) {
-            return asset('storage/photos/' . $this->photo);
-        }
-        
-        return asset('storage/' . $this->photo);
+        $path = $photo;
+        if (!str_contains($path, '/')) $path = 'photos/' . $path;
+        return url('img?p=' . ltrim($path, '/'));
     }
 
     public function getFamilyPhotoUrlAttribute()
     {
-        if (!$this->family_photo) return null;
-        if (str_starts_with($this->family_photo, 'http')) return $this->family_photo;
-        if (!str_contains($this->family_photo, '/')) {
-            return asset('storage/photos/' . $this->family_photo);
-        }
-        return asset('storage/' . $this->family_photo);
+        $photo = $this->family_photo;
+        if (!$photo) return null;
+        if (str_starts_with($photo, 'http')) return $photo;
+        
+        $path = $photo;
+        if (!str_contains($path, '/')) $path = 'photos/' . $path;
+        return url('img?p=' . ltrim($path, '/'));
     }
 }

@@ -54,7 +54,12 @@
                     <tr>
                         <td class="ps-3 py-3">
                             <div class="d-flex align-items-center">
-                                <img src="{{ $m->photo ? asset('storage/'.$m->photo) : 'https://placehold.co/100x100?text='.substr($m->full_name,0,1) }}" class="avatar-img me-3 border shadow-sm">
+                                @php
+                                    $photo = $m->photo;
+                                    if ($photo && !str_contains($photo, '/')) $photo = 'photos/'.$photo;
+                                    $imgUrl = $photo ? url('img?p='.$photo) : 'https://placehold.co/100x100?text='.substr($m->full_name,0,1);
+                                @endphp
+                                <img src="{{ $imgUrl }}" class="avatar-img me-3 border shadow-sm">
                                 <div>
                                     <div class="fw-bold text-dark">{{ $m->full_name }}</div>
                                     <div class="small text-muted"><i class="fas fa-envelope me-1"></i> {{ $m->email }}</div>
@@ -69,9 +74,13 @@
                         <td><span class="text-muted"><i class="fas fa-phone-alt me-1"></i> {{ $m->mobile_number }}</span></td>
                         <td><span class="badge bg-light text-dark border">{{ \Carbon\Carbon::parse($m->created_at)->format('d M Y') }}</span></td>
                         <td class="text-end pe-3">
-                            <button class="btn btn-outline-info btn-sm rounded-pill px-3 me-1" title="View Details"><i class="fas fa-eye me-1"></i> View</button>
+                            <button class="btn btn-outline-info btn-sm rounded-pill px-3 me-1" onclick="viewDetails({{ $m->id }})"><i class="fas fa-eye me-1"></i> View</button>
                             <button class="btn btn-success btn-sm rounded-pill px-3 me-1" onclick="openApproveModal({{ $m->id }}, '{{ addslashes($m->full_name) }}')"><i class="fas fa-check me-1"></i> Approve</button>
-                            <button class="btn btn-outline-danger btn-sm rounded-pill px-3" title="Reject"><i class="fas fa-times me-1"></i> Reject</button>
+                            <form action="{{ route('admin.members.delete', $m->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to reject and delete this application?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3"><i class="fas fa-times me-1"></i> Reject</button>
+                            </form>
                         </td>
                     </tr>
                     @empty
@@ -110,7 +119,6 @@
                             <span class="input-group-text"><i class="fas fa-id-card"></i></span>
                             <input type="text" name="membership_no" id="membership_no_input" class="form-control" placeholder="PMCC-XXX" required>
                         </div>
-                        <div id="reg_no_feedback" class="form-text small text-muted mt-1">Checking availability...</div>
                     </div>
 
                     <div class="mb-3">
@@ -130,7 +138,6 @@
                             <option value="{{ date('Y') + 2 }}">{{ date('Y') + 2 }}</option>
                             <option value="{{ date('Y') + 5 }}">{{ date('Y') + 5 }}</option>
                         </select>
-                        <div class="form-text small text-info mt-1"><i class="fas fa-info-circle me-1"></i> Membership will expire 1 day before the anniversary.</div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-0">
@@ -142,6 +149,9 @@
     </div>
 </div>
 
+{{-- Standard View Modal should also be included here or in layout --}}
+@include('admin.members.partials.view_modal')
+
 @endsection
 
 @section('scripts')
@@ -150,13 +160,20 @@
         document.getElementById('approve_name').textContent = name;
         document.getElementById('approveForm').action = "/admin/members/" + id + "/approve";
         
-        // Auto-generate membership number (simulated for now, would ideally fetch from API)
+        // Suggest a number
         const nextNo = "PMCC-" + Math.floor(100 + Math.random() * 900);
         document.getElementById('membership_no_input').value = nextNo;
-        document.getElementById('reg_no_feedback').textContent = "Auto-generated suggestion";
         
-        const modal = new bootstrap.Modal(document.getElementById('approveModal'));
-        modal.show();
+        $('#approveModal').modal('show');
+    }
+
+    function viewDetails(id) {
+        // Find existing view function or trigger modal
+        if (typeof editMember === 'function') {
+            editMember(id); // Usually the edit function fetches data and shows a view modal
+        } else {
+            window.location.href = '/admin/members?search=' + id; // Fallback to main list
+        }
     }
 </script>
 @endsection

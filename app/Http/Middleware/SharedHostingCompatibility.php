@@ -24,7 +24,8 @@ class SharedHostingCompatibility
         $content = $response->getContent();
         
         // Only rewrite if it's actual HTML content
-        if (is_string($content) && str_contains($response->headers->get('Content-Type', ''), 'text/html')) {
+        $contentType = strtolower($response->headers->get('Content-Type', ''));
+        if (is_string($content) && str_contains($contentType, 'text/html')) {
             // First, protect any already correct /img?p= links
             // Then replace uncorrected storage/ and uploads/ links
             $content = str_replace(['/storage/', 'storage/'], '/img?p=', $content);

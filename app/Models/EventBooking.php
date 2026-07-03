@@ -1,11 +1,14 @@
 <?php namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasSmartDecryption;
 
 class EventBooking extends Model
 {
+    use HasSmartDecryption;
+
     protected $table = 'event_bookings';
-    public $timestamps = false; // Legacy table uses created_at only (mostly)
+    public $timestamps = false; 
 
     protected $fillable = [
         'event_id', 'membership_no', 'adult_count', 'child_count', 
@@ -17,9 +20,7 @@ class EventBooking extends Model
     protected $casts = [
         'attendee_breakdown' => 'array',
         'check_in_at' => 'datetime',
-        'full_name' => 'encrypted',
-        'email'    => 'encrypted',
-        'phone'    => 'encrypted',
+        // No encrypted casts, the trait handles it dynamically
     ];
 
     public function event()

@@ -259,7 +259,7 @@
 
                         <div class="bg-slate-50/80 p-8 rounded-[2rem] border border-slate-100 mb-10 prose prose-sm max-h-60 overflow-y-auto shadow-inner">
                             <p class="font-bold text-primary mb-4">Terms & Conditions</p>
-                            <p class="text-slate-500 leading-relaxed text-xs">The membership fee is £5 per annum for both families and individuals. The year runs from January to December. Your data is protected under PMCC's privacy policy and used solely for community communication.</p>
+                            <p class="text-slate-500 leading-relaxed text-xs">{!! $settings['legal_terms_conditions'] ?? 'The membership fee is £5 per annum for both families and individuals. The year runs from January to December. Your data is protected under PMCC\'s privacy policy and used solely for community communication.' !!}</p>
                         </div>
 
                         <div class="p-6 bg-blue-50/50 rounded-2xl border border-blue-100 mb-10 flex items-start gap-4 cursor-pointer hover:bg-blue-50 transition-all select-none" onclick="document.getElementById('consent_check').click()">

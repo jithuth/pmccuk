@@ -9,7 +9,10 @@ class AdminAuthController extends Controller
     public function showLogin()
     {
         if (Auth::guard('admin')->check()) {
-            return redirect()->route('admin.dashboard');
+            $user = Auth::guard('admin')->user();
+            return $user->role === 'staff' 
+                ? redirect()->route('admin.staff.dashboard')
+                : redirect()->route('admin.dashboard');
         }
         return view('admin.login');
     }
@@ -39,6 +42,11 @@ class AdminAuthController extends Controller
         // No 2FA — log in directly
         Auth::guard('admin')->login($admin);
         $request->session()->regenerate();
+
+        if ($admin->role === 'staff') {
+            return redirect()->route('admin.staff.dashboard');
+        }
+
         return redirect()->intended(route('admin.dashboard'));
     }
 

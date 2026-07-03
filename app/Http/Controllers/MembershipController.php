@@ -1,4 +1,5 @@
-<?php namespace App\Http\Controllers;
+<?php
+namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 
@@ -13,6 +14,12 @@ class MembershipController extends Controller
     public function index()
     {
         return view('membership');
+    }
+
+    public function viewIdCard($guid)
+    {
+        $member = Member::where('guid', $guid)->firstOrFail();
+        return view('admin.members.print_card', compact('member'));
     }
 
     public function sendOtp(Request $request)
@@ -58,23 +65,26 @@ class MembershipController extends Controller
 
         // Generate OTP
         $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
-        
+
         Session::put('renewal_otp', $otp);
         Session::put('renewal_membership_no', $membership_no);
         Session::put('renewal_otp_time', time());
 
         try {
             Mail::to($email)->send(new OtpMail($member->full_name, $otp));
-            
-            // Mask email
+
+            // Mask email for UI privacy
             $parts = explode("@", $email);
-            $masked = substr($parts[0], 0, 2) . str_repeat("*", max(0, strlen($parts[0]) - 2)) . "@" . $parts[1];
+            $user_part = $parts[0];
+            $domain = $parts[1];
+            $masked_user = (strlen($user_part) <= 3) ? $user_part . "***" : substr($user_part, 0, 2) . "***" . substr($user_part, -1);
+            $masked = $masked_user . "@" . $domain;
 
             return response()->json(['success' => true, 'masked_email' => $masked]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Renewal Mail Error: " . $e->getMessage());
             return response()->json([
-                'success' => false, 
+                'success' => false,
                 'message' => 'Failed to send verification email. Please check SMTP settings.',
                 'debug' => $e->getMessage()
             ]);
@@ -143,7 +153,7 @@ class MembershipController extends Controller
         ]);
 
         $is_renewal = !empty($request->input('prev_membership_no'));
-        
+
         // 1. Photo Uploads
         $photo_filename = null;
         if ($request->hasFile('member_photo')) {
@@ -164,6 +174,7 @@ class MembershipController extends Controller
 
             // Create Renewal Request
             $renewal = \App\Models\RenewalRequest::create([
+                'created_at' => now(),
                 'member_id' => $existing_member->id,
                 'title' => $request->input('title'),
                 'full_name' => $request->input('full_name'),
@@ -247,10 +258,17 @@ class MembershipController extends Controller
 
         // Send Email (Mailable implementation)
         try {
+            \App\Models\ActivityLog::create([
+                'user_type' => 'guest',
+                'action' => 'membership_applied',
+                'details' => "Applied: {$request->input('full_name')} ({$request->input('email')})",
+                'ip_address' => $request->ip()
+            ]);
+
             \Illuminate\Support\Facades\Mail::to($request->input('email'))
                 ->send(new \App\Mail\MembershipSubmittedMail($request->input('full_name')));
         } catch (\Exception $e) {
-            // Log error but don't stop
+            \Illuminate\Support\Facades\Log::error("Email failed for {$request->input('email')}: " . $e->getMessage());
         }
 
         return redirect()->route('membership')->with('status', 'success');

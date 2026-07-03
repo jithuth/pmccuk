@@ -92,11 +92,22 @@
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="md:col-span-2">
+                                <div>
+                                    <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Email Address</label>
+                                    <input type="email" name="email" id="email" onkeyup="checkGuestEmail()" required
+                                        class="w-full bg-slate-50 border-0 rounded-xl px-6 py-4 focus:ring-2 focus:ring-primary transition-all text-slate-900 font-bold placeholder:text-slate-300">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Phone Number</label>
+                                    <input type="text" name="phone" id="phone"
+                                        class="w-full bg-slate-50 border-0 rounded-xl px-6 py-4 focus:ring-2 focus:ring-primary transition-all text-slate-900 font-bold placeholder:text-slate-300">
+                                </div>
+
+                                <div class="md:col-span-2 border-y border-slate-50 py-6 my-2">
                                     <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Verification Code (OTP)</label>
                                     <div class="relative flex gap-2">
                                         <div class="relative flex-1">
-                                            <input type="text" name="otp" id="otp" placeholder="Enter code"
+                                            <input type="text" name="otp" id="otp" placeholder="Check your email for code"
                                                 class="w-full bg-slate-50 border-0 rounded-xl px-6 py-4 focus:ring-2 focus:ring-primary transition-all text-slate-900 font-bold placeholder:text-slate-300">
                                             <button type="button" onclick="sendOTP()" id="otpBtn" class="absolute right-3 top-2 bottom-2 bg-slate-200 text-slate-600 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-colors">Send OTP</button>
                                         </div>
@@ -110,21 +121,11 @@
                                     <input type="text" name="full_name" id="full_name" required
                                         class="w-full bg-slate-50 border-0 rounded-xl px-6 py-4 focus:ring-2 focus:ring-primary transition-all text-slate-900 font-bold placeholder:text-slate-300">
                                 </div>
-                                <div>
-                                    <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Email Address</label>
-                                    <input type="email" name="email" id="email" required
-                                        class="w-full bg-slate-50 border-0 rounded-xl px-6 py-4 focus:ring-2 focus:ring-primary transition-all text-slate-900 font-bold placeholder:text-slate-300">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Phone Number</label>
-                                    <input type="text" name="phone" id="phone"
-                                        class="w-full bg-slate-50 border-0 rounded-xl px-6 py-4 focus:ring-2 focus:ring-primary transition-all text-slate-900 font-bold placeholder:text-slate-300">
-                                </div>
                             </div>
                         </div>
 
                         <!-- Step 2: Tickets -->
-                        <div class="mb-12">
+                        <div class="mb-12 transition-all" id="ticketSection">
                             <h3 class="text-xl font-bold text-slate-900 mb-6 flex items-center">
                                 <span class="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-sm mr-4 shadow-lg shadow-primary/20">2</span>
                                 Select Tickets
@@ -132,7 +133,7 @@
                             
                             <div class="space-y-4">
                                 @foreach($pricing as $p)
-                                <div class="ticket-row p-6 bg-slate-50 rounded-[1.5rem] flex items-center justify-between border border-transparent hover:border-slate-200 transition-all">
+                                <div class="ticket-row p-6 bg-slate-50 rounded-[1.5rem] flex items-center justify-between border border-transparent hover:border-slate-200 transition-all" data-name="{{ $p['name'] }}">
                                     <div>
                                         <p class="font-bold text-slate-900">{{ $p['name'] }}</p>
                                         <p class="text-sm font-bold text-primary">
@@ -180,23 +181,54 @@
         const field = document.getElementById('memberField');
         const prices = document.querySelectorAll('.price-val');
         const priceInputs = document.querySelectorAll('.actual-price-input');
+        const rows = document.querySelectorAll('.ticket-row');
+        
+        // Locking Section
+        const submitBtn = document.querySelector('button[type="submit"]');
+        const ticketSection = document.getElementById('ticketSection');
+        submitBtn.disabled = true;
+        submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        ticketSection.classList.add('opacity-40', 'pointer-events-none');
         
         if (isM) {
             field.classList.remove('hidden');
         } else {
             field.classList.add('hidden');
-            // Clear member data
-            document.getElementById('full_name').value = '';
+            document.getElementById('email').readOnly = false;
+            document.getElementById('full_name').readOnly = false;
             document.getElementById('email').value = '';
+            document.getElementById('full_name').value = '';
             document.getElementById('phone').value = '';
             document.getElementById('membership_no').value = '';
         }
 
-        prices.forEach((p, idx) => {
+        rows.forEach((row, idx) => {
+            const name = row.getAttribute('data-name').toLowerCase();
+            const p = prices[idx];
+            
+            // 1. Update Price
             const val = isM ? p.dataset.member : p.dataset.guest;
             p.innerText = val;
             priceInputs[idx].value = val;
+
+            // 2. Filter for Guests: Adults + Kids + Infants (EXCLUDE FAMILY)
+            if (!isM) {
+                const isAdult = name.includes('adult');
+                const isChild = name.includes('child') || name.includes('kids') || name.includes('kid');
+                const isInfant = name.includes('infant');
+                const isFamilyOrSponsor = name.includes('family') || name.includes('sponsor');
+                
+                if ((isAdult || isChild || isInfant) && !isFamilyOrSponsor) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                    row.querySelector('.qty-input').value = 0; 
+                }
+            } else {
+                row.classList.remove('hidden');
+            }
         });
+        
         calculateTotal();
     }
 
@@ -226,6 +258,23 @@
             searchTimer = setTimeout(() => {
                 verifyID();
             }, 800);
+        }
+    }
+
+    let emailTimer;
+    function checkGuestEmail() {
+        const isMember = document.querySelector('input[name="is_member"]:checked').value == '1';
+        if (isMember) return; // Only for guests
+        
+        const email = document.getElementById('email').value.trim();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
+        if (emailRegex.test(email)) {
+            clearTimeout(emailTimer);
+            emailTimer = setTimeout(() => {
+                // Only send if it's different from the last sent email
+                sendOTP();
+            }, 1000); // 1 second delay after they stop typing
         }
     }
 
@@ -381,6 +430,13 @@
                 msg.className = "mt-2 text-[10px] font-bold text-green-500";
                 msg.innerText = "✓ Identity Verified Successfully";
                 
+                // UNLOCK EVERYTHING
+                const submitBtn = document.querySelector('button[type="submit"]');
+                const ticketSection = document.getElementById('ticketSection');
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                ticketSection.classList.remove('opacity-40', 'pointer-events-none');
+
                 // Auto-fill full details
                 if (data.name) {
                     document.getElementById('full_name').value = data.name;

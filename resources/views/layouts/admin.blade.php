@@ -179,7 +179,12 @@
         <div class="sidebar">
             <nav class="mt-2 pb-3">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                    @php 
+                        $userRole = Auth::guard('admin')->user()->role ?? 'staff'; 
+                        $isAdmin = in_array($userRole, ['admin', 'superadmin']);
+                    @endphp
 
+                    @if($isAdmin)
                     <li class="nav-item">
                         <a href="{{ route('admin.dashboard') }}" class="nav-link {{ Route::is('admin.dashboard') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-tachometer-alt ic-green"></i>
@@ -198,8 +203,6 @@
                             <li class="nav-item"><a href="{{ route('admin.members.index') }}" class="nav-link {{ Route::is('admin.members.index') ? 'active' : '' }}"><i class="far fa-circle nav-icon ic-blue" style="font-size:7px;"></i><p>All Members</p></a></li>
                             <li class="nav-item"><a href="{{ route('admin.members.new') }}" class="nav-link {{ Route::is('admin.members.new') ? 'active' : '' }}"><i class="far fa-circle nav-icon ic-blue" style="font-size:7px;"></i><p>New Registrations</p></a></li>
                             <li class="nav-item"><a href="{{ route('admin.members.renewals') }}" class="nav-link {{ Route::is('admin.members.renewals') ? 'active' : '' }}"><i class="far fa-circle nav-icon ic-blue" style="font-size:7px;"></i><p>Renewals</p></a></li>
-                            <li class="nav-item"><a href="{{ route('admin.members.import') }}" class="nav-link {{ Route::is('admin.members.import') ? 'active' : '' }}"><i class="far fa-circle nav-icon ic-blue" style="font-size:7px;"></i><p>Bulk Import</p></a></li>
-                            <li class="nav-item"><a href="{{ route('admin.members.print-card') }}" class="nav-link {{ Route::is('admin.members.print-card') ? 'active' : '' }}"><i class="far fa-circle nav-icon ic-blue" style="font-size:7px;"></i><p>ID Card Generator</p></a></li>
                         </ul>
                     </li>
                     <li class="nav-item"><a href="{{ route('admin.messages') }}" class="nav-link {{ Route::is('admin.messages') ? 'active' : '' }}"><i class="nav-icon fas fa-envelope ic-violet"></i><p>User Inquiries</p></a></li>
@@ -217,7 +220,13 @@
                     <li class="nav-item"><a href="{{ route('admin.events.bookings') }}" class="nav-link {{ Route::is('admin.events.bookings') ? 'active' : '' }}"><i class="nav-icon fas fa-ticket-alt ic-orange"></i><p>Attendance Logs</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.events.fare-logic') }}" class="nav-link {{ Route::is('admin.events.fare-logic') ? 'active' : '' }}"><i class="nav-icon fas fa-tags ic-orange"></i><p>Fare Pricing</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.events.stats') }}" class="nav-link {{ Route::is('admin.events.stats') ? 'active' : '' }}"><i class="nav-icon fas fa-chart-bar ic-orange"></i><p>Event Analytics</p></a></li>
+                    @endif
 
+                    <!-- Staff Tool (Visible to all) -->
+                    <li class="nav-header text-primary fw-bold">GATE CONTROL</li>
+                    <li class="nav-item"><a href="{{ route('admin.staff.dashboard') }}" class="nav-link {{ Route::is('admin.staff.dashboard') ? 'active' : '' }}"><i class="nav-icon fas fa-qrcode ic-blue"></i><p>Counter Dashboard</p></a></li>
+
+                    @if($isAdmin)
                     <li class="nav-header">Sponsors</li>
                     <li class="nav-item"><a href="{{ route('admin.sponsors.offers') }}" class="nav-link {{ Route::is('admin.sponsors.offers') ? 'active' : '' }}"><i class="nav-icon fas fa-gift ic-pink"></i><p>Sponsor Offers</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.sponsors.redemptions') }}" class="nav-link {{ Route::is('admin.sponsors.redemptions') ? 'active' : '' }}"><i class="nav-icon fas fa-receipt ic-pink"></i><p>Redemptions</p></a></li>
@@ -229,7 +238,7 @@
                     <li class="nav-item"><a href="{{ route('admin.accounting') }}" class="nav-link {{ Route::is('admin.accounting') ? 'active' : '' }}"><i class="nav-icon fas fa-wallet ic-yellow"></i><p>Financials</p></a></li>
 
                     <li class="nav-header">System</li>
-                    <li class="nav-item"><a href="{{ route('admin.2fa.setup') }}" class="nav-link {{ Route::is('admin.2fa.*') ? 'active' : '' }}"><i class="nav-icon fas fa-qrcode ic-green"></i><p>2FA Security <span class="badge badge-success badge-pill ml-1" style="font-size:9px;">NEW</span></p></a></li>
+                    <li class="nav-item"><a href="{{ route('admin.2fa.setup') }}" class="nav-link {{ Route::is('admin.2fa.*') ? 'active' : '' }}"><i class="nav-icon fas fa-qrcode ic-green"></i><p>2FA Security</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.email-settings') }}" class="nav-link {{ Route::is('admin.email-settings') ? 'active' : '' }}"><i class="nav-icon fas fa-at ic-slate"></i><p>Email Settings</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.config.settings') }}" class="nav-link {{ Route::is('admin.config.settings') ? 'active' : '' }}"><i class="nav-icon fas fa-cog ic-slate"></i><p>Global Settings</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.security-audit') }}" class="nav-link {{ Route::is('admin.security-audit') ? 'active' : '' }}"><i class="nav-icon fas fa-shield-alt ic-slate"></i><p>Security Audit</p></a></li>
@@ -240,6 +249,15 @@
                     <li class="nav-item"><a href="{{ route('admin.config.legal') }}" class="nav-link {{ Route::is('admin.config.legal') ? 'active' : '' }}"><i class="nav-icon fas fa-gavel ic-slate"></i><p>Legal Policy</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.config.db-logs') }}" class="nav-link {{ Route::is('admin.config.db-logs') ? 'active' : '' }}"><i class="nav-icon fas fa-database ic-slate"></i><p>DB Logs</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.config.ip-tool') }}" class="nav-link {{ Route::is('admin.config.ip-tool') ? 'active' : '' }}"><i class="nav-icon fas fa-network-wired ic-slate"></i><p>IP Tool</p></a></li>
+                    @if(auth('admin')->user()->username === 'superadmin')
+                    <li class="nav-item">
+                        <a href="{{ route('admin.config.terminal') }}" class="nav-link {{ Route::is('admin.config.terminal') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-terminal text-danger"></i>
+                            <p class="text-danger fw-bold">System Terminal</p>
+                        </a>
+                    </li>
+                    @endif
+                    @endif
 
                     <li class="nav-header">ACCOUNT</li>
                     <li class="nav-item">

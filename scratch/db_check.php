@@ -4,9 +4,7 @@ $app = require_once __DIR__ . '/../bootstrap/app.php';
 $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
-$tables = DB::select('SHOW TABLES');
-foreach($tables as $t) {
-    foreach($t as $k=>$v) {
-        echo "TABLE: " . $v . "\n";
-    }
+$types = DB::select('SELECT DISTINCT membership_type FROM members');
+foreach($types as $t) {
+    echo "TYPE: " . $t->membership_type . "\n";
 }

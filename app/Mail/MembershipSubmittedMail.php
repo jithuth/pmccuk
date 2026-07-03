@@ -1,9 +1,7 @@
 <?php namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
@@ -12,12 +10,14 @@ class MembershipSubmittedMail extends Mailable
 {
     use Queueable, SerializesModels;
 
+    public $full_name;
+
     /**
      * Create a new message instance.
      */
-    public function __construct()
+    public function __construct($full_name)
     {
-        //
+        $this->full_name = $full_name;
     }
 
     /**
@@ -26,7 +26,7 @@ class MembershipSubmittedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Membership Submitted Mail',
+            subject: 'Membership Application Received - PMCC-UK',
         );
     }
 
@@ -36,14 +36,12 @@ class MembershipSubmittedMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'view.name',
+            view: 'emails.membership_submitted',
         );
     }
 
     /**
      * Get the attachments for the message.
-     *
-     * @return array<int, Attachment>
      */
     public function attachments(): array
     {

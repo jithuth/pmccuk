@@ -85,7 +85,17 @@ class DashboardController extends Controller
     public function updateMember(Request $request, $id)
     {
         $member = Member::withTrashed()->findOrFail($id);
+        
+        // Validation to prevent null violations
+        $request->validate([
+            'title' => 'required',
+            'full_name' => 'required',
+        ]);
+
         $data = $request->all();
+
+        // Ensure title is never null if it somehow bypassed validation or was sent as empty
+        $data['title'] = $request->input('title', $member->title) ?: 'Mr';
 
         if ($request->hasFile('member_photo')) {
             $data['photo'] = $request->file('member_photo')->store('photos', 'public');
@@ -157,6 +167,31 @@ class DashboardController extends Controller
         return view('admin.members.renewals', compact('renewals'));
     }
 
+    public function getRenewalDetails($id)
+    {
+        $renewal = RenewalRequest::with(['member', 'children'])->findOrFail($id);
+
+        // Prepare data for JSON with decryption
+        $data = $renewal->toArray();
+
+        // Force decrypt sensitive fields for the UI
+        $fieldsToDecrypt = ['full_name', 'email', 'mobile_number', 'house_details', 'spouse_name', 'spouse_mobile', 'spouse_dob', 'post_code', 'emergency_name', 'emergency_mobile'];
+        foreach ($fieldsToDecrypt as $field) {
+            if (!empty($renewal->$field)) {
+                $data[$field] = $renewal->$field; // Trigger the Trait's getAttribute
+            }
+        }
+
+        // Add proper URLs for photos (Now handled by Model accessors)
+        $data['photo_url'] = $renewal->photo_url;
+        $data['family_photo_url'] = $renewal->family_photo_url;
+
+        // Ensure amount is numeric for JS
+        $data['payment_amount'] = (float) $renewal->payment_amount;
+
+        return response()->json($data);
+    }
+
     public function approveRenewal(Request $request, $id)
     {
         $renewal = RenewalRequest::findOrFail($id);
@@ -179,6 +214,12 @@ class DashboardController extends Controller
 
         $updateData['expiry_date'] = $newExpiry;
         $updateData['status'] = 'active';
+
+        // Auto-Repair GUID if missing
+        if (empty($member->guid)) {
+            $updateData['guid'] = (string) \Illuminate\Support\Str::uuid();
+        }
+
         $updateData['payment_amount'] = $amount;
         $updateData['transaction_ref'] = $transRef;
         $updateData['payment_date'] = $today;
@@ -204,6 +245,15 @@ class DashboardController extends Controller
             'transaction_ref' => $transRef,
             'expiry_date' => $newExpiry
         ]);
+
+        // Automated ID Card Delivery
+        if (!empty($member->email)) {
+            try {
+                Mail::to($member->email)->send(new MemberIdCardEmail($member));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("ID Card Mail Failed on Renewal: " . $e->getMessage());
+            }
+        }
 
         // Record financial transaction
         FinancialTransaction::create([
@@ -259,6 +309,13 @@ class DashboardController extends Controller
         $periodInc = FinancialTransaction::whereBetween('transaction_date', [$dFrom, $dTo])->where('type', 'income')->sum('amount');
         $periodExp = FinancialTransaction::whereBetween('transaction_date', [$dFrom, $dTo])->where('type', 'expense')->sum('amount');
 
+        // Category Breakdown for Pie Chart
+        $catStats = FinancialTransaction::where('type', 'income')
+            ->whereBetween('transaction_date', [$dFrom, $dTo])
+            ->selectRaw('category, SUM(amount) as total')
+            ->groupBy('category')
+            ->get();
+
         // Chart Data (Last 12 days)
         $chartLabels = [];
         $chartInc = [];
@@ -282,8 +339,184 @@ class DashboardController extends Controller
             'chartExp',
             'allCats',
             'dFrom',
-            'dTo'
+            'dTo',
+            'catStats'
         ));
+    }
+
+    public function syncFinancials()
+    {
+        $this->ensureSuperAdmin();
+        $count = 0;
+
+        // 1. Sync Approved Event Bookings
+        $bookings = \App\Models\EventBooking::where('booking_status', 'approved')->get();
+        foreach ($bookings as $b) {
+            $exists = FinancialTransaction::where('ref_no', "EVT-{$b->id}")->exists();
+            if ($exists)
+                continue;
+
+            $rawDate = $b->updated_at ?? $b->created_at ?? now();
+            $carbonDate = ($rawDate instanceof Carbon) ? $rawDate : Carbon::parse($rawDate);
+
+            // Deep Check: Does any record exist with same amount on same date for this member?
+            $alreadyRecorded = FinancialTransaction::where('amount', $b->total_amount)
+                ->where('transaction_date', $carbonDate->format('Y-m-d'))
+                ->where('description', 'LIKE', "%{$b->full_name}%")
+                ->exists();
+
+            if (!$alreadyRecorded && $b->total_amount > 0) {
+                FinancialTransaction::create([
+                    'type' => 'income',
+                    'category' => 'Event Ticket',
+                    'amount' => $b->total_amount,
+                    'transaction_date' => $carbonDate->format('Y-m-d'),
+                    'description' => "RECONCILED: Event Booking for {$b->full_name} ({$b->event->title})",
+                    'payment_method' => 'Online/Bank',
+                    'ref_no' => "EVT-{$b->id}"
+                ]);
+                $count++;
+            }
+        }
+
+        // 2. Sync Approved Renewals
+        $renewals = RenewalRequest::where('status', 'approved')->get();
+        foreach ($renewals as $r) {
+            $exists = FinancialTransaction::where('ref_no', "REN-{$r->id}")->exists();
+            if ($exists)
+                continue;
+
+            $rawDate = $r->updated_at ?? $r->created_at ?? now();
+            $carbonDate = ($rawDate instanceof Carbon) ? $rawDate : Carbon::parse($rawDate);
+
+            // Deep Check for Membership Fees
+            $alreadyRecorded = FinancialTransaction::where('amount', $r->payment_amount)
+                ->where('transaction_date', $carbonDate->format('Y-m-d'))
+                ->where('description', 'LIKE', "%{$r->full_name}%")
+                ->exists();
+
+            if (!$alreadyRecorded && $r->payment_amount > 0) {
+                FinancialTransaction::create([
+                    'type' => 'income',
+                    'category' => 'Membership Fee',
+                    'amount' => $r->payment_amount,
+                    'transaction_date' => $carbonDate->format('Y-m-d'),
+                    'description' => "RECONCILED: Membership Renewal for {$r->full_name}",
+                    'payment_method' => 'Bank Transfer',
+                    'ref_no' => "REN-{$r->id}"
+                ]);
+                $count++;
+            }
+        }
+
+        return redirect()->back()->with('success', "Financial reconciliation complete. $count missing records synchronized.");
+    }
+
+    public function revokeReconciliation()
+    {
+        $this->ensureSuperAdmin();
+        $count = FinancialTransaction::where('description', 'LIKE', 'RECONCILED:%')->delete();
+        return redirect()->back()->with('success', "Revoke complete. $count reconciled entries removed from the master ledger.");
+    }
+
+    public function exportTransactions(Request $request)
+    {
+        $this->ensureSuperAdmin();
+        $dFrom = $request->input('from', now()->startOfMonth()->format('Y-m-d'));
+        $dTo = $request->input('to', now()->endOfMonth()->format('Y-m-d'));
+        $fType = $request->input('f_type');
+        $fCat = $request->input('f_cat');
+
+        $query = FinancialTransaction::whereBetween('transaction_date', [$dFrom, $dTo]);
+        if ($fType)
+            $query->where('type', $fType);
+        if ($fCat)
+            $query->where('category', $fCat);
+
+        $transactions = $query->orderBy('transaction_date', 'asc')->get();
+
+        $fileName = 'PMCC-Financial-Report-' . date('Y-m-d') . '.csv';
+        $headers = [
+            "Content-type" => "text/csv",
+            "Content-Disposition" => "attachment; filename=$fileName",
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
+        ];
+
+        $columns = ['Date', 'Type', 'Category', 'Description', 'Method', 'Amount (£)'];
+
+        $callback = function () use ($transactions, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            foreach ($transactions as $t) {
+                fputcsv($file, [
+                    $t->transaction_date,
+                    strtoupper($t->type),
+                    $t->category,
+                    $t->description,
+                    $t->payment_method,
+                    number_format($t->amount, 2, '.', '')
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function storeTransaction(Request $request)
+    {
+        $this->ensureSuperAdmin();
+        $request->validate([
+            'type' => 'required|in:income,expense',
+            'category' => 'required|string|max:100',
+            'amount' => 'required|numeric|min:0.01',
+            'transaction_date' => 'required|date',
+            'payment_method' => 'nullable|string|max:100',
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        FinancialTransaction::create($request->all());
+
+        return redirect()->route('admin.accounting')
+            ->with('success', 'Transaction successfully logged to the master ledger.');
+    }
+
+    public function getTransactionDetails($id)
+    {
+        $this->ensureSuperAdmin();
+        $t = FinancialTransaction::findOrFail($id);
+        return response()->json($t);
+    }
+
+    public function updateTransaction(Request $request, $id)
+    {
+        $this->ensureSuperAdmin();
+        $t = FinancialTransaction::findOrFail($id);
+
+        $request->validate([
+            'type' => 'required|in:income,expense',
+            'category' => 'required|string|max:100',
+            'amount' => 'required|numeric|min:0.01',
+            'transaction_date' => 'required|date',
+            'payment_method' => 'nullable|string|max:100',
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        $t->update($request->all());
+
+        return redirect()->route('admin.accounting')
+            ->with('success', 'Entry updated in the master ledger.');
+    }
+
+    public function deleteTransaction($id)
+    {
+        $this->ensureSuperAdmin();
+        FinancialTransaction::findOrFail($id)->delete();
+
+        return redirect()->route('admin.accounting')
+            ->with('success', 'Transaction entry permanently removed from ledger.');
     }
 
     public function printIdCard($id = null)
@@ -308,6 +541,11 @@ class DashboardController extends Controller
     public function sendCardEmail($id)
     {
         $member = Member::findOrFail($id);
+
+        if (empty($member->guid)) {
+            $member->guid = (string) \Illuminate\Support\Str::uuid();
+            $member->save();
+        }
 
         if (empty($member->email)) {
             return back()->with('error', 'Member does not have an email address.');
@@ -337,14 +575,21 @@ class DashboardController extends Controller
         $expiryDate = Carbon::now()->addYears($yearsDiff)->subDay()->format('Y-m-d');
 
         // Update member
-        $member->update([
+        $member_update = [
             'status' => 'active',
             'membership_id_assigned' => $membershipNo,
             'payment_amount' => $amount,
             'transaction_ref' => $transRef,
             'expiry_date' => $expiryDate,
             'payment_date' => Carbon::now()->format('Y-m-d')
-        ]);
+        ];
+
+        // Auto-Repair GUID if missing
+        if (empty($member->guid)) {
+            $member_update['guid'] = (string) \Illuminate\Support\Str::uuid();
+        }
+
+        $member->update($member_update);
 
         // Record financial transaction
         FinancialTransaction::create([
@@ -367,6 +612,15 @@ class DashboardController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent()
         ]);
+
+        // Automated ID Card Delivery
+        if (!empty($member->email)) {
+            try {
+                Mail::to($member->email)->send(new MemberIdCardEmail($member));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("ID Card Mail Failed on New Approval: " . $e->getMessage());
+            }
+        }
 
         return redirect()->back()->with('success', 'Member approved successfully.');
     }
@@ -504,13 +758,47 @@ class DashboardController extends Controller
         }
 
         News::create([
-            'title' => $request->title,
-            'content' => $request->content,
+            'title' => $request->input('title'),
+            'content' => $request->input('content'),
             'image_url' => $imageUrl,
-            'status' => $request->status
+            'status' => $request->input('status'),
+            'created_at' => now()
         ]);
 
         return redirect()->route('admin.news')->with('success', 'Article published successfully!');
+    }
+
+    public function getNewsDetails($id)
+    {
+        $n = News::findOrFail($id);
+        return response()->json($n);
+    }
+
+    public function updateNews(Request $request, $id)
+    {
+        $n = News::findOrFail($id);
+        $request->validate([
+            'title' => 'required|max:255',
+            'content' => 'required',
+            'status' => 'required|in:published,draft'
+        ]);
+
+        $imageUrl = $n->image_url;
+        if ($request->hasFile('news_image')) {
+            $path = $request->file('news_image')->store('news', 'public');
+            $imageUrl = $path;
+        } elseif ($request->filled('image_url')) {
+            $imageUrl = $request->input('image_url');
+        }
+
+        $n->update([
+            'title' => $request->input('title'),
+            'content' => $request->input('content'),
+            'image_url' => $imageUrl,
+            'status' => $request->input('status')
+        ]);
+
+        return redirect()->route('admin.news')->with('success', 'Article updated successfully!');
     }
 
     public function deleteNews($id)
@@ -520,25 +808,41 @@ class DashboardController extends Controller
         return redirect()->route('admin.news')->with('success', 'Article deleted.');
     }
 
-    public function updateNews(Request $request, $id)
+    public function terminal()
     {
-        $n = News::findOrFail($id);
-        $request->validate(['title' => 'required', 'content' => 'required']);
+        if (auth('admin')->user()->username !== 'superadmin') {
+            abort(403, 'Unauthorized access to system terminal.');
+        }
+        return view('admin.config.terminal');
+    }
 
-        $imageUrl = $request->input('image_url', $n->image_url);
-        if ($request->hasFile('news_image')) {
-            $path = $request->file('news_image')->store('news', 'public');
-            $imageUrl = $path;
+    public function runTerminalCommand(Request $request)
+    {
+        if (auth('admin')->user()->username !== 'superadmin') {
+            return response()->json(['output' => 'FATAL: Unauthorized access attempted.'], 403);
         }
 
-        $n->update([
-            'title' => $request->title,
-            'content' => $request->content,
-            'image_url' => $imageUrl,
-            'status' => $request->status
-        ]);
+        $command = trim($request->input('command'));
+        
+        // Anti-Destructive patterns check
+        $destructive = ['migrate:fresh', 'db:wipe', 'key:generate'];
+        foreach($destructive as $d) {
+            if (str_contains($command, $d)) {
+                return response()->json(['output' => "ERROR: Command '$d' is strictly prohibited via web terminal for safety."]);
+            }
+        }
 
-        return redirect()->route('admin.news')->with('success', 'Article updated.');
+        try {
+            // Clean common prefixes
+            $artisanCmd = str_replace(['php artisan ', 'artisan '], '', $command);
+            
+            \Illuminate\Support\Facades\Artisan::call($artisanCmd);
+            $output = \Illuminate\Support\Facades\Artisan::output();
+            
+            return response()->json(['output' => $output ?: 'Command executed successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['output' => "FATAL ERROR:\n" . $e->getMessage()]);
+        }
     }
 
     // --- EVENTS ---
@@ -606,6 +910,10 @@ class DashboardController extends Controller
     public function updateEvent(Request $request, $id)
     {
         $event = Event::findOrFail($id);
+        $request->validate([
+            'title' => 'required|max:255',
+            'event_date' => 'required|date'
+        ]);
 
         $imageUrl = $request->input('image_url', $event->image_url);
         if ($request->hasFile('event_image')) {
@@ -614,18 +922,18 @@ class DashboardController extends Controller
         }
 
         $event->update([
-            'title' => $request->title,
-            'description' => $request->description,
-            'event_date' => $request->event_date,
-            'location' => $request->location,
+            'title' => $request->input('title'),
+            'description' => $request->input('description'),
+            'event_date' => $request->input('event_date'),
+            'location' => $request->input('location'),
             'image_url' => $imageUrl,
-            'rubric_id' => $request->rubric_id,
+            'rubric_id' => $request->input('rubric_id'),
             'allow_guest_packages' => $request->has('allow_guest_packages') ? 1 : 0
         ]);
 
         if ($request->has('prices')) {
             EventPrice::where('event_id', $event->id)->delete();
-            foreach ($request->prices as $catId => $p) {
+            foreach ($request->input('prices') as $catId => $p) {
                 EventPrice::create([
                     'event_id' => $event->id,
                     'category_id' => $catId,
@@ -636,7 +944,7 @@ class DashboardController extends Controller
             }
         }
 
-        return redirect()->route('admin.events.index')->with('success', 'Event updated successfully!');
+        return redirect()->route('admin.events.index')->with('success', 'Event architecture updated successfully!');
     }
     public function deleteEvent($id)
     {
@@ -650,13 +958,93 @@ class DashboardController extends Controller
     {
         return view('admin.events.bookings');
     }
-    public function fareLogic()
-    {
-        return view('admin.events.fare_logic');
-    }
+
     public function eventStats()
     {
-        return view('admin.events.stats');
+        $events = Event::orderBy('event_date', 'desc')->get();
+        $allBookings = EventBooking::all();
+
+        $global = [
+            'total_revenue' => $allBookings->where('booking_status', 'approved')->sum('paid_amount'),
+            'checked_in' => $allBookings->where('booking_status', 'approved')->count(),
+            'pending_approval' => $allBookings->where('booking_status', 'pending')->count(),
+            'total_bookings' => $allBookings->count(),
+        ];
+
+        $stats = [];
+        foreach ($events as $event) {
+            $bookings = EventBooking::where('event_id', $event->id)->where('booking_status', 'approved')->get();
+            $stats[] = [
+                'event' => $event,
+                'total_bookings' => EventBooking::where('event_id', $event->id)->count(),
+                'confirmed_bookings' => $bookings->count(),
+                'adults' => $bookings->sum('adult_count'),
+                'children' => $bookings->sum('child_count'),
+                'infants' => $bookings->sum('infant_count'),
+                'total_revenue' => $bookings->sum('paid_amount'),
+            ];
+        }
+
+        return view('admin.events.stats', compact('global', 'stats'));
+    }
+
+    public function fareLogic()
+    {
+        $categories = FareCategory::orderBy('id')->get();
+        $rubrics = FareRubric::with('items.category')->orderBy('id')->get();
+        return view('admin.events.fare_logic', compact('categories', 'rubrics'));
+    }
+
+    public function saveFareCategory(Request $request)
+    {
+        $request->validate(['name' => 'required|max:255']);
+        if ($request->id) {
+            FareCategory::findOrFail($request->id)->update(['name' => $request->name]);
+        } else {
+            FareCategory::create(['name' => $request->name]);
+        }
+        return back()->with('success', 'Fare category saved!');
+    }
+
+    public function deleteFareCategory($id)
+    {
+        FareCategory::findOrFail($id)->delete();
+        return back()->with('success', 'Fare category removed.');
+    }
+
+    public function saveFareRubric(Request $request)
+    {
+        $request->validate(['name' => 'required|max:255']);
+        
+        if ($request->id) {
+            $rubric = FareRubric::findOrFail($request->id);
+            $rubric->update(['name' => $request->name]);
+        } else {
+            $rubric = FareRubric::create(['name' => $request->name]);
+        }
+
+        // Sync items
+        if ($request->has('items')) {
+            FareRubricItem::where('rubric_id', $rubric->id)->delete();
+            foreach ($request->items as $catId => $prices) {
+                FareRubricItem::create([
+                    'rubric_id' => $rubric->id,
+                    'category_id' => $catId,
+                    'member_price' => $prices['member'] ?? 0,
+                    'guest_price' => $prices['guest'] ?? 0
+                ]);
+            }
+        }
+
+        return back()->with('success', 'Pricing rubric saved!');
+    }
+
+    public function deleteFareRubric($id)
+    {
+        $rubric = FareRubric::findOrFail($id);
+        $rubric->items()->delete();
+        $rubric->delete();
+        return back()->with('success', 'Pricing rubric removed.');
     }
 
     // --- SPONSORS ---
@@ -666,7 +1054,7 @@ class DashboardController extends Controller
         $adminId = Auth::guard('admin')->id();
 
         $query = SponsorOffer::withCount('redemptions');
-        if ($role !== 'admin') {
+        if ($role !== 'admin' && $role !== 'superadmin') {
             $query->where('admin_id', $adminId);
         }
         $offers = $query->orderBy('order_no')->paginate(20);
@@ -763,7 +1151,8 @@ class DashboardController extends Controller
     public function accessControl(Request $request)
     {
         $this->ensureSuperAdmin();
-        $admins = \App\Models\Admin::orderBy('id')->get();
+        $existingCount = Admin::where('username', 'superadmin')->count();
+        $admins = Admin::orderBy('id')->get();
         return view('admin.system.admins', compact('admins'));
     }
 
@@ -772,16 +1161,16 @@ class DashboardController extends Controller
         $this->ensureSuperAdmin();
         $request->validate([
             'username' => 'required|unique:admins,username|max:60',
-            'email'    => 'nullable|email|unique:admins,email|max:120',
-            'role'     => 'required|in:admin,superadmin',
+            'email' => 'nullable|email|unique:admins,email|max:120',
+            'role' => 'required|in:admin,superadmin,staff',
             'password' => 'required|confirmed|min:8',
         ]);
 
-        \App\Models\Admin::create([
-            'username' => $request->username,
-            'email'    => $request->email,
-            'role'     => $request->role,
-            'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+        Admin::create([
+            'username' => $request->input('username'),
+            'email' => $request->input('email'),
+            'role' => $request->input('role'),
+            'password' => Hash::make($request->password),
         ]);
 
         return redirect()->route('admin.access-control')
@@ -801,6 +1190,23 @@ class DashboardController extends Controller
             ->with('success', "Admin account '{$admin->username}' has been removed.");
     }
 
+    public function updateAdmin(Request $request, $id)
+    {
+        $this->ensureSuperAdmin();
+        $admin = \App\Models\Admin::findOrFail($id);
+
+        $request->validate([
+            'username' => 'required|max:60|unique:admins,username,' . $id,
+            'email' => 'nullable|email|max:120|unique:admins,email,' . $id,
+            'role' => 'required|in:admin,superadmin,staff',
+        ]);
+
+        $admin->update($request->only(['username', 'email', 'role']));
+
+        return redirect()->route('admin.access-control')
+            ->with('success', "Admin account '{$admin->username}' updated successfully.");
+    }
+
     public function updateAdminPassword(Request $request, $id)
     {
         $this->ensureSuperAdmin();
@@ -808,8 +1214,8 @@ class DashboardController extends Controller
             'password' => 'required|confirmed|min:8',
         ]);
 
-        $admin = \App\Models\Admin::findOrFail($id);
-        $admin->password = \Illuminate\Support\Facades\Hash::make($request->password);
+        $admin = Admin::findOrFail($id);
+        $admin->password = Hash::make($request->password);
         $admin->save();
 
         return redirect()->route('admin.access-control')
@@ -862,7 +1268,7 @@ class DashboardController extends Controller
     public function fileExplorer(Request $request)
     {
         $this->ensureSuperAdmin();
-        $subPath = $request->get('path', '');
+        $subPath = $request->input('path', '');
         // Security check: No parent directory traversal
         if (str_contains($subPath, '..')) {
             $subPath = '';
@@ -926,9 +1332,52 @@ class DashboardController extends Controller
     {
         return view('admin.config.repair');
     }
+    public function runSystemRepair(Request $request)
+    {
+        $action = $request->input('action');
+        
+        $validActions = [
+            'cache' => 'cache:clear',
+            'config' => 'config:clear',
+            'route' => 'route:clear',
+            'view' => 'view:clear',
+            'optimize' => 'optimize:clear',
+            'storage' => 'storage:link',
+        ];
+
+        if ($action === 'migrate') {
+            if (auth('admin')->user()->username !== 'superadmin') {
+                return back()->with('error', 'Only the SuperAdmin can execute database migrations.');
+            }
+            try {
+                \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+                $output = \Illuminate\Support\Facades\Artisan::output();
+                return back()->with('success', 'Database migrations executed successfully: ' . $output);
+            } catch (\Exception $e) {
+                return back()->with('error', 'Migration Failed: ' . $e->getMessage());
+            }
+        }
+
+        if (!array_key_exists($action, $validActions)) {
+            return back()->with('error', 'Invalid repair action specified.');
+        }
+
+        try {
+            \Illuminate\Support\Facades\Artisan::call($validActions[$action]);
+            $output = \Illuminate\Support\Facades\Artisan::output();
+            return back()->with('success', 'Repair task executed: ' . ($output ?: 'Success'));
+        } catch (\Exception $e) {
+            return back()->with('error', 'Task Failed: ' . $e->getMessage());
+        }
+    }
     public function legal()
     {
-        return view('admin.config.legal');
+        $settings_raw = Setting::all();
+        $settings = [];
+        foreach ($settings_raw as $s) {
+            $settings[$s->setting_key] = $s->setting_value;
+        }
+        return view('admin.config.legal', compact('settings'));
     }
     public function dbLogs()
     {
@@ -974,9 +1423,9 @@ class DashboardController extends Controller
     public function testEmailConnection(Request $request)
     {
         $request->validate(['test_email' => 'required|email']);
-        
+
         $email = $request->test_email;
-        
+
         try {
             // Apply the current request settings temporarily to the config for this test
             config([

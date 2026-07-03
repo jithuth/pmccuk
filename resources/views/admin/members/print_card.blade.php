@@ -123,17 +123,13 @@
             margin-bottom: 2px;
         }
         .location-info {
-            font-size: 12px;
+            font-size: 10px;
             color: #455a64;
             font-weight: 600;
             margin-top: 10px;
             max-width: 350px;
             line-height: 1.3;
             word-wrap: break-word;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
             text-transform: uppercase;
         }
         .card-footer {
@@ -183,6 +179,10 @@
             .no-print { display: none !important; }
         }
     </style>
+    @php
+        $settings = \App\Models\Setting::pluck('setting_value', 'setting_key')->toArray();
+        $site_logo = !empty($settings['site_logo']) ? asset('storage/' . $settings['site_logo']) : 'https://pmccuk.org/assets/img/logo.png';
+    @endphp
 </head>
 <body>
     @php
@@ -198,7 +198,7 @@
 
     <div class="card">
         <div class="card-header-stripe">
-            <img src="{{ asset('assets/img/pmcc_logo.png') }}" onerror="this.src='https://placehold.co/60x60?text=PMCC'" class="org-logo" alt="Logo">
+            <img src="{{ $site_logo }}" onerror="this.src='https://placehold.co/60x60?text=PMCC'" class="org-logo" alt="Logo">
             <div class="org-name">
                 Plymouth Malayalee<br>Cultural Community
                 <div class="org-tagline">THE POWER OF UNITY</div>

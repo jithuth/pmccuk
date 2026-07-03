@@ -16,42 +16,49 @@ use App\Http\Controllers\BookingController;
 use App\Http\Controllers\Admin\EventBookingController;
 
 // 🚨 SYSTEM-LEVEL ASSET FAILSAFE (MUST BE TOP)
-Route::get('/img', function() {
+Route::get('/img', function () {
     $p = request('p');
-    if (!$p) return "Missing 'p' parameter.";
-    
+    if (!$p)
+        return "Missing 'p' parameter.";
+
     // 🛡️ Clean up path from double-prefixes
     $p = str_replace(['img?p=', 'storage/', '/storage/', 'uploads/'], '', $p);
     $p = ltrim($p, '/');
 
     $f = storage_path('app/public/' . $p);
-    if (!file_exists($f)) $f = storage_path('app/public/cms/' . $p);
-    if (!file_exists($f)) $f = storage_path('app/public/photos/' . $p);
-    if (!file_exists($f)) $f = storage_path('app/public/uploads/' . $p);
-    
-    if (!file_exists($f) || is_dir($f)) return "File not found at: $f";
+    if (!file_exists($f))
+        $f = storage_path('app/public/cms/' . $p);
+    if (!file_exists($f))
+        $f = storage_path('app/public/photos/' . $p);
+    if (!file_exists($f))
+        $f = storage_path('app/public/uploads/' . $p);
+
+    if (!file_exists($f) || is_dir($f))
+        return "File not found at: $f";
     return response()->file($f);
 });
 
 // 🟢 TOP PRIORITY: UNIVERSAL ASSET INTERCEPTOR (Bypassing server blocks)
 Route::any('{any_prefix?}/{media_type}/{path}', function ($prefix, $type, $path) {
-    if (!in_array($type, ['media', 'storage', 'uploads', 'cdn'])) return abort(404);
+    if (!in_array($type, ['media', 'storage', 'uploads', 'cdn']))
+        return abort(404);
     $searchPaths = [
         storage_path('app/public/' . $path),
         storage_path('app/public/cms/' . $path),
         storage_path('app/public/uploads/' . $path),
         storage_path('app/public/photos/' . $path),
-        storage_path($path), 
+        storage_path($path),
     ];
     foreach ($searchPaths as $fullPath) {
-        if (file_exists($fullPath) && !is_dir($fullPath)) return response()->file($fullPath);
+        if (file_exists($fullPath) && !is_dir($fullPath))
+            return response()->file($fullPath);
     }
     return abort(404);
 })->where('any_prefix', 'public|.*')->where('media_type', 'media|storage|uploads|cdn')->where('path', '.*');
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-Route::get('/path-debug', function() {
+Route::get('/path-debug', function () {
     $paths = [
         'public_path' => public_path(),
         'base_path' => base_path(),
@@ -63,22 +70,118 @@ Route::get('/path-debug', function() {
     return response()->json($paths);
 });
 
-Route::get('/fix-storage', function() {
+Route::get('/fix-storage', function () {
     try {
-        $path = public_path('storage');
-        if (file_exists($path)) {
-            if (is_link($path) || is_file($path)) unlink($path);
-            else if (is_dir($path)) rename($path, $path . '_bak_' . time());
+        $publicPath = public_path('storage');
+        $msg = "";
+
+        // 1. Remove the "Blocker" (Aggressive Mode)
+        if (file_exists($publicPath)) {
+            if (!is_link($publicPath)) {
+                $backup = $publicPath . '_bak_' . time();
+                if (@rename($publicPath, $backup)) {
+                    $msg .= "Success: Moved blocker folder to backup. ";
+                } else {
+                    @unlink($publicPath); // Try deleting if it's a file
+                    @rmdir($publicPath);  // Try deleting if it's an empty dir
+                    $msg .= "Attempted removal of blocker folder. ";
+                }
+            } else {
+                $msg .= "Existing symlink removed for Interceptor. ";
+                @unlink($publicPath);
+            }
         }
-        $target = storage_path('app/public');
-        if (@symlink($target, $path)) return "SUCCESS: Link created!";
-        return "FAILED: Symlink refused. Use /path-debug to see why.";
+
+        // 2. Fix Permissions & Create Folders (CRITICAL FOR 419 ERRORS)
+        $folders = [
+            storage_path('app/public/photos'),
+            storage_path('app/public/cms'),
+            storage_path('framework/sessions'),
+            storage_path('framework/views'),
+            storage_path('framework/cache'),
+            storage_path('framework/cache/data'),
+            storage_path('logs'),
+        ];
+
+        foreach ($folders as $f) {
+            if (!file_exists($f)) {
+                @mkdir($f, 0775, true);
+            }
+            @chmod($f, 0775);
+        }
+
+        // 3. Clear sessions and Vite hot file
+        $msg .= "Sessions cleared. ";
+        $sessionPath = storage_path('framework/sessions');
+        $files = glob($sessionPath . '/*');
+        foreach ($files as $file) {
+            if (is_file($file))
+                @unlink($file);
+        }
+
+        $hotFile = public_path('hot');
+        if (file_exists($hotFile)) {
+            @unlink($hotFile);
+            $msg .= "Removed Vite 'hot' file. ";
+        }
+
+        // 4. Clear Blade & Config Cache (Force Production Mode)
+        \Illuminate\Support\Facades\Artisan::call('view:clear');
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        $msg .= "Site cache cleared. ";
+
+        return "SUCCESS: Server reset to production mode! $msg <a href='/'>Go Home</a>";
     } catch (\Exception $e) {
         return "ERROR: " . $e->getMessage();
     }
 });
 
-Route::get('/clear-everything', function() {
+Route::get('/fix-ids', function () {
+    try {
+        $count = 0;
+        $fields = [
+            'membership_id_assigned',
+            'full_name',
+            'email',
+            'mobile_number',
+            'spouse_name',
+            'spouse_mobile',
+            'post_code',
+            'house_details',
+            'transaction_ref',
+            'bank_account_holder',
+            'dob',
+            'spouse_dob',
+            'photo',
+            'family_photo'
+        ];
+
+        $members = \App\Models\Member::all();
+        foreach ($members as $m) {
+            $update = [];
+            foreach ($fields as $field) {
+                $raw = $m->getRawOriginal($field);
+                if (str_starts_with($raw, 'eyJ')) {
+                    try {
+                        $update[$field] = \Illuminate\Support\Facades\Crypt::decryptString($raw);
+                    } catch (\Exception $e) {
+                    }
+                }
+            }
+
+            if (!empty($update)) {
+                \Illuminate\Support\Facades\DB::table('members')->where('id', $m->id)->update($update);
+                $count++;
+            }
+        }
+        return "SUCCESS: Cleaned up $count membership profiles! <a href='/admin/members'>Go Home</a>";
+    } catch (\Exception $e) {
+        return "ERROR: " . $e->getMessage();
+    }
+});
+
+Route::get('/clear-everything', function () {
     try {
         \Illuminate\Support\Facades\Artisan::call('route:clear');
         \Illuminate\Support\Facades\Artisan::call('config:clear');
@@ -91,6 +194,7 @@ Route::get('/clear-everything', function() {
 });
 
 Route::get('/membership', [MembershipController::class, 'index'])->name('membership');
+Route::get('/id-card/view/{guid}', [MembershipController::class, 'viewIdCard'])->name('member.id-card.view');
 Route::post('/api/membership/send-otp', [MembershipController::class, 'sendOtp']);
 Route::post('/api/membership/verify-otp', [MembershipController::class, 'verifyOtp']);
 Route::post('/membership/submit', [MembershipController::class, 'submit'])->name('membership.submit')->middleware(\App\Http\Middleware\CheckHoneypot::class);
@@ -133,12 +237,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('/2fa/disable', [\App\Http\Controllers\Admin\TwoFactorController::class, 'disable'])->name('2fa.disable');
 
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-        
+
         // Membership Hub
         Route::prefix('members')->name('members.')->group(function () {
             Route::get('/', [DashboardController::class, 'members'])->name('index');
             Route::get('/new', [DashboardController::class, 'newMembers'])->name('new');
             Route::get('/renewals', [DashboardController::class, 'renewals'])->name('renewals');
+            Route::get('/renewals/{id}/details', [DashboardController::class, 'getRenewalDetails'])->name('renewal-details');
             Route::post('/renewals/{id}/approve', [DashboardController::class, 'approveRenewal'])->name('renewals.approve');
             Route::post('/{id}/approve', [DashboardController::class, 'approveMember'])->name('approve');
             Route::get('/{id}/details', [DashboardController::class, 'getMemberDetails'])->name('details');
@@ -170,6 +275,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('/menus/{id}', [DashboardController::class, 'deleteMenu'])->name('menus.delete');
         Route::get('/news', [DashboardController::class, 'news'])->name('news');
         Route::post('/news', [DashboardController::class, 'addNews'])->name('news.add');
+        Route::get('/news/{id}/details', [DashboardController::class, 'getNewsDetails'])->name('news.details');
+        Route::post('/news/{id}/update', [DashboardController::class, 'updateNews'])->name('news.update');
         Route::delete('/news/{id}', [DashboardController::class, 'deleteNews'])->name('news.delete');
 
         // Events & Pricing
@@ -179,13 +286,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/{id}', [DashboardController::class, 'updateEvent'])->name('update');
             Route::delete('/{id}', [DashboardController::class, 'deleteEvent'])->name('delete');
             Route::get('/bookings', [EventBookingController::class, 'index'])->name('bookings');
+            Route::get('/bookings/export', [EventBookingController::class, 'exportPdf'])->name('bookings.export');
+            Route::get('/bookings/stats', [EventBookingController::class, 'stats'])->name('bookings.stats');
             Route::get('/bookings/{id}/status/{status}', [EventBookingController::class, 'updateStatus'])->name('bookings.status');
             Route::get('/bookings/{id}/resend', [EventBookingController::class, 'resendTicket'])->name('bookings.resend');
             Route::get('/bookings/{id}/edit', [EventBookingController::class, 'edit'])->name('bookings.edit');
             Route::post('/bookings/{id}/update', [EventBookingController::class, 'update'])->name('bookings.update');
             Route::delete('/bookings/{id}', [EventBookingController::class, 'destroy'])->name('bookings.delete');
             Route::get('/fare-logic', [DashboardController::class, 'fareLogic'])->name('fare-logic');
-            Route::get('/stats', [DashboardController::class, 'eventStats'])->name('stats');
+            Route::post('/fare-logic/categories', [DashboardController::class, 'saveFareCategory'])->name('fare-logic.categories.save');
+            Route::delete('/fare-logic/categories/{id}', [DashboardController::class, 'deleteFareCategory'])->name('fare-logic.categories.delete');
+            Route::post('/fare-logic/rubrics', [DashboardController::class, 'saveFareRubric'])->name('fare-logic.rubrics.save');
+            Route::delete('/fare-logic/rubrics/{id}', [DashboardController::class, 'deleteFareRubric'])->name('fare-logic.rubrics.delete');
+
+            Route::get('/stats', [EventBookingController::class, 'stats'])->name('stats');
         });
 
         // Sponsors & Offers
@@ -203,28 +317,48 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/albums', [DashboardController::class, 'albums'])->name('albums');
         Route::get('/videos', [DashboardController::class, 'videos'])->name('videos');
         Route::get('/accounting', [DashboardController::class, 'accounting'])->name('accounting');
+        Route::get('/accounting/export', [DashboardController::class, 'exportTransactions'])->name('accounting.export');
+        Route::post('/accounting/sync', [DashboardController::class, 'syncFinancials'])->name('accounting.sync');
+        Route::post('/accounting/revoke', [DashboardController::class, 'revokeReconciliation'])->name('accounting.revoke');
+        Route::post('/accounting', [DashboardController::class, 'storeTransaction'])->name('accounting.store');
+        Route::get('/accounting/{id}/details', [DashboardController::class, 'getTransactionDetails'])->name('accounting.details');
+        Route::post('/accounting/{id}/update', [DashboardController::class, 'updateTransaction'])->name('accounting.update');
+        Route::delete('/accounting/{id}', [DashboardController::class, 'deleteTransaction'])->name('accounting.delete');
 
         // System Security & Master Config
         Route::get('/security-audit', [DashboardController::class, 'securityAudit'])->name('security-audit');
         Route::get('/access-control', [DashboardController::class, 'accessControl'])->name('access-control');
         Route::post('/access-control', [DashboardController::class, 'storeAdmin'])->name('access-control.store');
+        Route::patch('/access-control/{id}', [DashboardController::class, 'updateAdmin'])->name('access-control.update');
         Route::patch('/access-control/{id}/password', [DashboardController::class, 'updateAdminPassword'])->name('access-control.update-password');
         Route::delete('/access-control/{id}', [DashboardController::class, 'deleteAdmin'])->name('access-control.delete');
         Route::get('/activity-logs', [DashboardController::class, 'activityLogs'])->name('activity-logs');
-        
+
         Route::prefix('config')->name('config.')->group(function () {
             Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
             Route::post('/settings', [DashboardController::class, 'updateSettings'])->name('settings.update');
             Route::get('/file-explorer', [DashboardController::class, 'fileExplorer'])->name('file-explorer');
             Route::delete('/file-explorer', [DashboardController::class, 'deleteFile'])->name('file-explorer.delete');
             Route::get('/system-repair', [DashboardController::class, 'systemRepair'])->name('system-repair');
+            Route::post('/system-repair', [DashboardController::class, 'runSystemRepair'])->name('system-repair.run');
             Route::get('/legal', [DashboardController::class, 'legal'])->name('legal');
             Route::get('/db-logs', [DashboardController::class, 'dbLogs'])->name('db-logs');
             Route::get('/ip-tool', [DashboardController::class, 'ipTool'])->name('ip-tool');
+            Route::get('/terminal', [DashboardController::class, 'terminal'])->name('terminal');
+            Route::post('/terminal/run', [DashboardController::class, 'runTerminalCommand'])->name('terminal.run');
         });
+
         Route::get('/email-settings', [DashboardController::class, 'emailSettings'])->name('email-settings');
         Route::post('/email-settings', [DashboardController::class, 'updateEmailSettings'])->name('email-settings.update');
         Route::post('/email-settings/test', [DashboardController::class, 'testEmailConnection'])->name('email-settings.test');
+
+        // Staff Counter Dashboard
+        Route::prefix('staff')->name('staff.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\StaffController::class, 'dashboard'])->name('dashboard');
+            Route::get('/search', [\App\Http\Controllers\Admin\StaffController::class, 'search'])->name('search');
+            Route::post('/check-in', [\App\Http\Controllers\Admin\StaffController::class, 'checkIn'])->name('check-in');
+            Route::get('/recent', [\App\Http\Controllers\Admin\StaffController::class, 'getRecentCheckIns'])->name('recent');
+        });
     });
 });
 

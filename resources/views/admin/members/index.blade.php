@@ -299,7 +299,16 @@
                                 <div class="row g-3">
                                     <div class="col-md-2">
                                         <label class="form-label small fw-bold">Title</label>
-                                        <input type="text" name="title" id="e_title" class="form-control form-control-sm">
+                                        <select name="title" id="e_title" class="form-select form-select-sm" required>
+                                            <option value="Mr">Mr</option>
+                                            <option value="Mrs">Mrs</option>
+                                            <option value="Miss">Miss</option>
+                                            <option value="Ms">Ms</option>
+                                            <option value="Dr">Dr</option>
+                                            <option value="Prof">Prof</option>
+                                            <option value="Rev">Rev</option>
+                                            <option value="Other">Other</option>
+                                        </select>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label small fw-bold">Full Name</label>
@@ -333,7 +342,7 @@
                                     <div class="col-md-4">
                                         <label class="form-label small fw-bold">Membership Type</label>
                                         <select name="membership_type" id="e_membership_type" class="form-select form-select-sm">
-                                            <option value="Individual">Individual</option>
+                                            <option value="Single">Single</option>
                                             <option value="Family">Family</option>
                                             <option value="Student">Student</option>
                                         </select>

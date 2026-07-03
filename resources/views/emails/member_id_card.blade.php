@@ -20,7 +20,11 @@
         <p>We are pleased to provide you with your digital membership ID card. Please find the link below to view and print your card for future reference.</p>
         
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{{ route('admin.members.print-card', ['id' => $member->id]) }}" class="btn">VIEW MY ID CARD</a>
+            @if(!empty($member->guid))
+                <a href="{{ route('member.id-card.view', ['guid' => $member->guid]) }}" class="btn">VIEW MY ID CARD</a>
+            @else
+                <p style="color: #d32f2f; font-weight: bold;">[ID Card link unavailable - Please contact administrator]</p>
+            @endif
         </div>
         
         <p><strong>Membership Details:</strong><br>

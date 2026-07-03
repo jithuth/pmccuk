@@ -1,20 +1,20 @@
 <?php namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasSmartDecryption;
 
 class Message extends Model
 {
+    use HasSmartDecryption;
+
     protected $table = 'messages';
-    public $timestamps = false; // Legacy table
+    public $timestamps = false; 
 
     protected $fillable = [
         'name', 'email', 'subject', 'message', 'status'
     ];
 
     protected $casts = [
-        'name' => 'encrypted',
-        'email' => 'encrypted',
-        'subject' => 'encrypted',
-        'message' => 'encrypted',
+        // No encrypted casts, the trait handles it dynamically
     ];
 }

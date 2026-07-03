@@ -102,7 +102,15 @@ class BookingController extends Controller
                     ->subject('Event Booking OTP Verification');
             });
             \Illuminate\Support\Facades\Log::info("OTP sent successfully to: " . $email);
-            return response()->json(['success' => true, 'message' => 'Verification code sent to ' . $email]);
+            
+            // Mask Email for UI privacy
+            $parts = explode("@", $email);
+            $user_part = $parts[0];
+            $domain = $parts[1];
+            $masked_user = (strlen($user_part) <= 3) ? $user_part . "***" : substr($user_part, 0, 2) . "***" . substr($user_part, -1);
+            $masked_email = $masked_user . "@" . $domain;
+
+            return response()->json(['success' => true, 'message' => 'Verification code sent to ' . $masked_email]);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Mail Failure: " . $e->getMessage());
             return response()->json([
@@ -223,7 +231,7 @@ class BookingController extends Controller
             abort(404, 'Invalid Ticket Reference.');
         }
 
-        $isValidState = in_array($booking->booking_status, ['confirmed', 'approved']);
+        $isValidState = in_array($booking->booking_status, ['approved']);
         $alreadyScanned = !is_null($booking->check_in_at);
 
         // If it's a valid ticket and hasn't been scanned yet, mark it as checked in right now

@@ -6,9 +6,13 @@ class News extends Model
 {
     protected $table = "news";
 
+    public $timestamps = false;
+
     protected $fillable = [
-        "title", "content", "image_url", "status"
+        "title", "content", "image_url", "status", "created_at"
     ];
 
-
+    protected $casts = [
+        'created_at' => 'datetime'
+    ];
 }

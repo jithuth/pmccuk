@@ -57,3 +57,29 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+---
+
+## Deployment Pipeline (Hostinger SSH)
+
+A custom, automated deployment pipeline script is included in the project: [deploy.ps1](file:///d:/uk%20project/pmcc-laravel/deploy.ps1).
+
+### Prerequisites
+1. **SSH Access**: Enable SSH access inside your Hostinger control panel (hPanel) and whitelist your current local IP address.
+2. **Private Key**: Ensure your private SSH key is placed at `C:\Users\elena\.ssh\id_ed25519_hostinger`.
+3. **Execution Policy**: If script execution is restricted locally, run:
+   ```powershell
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+   ```
+
+### Execution
+Run the pipeline script from your PowerShell console:
+```powershell
+.\deploy.ps1
+```
+
+### Pipeline Workflow
+1. **Git Audit**: Checks for uncommitted changes and offers to commit them.
+2. **Change Comparison**: Fetches from the tracking branch and displays the exact commits and files that are about to be deployed.
+3. **GitHub Push**: Syncs local changes with the GitHub tracking remote (`pmccuk`).
+4. **SSH Deploy execution**: Connects to Hostinger via port `65002` to pull updates, runs `composer install` and `php artisan migrate` dynamically (only if corresponding files changed), and clears/rebuilds application optimizer caches.

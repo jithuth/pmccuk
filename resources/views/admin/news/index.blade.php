@@ -35,7 +35,7 @@
                     </div>
                     <div class="mb-0">
                         <label class="form-label fw-bold small text-uppercase">Content</label>
-                        <textarea name="content" class="form-control" rows="8" required placeholder="Write article content here... HTML is allowed."></textarea>
+                        <textarea name="content" class="form-control rich-editor" required placeholder="Write article content here... HTML is allowed."></textarea>
                     </div>
                 </div>
                 <div class="card-footer bg-light border-0 p-3">
@@ -85,7 +85,7 @@
                                 </td>
                                 <td class="text-end pe-3">
                                     <div class="btn-group">
-                                        <button class="btn btn-sm btn-outline-info rounded-3 me-1"><i class="fas fa-edit"></i></button>
+                                        <button class="btn btn-sm btn-outline-info rounded-3 me-1" onclick="editNews({{ $n->id }})"><i class="fas fa-edit"></i></button>
                                         <form action="{{ route('admin.news.delete', $n->id) }}" method="POST" onsubmit="return confirm('Delete this article?')">
                                             @csrf
                                             @method('DELETE')
@@ -109,4 +109,102 @@
         </div>
     </div>
 </div>
+
+<!-- EDIT NEWS MODAL -->
+<div class="modal fade" id="editNewsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header bg-info text-white border-0 py-4 px-4">
+                <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i> Edit News Article</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editNewsForm" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body p-4">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Article Title</label>
+                            <input type="text" name="title" id="e_title" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Status</label>
+                            <select name="status" id="e_status" class="form-select">
+                                <option value="published">Published</option>
+                                <option value="draft">Draft</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">New Image (Optional)</label>
+                            <input type="file" name="news_image" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold small text-uppercase">Or Image URL</label>
+                            <input type="text" name="image_url" id="e_image_url" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold small text-uppercase">Content (HTML Supported)</label>
+                            <textarea name="content" id="e_content" class="form-control rich-editor" rows="10" required></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0 py-3 px-4">
+                    <button type="button" class="btn btn-link text-muted fw-bold text-decoration-none" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-info px-5 py-2 fw-bold text-white rounded-pill shadow-sm">
+                        SAVE CHANGES <i class="fas fa-check-circle ms-2"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@endsection
+
+@section('styles')
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
+<style>
+    .note-editor { border-radius: 12px !important; border: 1px solid #dee2e6 !important; background: #fff !important; }
+    .note-toolbar { background: #f8f9fa !important; border-bottom: 1px solid #dee2e6 !important; border-radius: 12px 12px 0 0 !important; }
+</style>
+@endsection
+
+@section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('.rich-editor').summernote({
+            height: 300,
+            toolbar: [
+                ['style', ['style']],
+                ['font', ['bold', 'underline', 'clear']],
+                ['color', ['color']],
+                ['para', ['ul', 'ol', 'paragraph']],
+                ['table', ['table']],
+                ['insert', ['link', 'picture']],
+                ['view', ['fullscreen', 'codeview', 'help']]
+            ]
+        });
+    });
+
+    function editNews(id) {
+        const modalEl = document.getElementById('editNewsModal');
+        const modal = new bootstrap.Modal(modalEl);
+        const form = document.getElementById('editNewsForm');
+
+        form.action = `/admin/news/${id}/update`;
+
+        fetch(`/admin/news/${id}/details`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('e_title').value = data.title;
+                document.getElementById('e_status').value = data.status;
+                document.getElementById('e_image_url').value = data.image_url || '';
+                
+                // Set Summernote content
+                $('#e_content').summernote('code', data.content);
+                
+                modal.show();
+            });
+    }
+</script>
 @endsection
