@@ -153,9 +153,10 @@ php artisan optimize:clear
 echo "==> Deployment Complete!"
 "@
 
-# Write temporary commands file to host SSH
+# Write temporary commands file to host SSH (converting CRLF to LF for Unix Bash compatibility)
 $TempFile = [System.IO.Path]::GetTempFileName()
-$RemoteCommands | Out-File -FilePath $TempFile -Encoding utf8
+$UnixCommands = $RemoteCommands -replace "`r`n", "`n"
+[System.IO.File]::WriteAllText($TempFile, $UnixCommands)
 
 # Execute remote commands using ssh
 $SshArgs = @(
