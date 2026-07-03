@@ -225,6 +225,14 @@ Route::get('/terms', function () {
     return view('terms');
 })->name('terms');
 
+Route::get('/debug-settings', function () {
+    return response()->json([
+        'settings' => \App\Models\Setting::all()->toArray(),
+        'keys' => \App\Models\Setting::pluck('setting_key')->toArray(),
+        'shared' => view()->shared('settings') ? view()->shared('settings')->toArray() : null,
+    ]);
+});
+
 Route::get('/student-corner', function () {
     return view('student_corner');
 })->name('student-corner');
