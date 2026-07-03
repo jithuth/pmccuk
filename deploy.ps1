@@ -158,17 +158,9 @@ $TempFile = [System.IO.Path]::GetTempFileName()
 $UnixCommands = $RemoteCommands -replace "`r`n", "`n"
 [System.IO.File]::WriteAllText($TempFile, $UnixCommands)
 
-# Execute remote commands using ssh
-$SshArgs = @(
-    "-o", "StrictHostKeyChecking=no",
-    "-i", $SshKeyPath,
-    "-p", $SshPort,
-    "$SshUser@$SshHost",
-    "bash -s", "--", $composerVal, $migrateVal
-)
-
-# Run ssh feeding the command string
-Get-Content $TempFile | & ssh $SshArgs
+# Run ssh feeding the command string using CMD input redirection to bypass PowerShell's automatic CRLF pipeline conversion
+$CmdLine = "ssh -o StrictHostKeyChecking=no -i `"$SshKeyPath`" -p $SshPort $SshUser@$SshHost bash -s -- $composerVal $migrateVal < `"$TempFile`""
+cmd.exe /c $CmdLine
 
 $SshExit = $LASTEXITCODE
 Remove-Item $TempFile -Force
