@@ -2,7 +2,7 @@
 # PMCC-UK Direct SSH Zip Deployment Pipeline
 
 # --- CONFIGURATION ---
-$SshHost = "srv1700928.hstgr.cloud"
+$SshHost = "141.136.39.186"
 $SshPort = 65002
 $SshUser = "u601819832"
 $SshKeyPath = "$Home\.ssh\id_ed25519_hostinger"
