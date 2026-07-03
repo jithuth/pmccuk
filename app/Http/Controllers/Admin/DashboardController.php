@@ -1372,6 +1372,16 @@ class DashboardController extends Controller
     }
     public function legal()
     {
+        $defaults = [
+            'legal_privacy_policy' => 'We value your privacy. Your community communication details and PII are stored securely and encrypted in our database.',
+            'legal_terms_conditions' => 'The membership fee is £5 per annum for both families and individuals. The year runs from January to December. Your data is protected under PMCC\'s privacy policy and used solely for community communication.',
+            'legal_cookie_policy' => 'Our system uses cookies solely for authentication and session management to ensure a smooth administrative experience.',
+        ];
+
+        foreach ($defaults as $key => $value) {
+            Setting::firstOrCreate(['setting_key' => $key], ['setting_value' => $value]);
+        }
+
         $settings_raw = Setting::all();
         $settings = [];
         foreach ($settings_raw as $s) {
