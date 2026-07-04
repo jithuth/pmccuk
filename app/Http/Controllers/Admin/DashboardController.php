@@ -1665,7 +1665,7 @@ class DashboardController extends Controller
         // Fetch recent Laravel system log entries
         $systemLogs = 'No application logs found.';
         $logPath = storage_path('logs/laravel.log');
-        if (file_exists($logPath)) {
+        if (file_exists($logPath) && filesize($logPath) > 0) {
             $fileSize = filesize($logPath);
             // Read last 150KB to prevent memory exhaustion
             $readSize = min($fileSize, 150000);
