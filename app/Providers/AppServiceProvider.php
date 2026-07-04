@@ -43,7 +43,7 @@ class AppServiceProvider extends ServiceProvider
                 'bank_account_no', 'bank_sort_code',
                 'legal_privacy_policy', 'legal_terms_conditions', 'legal_cookie_policy',
                 'legal_refund_cancellation', 'legal_safeguarding', 'legal_code_of_conduct', 'legal_accessibility',
-                'telegram_bot_token', 'telegram_chat_id'
+                'telegram_bot_token', 'telegram_chat_id', 'waf_enabled', 'waf_ip_blocklist'
             ];
             
             foreach ($encryptedFields as $field) {

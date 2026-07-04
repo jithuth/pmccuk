@@ -355,6 +355,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         // System Security & Master Config
         Route::get('/security-audit', [DashboardController::class, 'securityAudit'])->name('security-audit');
+        Route::post('/security-audit/waf', [DashboardController::class, 'updateWafSettings'])->name('security-audit.waf.update');
         Route::get('/access-control', [DashboardController::class, 'accessControl'])->name('access-control');
         Route::post('/access-control', [DashboardController::class, 'storeAdmin'])->name('access-control.store');
         Route::patch('/access-control/{id}', [DashboardController::class, 'updateAdmin'])->name('access-control.update');

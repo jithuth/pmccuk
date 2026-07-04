@@ -1309,11 +1309,55 @@ class DashboardController extends Controller
             'details' => $telegramActive ? 'Telegram Bot configured. Alerts active.' : 'Telegram credentials missing. Alerts inactive.',
         ];
 
+        // Fetch WAF configurations
+        $wafEnabled = Setting::where('setting_key', 'waf_enabled')->value('setting_value') ?? '0';
+        $wafIpBlocklist = Setting::where('setting_key', 'waf_ip_blocklist')->value('setting_value') ?? '';
+        
+        // Fetch recent WAF blocked logs
+        $blockedLogs = \App\Models\ActivityLog::where('action', 'waf_blocked')
+            ->orderBy('id', 'desc')
+            ->take(10)
+            ->get();
+
         // Calculate score
         $passedCount = count(array_filter($checks, fn($c) => $c['status'] === 'passed'));
         $score = round(($passedCount / count($checks)) * 100);
 
-        return view('admin.system.security', compact('checks', 'score', 'passedCount'));
+        return view('admin.system.security', compact('checks', 'score', 'passedCount', 'wafEnabled', 'wafIpBlocklist', 'blockedLogs'));
+    }
+
+    public function updateWafSettings(Request $request)
+    {
+        $this->ensureSuperAdmin();
+
+        $request->validate([
+            'waf_enabled' => 'required|in:0,1',
+            'waf_ip_blocklist' => 'nullable|string',
+        ]);
+
+        Setting::updateOrCreate(
+            ['setting_key' => 'waf_enabled'],
+            ['setting_value' => $request->input('waf_enabled')]
+        );
+
+        Setting::updateOrCreate(
+            ['setting_key' => 'waf_ip_blocklist'],
+            ['setting_value' => $request->input('waf_ip_blocklist') ?? '']
+        );
+
+        // Send Telegram Alert for WAF settings modification
+        try {
+            $admin = auth('admin')->user();
+            \App\Services\TelegramService::sendMessage(
+                "🛡️ ⚙️ <b>Security Alert: WAF Configuration Updated</b>\n\n" .
+                "👤 <b>User:</b> " . htmlspecialchars($admin->username) . " (ID: {$admin->id})\n" .
+                "🔥 <b>WAF Protection:</b> " . ($request->input('waf_enabled') == '1' ? 'ENABLED 🟢' : 'DISABLED 🔴') . "\n" .
+                "🌐 <b>IP Address:</b> " . $request->ip()
+            );
+        } catch (\Exception $e) {}
+
+        return redirect()->route('admin.security-audit', ['tab' => 'waf'])
+            ->with('success', 'Web Application Firewall (WAF) settings updated successfully.');
     }
     public function accessControl(Request $request)
     {
