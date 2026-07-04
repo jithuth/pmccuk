@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\App\Http\Middleware\SharedHostingCompatibility::class);
         $middleware->append(\App\Http\Middleware\WebApplicationFirewall::class);
         $middleware->redirectGuestsTo(fn () => route('admin.login'));
+        $middleware->alias([
+            'admin.role' => \App\Http\Middleware\AdminRole::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

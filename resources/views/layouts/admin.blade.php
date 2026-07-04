@@ -249,7 +249,7 @@
                     <li class="nav-item"><a href="{{ route('admin.config.legal') }}" class="nav-link {{ Route::is('admin.config.legal') ? 'active' : '' }}"><i class="nav-icon fas fa-gavel ic-slate"></i><p>Legal Policy</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.config.db-logs') }}" class="nav-link {{ Route::is('admin.config.db-logs') ? 'active' : '' }}"><i class="nav-icon fas fa-database ic-slate"></i><p>DB Logs</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.config.ip-tool') }}" class="nav-link {{ Route::is('admin.config.ip-tool') ? 'active' : '' }}"><i class="nav-icon fas fa-network-wired ic-slate"></i><p>IP Tool</p></a></li>
-                    @if(auth('admin')->user()->username === 'superadmin')
+                    @if(auth('admin')->user()->role === 'superadmin')
                     <li class="nav-item">
                         <a href="{{ route('admin.config.terminal') }}" class="nav-link {{ Route::is('admin.config.terminal') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-terminal text-danger"></i>

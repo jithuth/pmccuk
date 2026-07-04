@@ -259,131 +259,133 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('/2fa/challenge', [\App\Http\Controllers\Admin\TwoFactorController::class, 'verifyChallenge'])->name('2fa.verify');
 
     Route::middleware('auth:admin')->group(function () {
-        // ── 2FA Setup & Management ──
-        Route::get('/2fa/setup', [\App\Http\Controllers\Admin\TwoFactorController::class, 'showSetup'])->name('2fa.setup');
-        Route::post('/2fa/confirm', [\App\Http\Controllers\Admin\TwoFactorController::class, 'confirmSetup'])->name('2fa.confirm');
-        Route::delete('/2fa/disable', [\App\Http\Controllers\Admin\TwoFactorController::class, 'disable'])->name('2fa.disable');
+        Route::middleware('admin.role:admin,superadmin')->group(function () {
+            // ── 2FA Setup & Management ──
+            Route::get('/2fa/setup', [\App\Http\Controllers\Admin\TwoFactorController::class, 'showSetup'])->name('2fa.setup');
+            Route::post('/2fa/confirm', [\App\Http\Controllers\Admin\TwoFactorController::class, 'confirmSetup'])->name('2fa.confirm');
+            Route::delete('/2fa/disable', [\App\Http\Controllers\Admin\TwoFactorController::class, 'disable'])->name('2fa.disable');
 
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+            Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-        // Membership Hub
-        Route::prefix('members')->name('members.')->group(function () {
-            Route::get('/', [DashboardController::class, 'members'])->name('index');
-            Route::get('/new', [DashboardController::class, 'newMembers'])->name('new');
-            Route::get('/renewals', [DashboardController::class, 'renewals'])->name('renewals');
-            Route::get('/renewals/{id}/details', [DashboardController::class, 'getRenewalDetails'])->name('renewal-details');
-            Route::post('/renewals/{id}/approve', [DashboardController::class, 'approveRenewal'])->name('renewals.approve');
-            Route::post('/{id}/approve', [DashboardController::class, 'approveMember'])->name('approve');
-            Route::get('/{id}/details', [DashboardController::class, 'getMemberDetails'])->name('details');
-            Route::post('/{id}/update', [DashboardController::class, 'updateMember'])->name('update');
-            Route::delete('/{id}', [DashboardController::class, 'deleteMember'])->name('delete');
-            Route::post('/{id}/restore', [DashboardController::class, 'restoreMember'])->name('restore');
-            Route::post('/{id}/send-card-email', [DashboardController::class, 'sendCardEmail'])->name('send-card-email');
-            Route::get('/{id?}/print-card', [DashboardController::class, 'printIdCard'])->name('print-card');
-            Route::get('/verify/{id}/{token}', [DashboardController::class, 'verifyMembership'])->name('verify');
-            Route::get('/import', [DashboardController::class, 'importMembers'])->name('import');
+            // Membership Hub
+            Route::prefix('members')->name('members.')->group(function () {
+                Route::get('/', [DashboardController::class, 'members'])->name('index');
+                Route::get('/new', [DashboardController::class, 'newMembers'])->name('new');
+                Route::get('/renewals', [DashboardController::class, 'renewals'])->name('renewals');
+                Route::get('/renewals/{id}/details', [DashboardController::class, 'getRenewalDetails'])->name('renewal-details');
+                Route::post('/renewals/{id}/approve', [DashboardController::class, 'approveRenewal'])->name('renewals.approve');
+                Route::post('/{id}/approve', [DashboardController::class, 'approveMember'])->name('approve');
+                Route::get('/{id}/details', [DashboardController::class, 'getMemberDetails'])->name('details');
+                Route::post('/{id}/update', [DashboardController::class, 'updateMember'])->name('update');
+                Route::delete('/{id}', [DashboardController::class, 'deleteMember'])->name('delete');
+                Route::post('/{id}/restore', [DashboardController::class, 'restoreMember'])->name('restore');
+                Route::post('/{id}/send-card-email', [DashboardController::class, 'sendCardEmail'])->name('send-card-email');
+                Route::get('/{id?}/print-card', [DashboardController::class, 'printIdCard'])->name('print-card');
+                Route::get('/verify/{id}/{token}', [DashboardController::class, 'verifyMembership'])->name('verify');
+                Route::get('/import', [DashboardController::class, 'importMembers'])->name('import');
+            });
+
+            // CRM & Inquiries
+            Route::get('/messages', [DashboardController::class, 'messages'])->name('messages');
+            Route::patch('/messages/{id}/read', [DashboardController::class, 'markMessageRead'])->name('messages.read');
+            Route::delete('/messages/{id}', [DashboardController::class, 'deleteMessage'])->name('messages.delete');
+            Route::get('/student-requests', [DashboardController::class, 'studentRequests'])->name('student-requests');
+
+            // Website & Content
+            Route::get('/home-banners', [DashboardController::class, 'homeBanners'])->name('home-banners');
+            Route::get('/about-content', [DashboardController::class, 'aboutContent'])->name('about-content');
+            Route::get('/team', [DashboardController::class, 'team'])->name('team');
+            Route::post('/team', [DashboardController::class, 'addTeamMember'])->name('team.add');
+            Route::post('/team/{id}', [DashboardController::class, 'updateTeamMember'])->name('team.update');
+            Route::delete('/team/{id}', [DashboardController::class, 'deleteTeamMember'])->name('team.delete');
+            Route::get('/menus', [DashboardController::class, 'menus'])->name('menus');
+            Route::post('/menus', [DashboardController::class, 'addMenu'])->name('menus.add');
+            Route::post('/menus/{id}', [DashboardController::class, 'updateMenu'])->name('menus.update');
+            Route::delete('/menus/{id}', [DashboardController::class, 'deleteMenu'])->name('menus.delete');
+            Route::get('/news', [DashboardController::class, 'news'])->name('news');
+            Route::post('/news', [DashboardController::class, 'addNews'])->name('news.add');
+            Route::get('/news/{id}/details', [DashboardController::class, 'getNewsDetails'])->name('news.details');
+            Route::post('/news/{id}/update', [DashboardController::class, 'updateNews'])->name('news.update');
+            Route::delete('/news/{id}', [DashboardController::class, 'deleteNews'])->name('news.delete');
+
+            // Events & Pricing
+            Route::prefix('events')->name('events.')->group(function () {
+                Route::get('/', [DashboardController::class, 'events'])->name('index');
+                Route::post('/', [DashboardController::class, 'addEvent'])->name('add');
+                Route::post('/{id}', [DashboardController::class, 'updateEvent'])->name('update');
+                Route::delete('/{id}', [DashboardController::class, 'deleteEvent'])->name('delete');
+                Route::get('/bookings', [EventBookingController::class, 'index'])->name('bookings');
+                Route::get('/bookings/export', [EventBookingController::class, 'exportPdf'])->name('bookings.export');
+                Route::get('/bookings/stats', [EventBookingController::class, 'stats'])->name('bookings.stats');
+                Route::get('/bookings/{id}/status/{status}', [EventBookingController::class, 'updateStatus'])->name('bookings.status');
+                Route::get('/bookings/{id}/resend', [EventBookingController::class, 'resendTicket'])->name('bookings.resend');
+                Route::get('/bookings/{id}/edit', [EventBookingController::class, 'edit'])->name('bookings.edit');
+                Route::post('/bookings/{id}/update', [EventBookingController::class, 'update'])->name('bookings.update');
+                Route::delete('/bookings/{id}', [EventBookingController::class, 'destroy'])->name('bookings.delete');
+                Route::get('/fare-logic', [DashboardController::class, 'fareLogic'])->name('fare-logic');
+                Route::post('/fare-logic/categories', [DashboardController::class, 'saveFareCategory'])->name('fare-logic.categories.save');
+                Route::delete('/fare-logic/categories/{id}', [DashboardController::class, 'deleteFareCategory'])->name('fare-logic.categories.delete');
+                Route::post('/fare-logic/rubrics', [DashboardController::class, 'saveFareRubric'])->name('fare-logic.rubrics.save');
+                Route::delete('/fare-logic/rubrics/{id}', [DashboardController::class, 'deleteFareRubric'])->name('fare-logic.rubrics.delete');
+
+                Route::get('/stats', [EventBookingController::class, 'stats'])->name('stats');
+            });
+
+            // Sponsors & Offers
+            Route::prefix('sponsors')->name('sponsors.')->group(function () {
+                Route::get('/offers', [DashboardController::class, 'offers'])->name('offers');
+                Route::post('/offers', [DashboardController::class, 'addOffer'])->name('offers.add');
+                Route::post('/offers/{id}', [DashboardController::class, 'updateOffer'])->name('offers.update');
+                Route::get('/redemptions', [DashboardController::class, 'redemptions'])->name('redemptions');
+            });
+
+            // Media & Financials
+            Route::get('/gallery', [DashboardController::class, 'gallery'])->name('gallery');
+            Route::post('/gallery', [DashboardController::class, 'addGallery'])->name('gallery.add');
+            Route::delete('/gallery/{id}', [DashboardController::class, 'deleteGallery'])->name('gallery.delete');
+            Route::get('/albums', [DashboardController::class, 'albums'])->name('albums');
+            Route::get('/videos', [DashboardController::class, 'videos'])->name('videos');
+            Route::get('/accounting', [DashboardController::class, 'accounting'])->name('accounting');
+            Route::get('/accounting/export', [DashboardController::class, 'exportTransactions'])->name('accounting.export');
+            Route::post('/accounting/sync', [DashboardController::class, 'syncFinancials'])->name('accounting.sync');
+            Route::post('/accounting/revoke', [DashboardController::class, 'revokeReconciliation'])->name('accounting.revoke');
+            Route::post('/accounting', [DashboardController::class, 'storeTransaction'])->name('accounting.store');
+            Route::get('/accounting/{id}/details', [DashboardController::class, 'getTransactionDetails'])->name('accounting.details');
+            Route::post('/accounting/{id}/update', [DashboardController::class, 'updateTransaction'])->name('accounting.update');
+            Route::delete('/accounting/{id}', [DashboardController::class, 'deleteTransaction'])->name('accounting.delete');
+
+            // System Security & Master Config
+            Route::get('/security-audit', [DashboardController::class, 'securityAudit'])->name('security-audit');
+            Route::post('/security-audit/waf', [DashboardController::class, 'updateWafSettings'])->name('security-audit.waf.update');
+            Route::get('/access-control', [DashboardController::class, 'accessControl'])->name('access-control');
+            Route::post('/access-control', [DashboardController::class, 'storeAdmin'])->name('access-control.store');
+            Route::patch('/access-control/{id}', [DashboardController::class, 'updateAdmin'])->name('access-control.update');
+            Route::patch('/access-control/{id}/password', [DashboardController::class, 'updateAdminPassword'])->name('access-control.update-password');
+            Route::delete('/access-control/{id}', [DashboardController::class, 'deleteAdmin'])->name('access-control.delete');
+            Route::get('/activity-logs', [DashboardController::class, 'activityLogs'])->name('activity-logs');
+
+            Route::prefix('config')->name('config.')->group(function () {
+                Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
+                Route::post('/settings', [DashboardController::class, 'updateSettings'])->name('settings.update');
+                Route::get('/file-explorer', [DashboardController::class, 'fileExplorer'])->name('file-explorer');
+                Route::delete('/file-explorer', [DashboardController::class, 'deleteFile'])->name('file-explorer.delete');
+                Route::get('/system-repair', [DashboardController::class, 'systemRepair'])->name('system-repair');
+                Route::post('/system-repair', [DashboardController::class, 'runSystemRepair'])->name('system-repair.run');
+                Route::get('/legal', [DashboardController::class, 'legal'])->name('legal');
+                Route::get('/db-logs', [DashboardController::class, 'dbLogs'])->name('db-logs');
+                Route::post('/db-logs/clear', [DashboardController::class, 'clearSystemLogs'])->name('db-logs.clear');
+                Route::get('/ip-tool', [DashboardController::class, 'ipTool'])->name('ip-tool');
+                Route::get('/terminal', [DashboardController::class, 'terminal'])->name('terminal');
+                Route::post('/terminal/run', [DashboardController::class, 'runTerminalCommand'])->name('terminal.run');
+            });
+
+            Route::get('/email-settings', [DashboardController::class, 'emailSettings'])->name('email-settings');
+            Route::post('/email-settings', [DashboardController::class, 'updateEmailSettings'])->name('email-settings.update');
+            Route::post('/email-settings/test', [DashboardController::class, 'testEmailConnection'])->name('email-settings.test');
         });
-
-        // CRM & Inquiries
-        Route::get('/messages', [DashboardController::class, 'messages'])->name('messages');
-        Route::patch('/messages/{id}/read', [DashboardController::class, 'markMessageRead'])->name('messages.read');
-        Route::delete('/messages/{id}', [DashboardController::class, 'deleteMessage'])->name('messages.delete');
-        Route::get('/student-requests', [DashboardController::class, 'studentRequests'])->name('student-requests');
-
-        // Website & Content
-        Route::get('/home-banners', [DashboardController::class, 'homeBanners'])->name('home-banners');
-        Route::get('/about-content', [DashboardController::class, 'aboutContent'])->name('about-content');
-        Route::get('/team', [DashboardController::class, 'team'])->name('team');
-        Route::post('/team', [DashboardController::class, 'addTeamMember'])->name('team.add');
-        Route::post('/team/{id}', [DashboardController::class, 'updateTeamMember'])->name('team.update');
-        Route::delete('/team/{id}', [DashboardController::class, 'deleteTeamMember'])->name('team.delete');
-        Route::get('/menus', [DashboardController::class, 'menus'])->name('menus');
-        Route::post('/menus', [DashboardController::class, 'addMenu'])->name('menus.add');
-        Route::post('/menus/{id}', [DashboardController::class, 'updateMenu'])->name('menus.update');
-        Route::delete('/menus/{id}', [DashboardController::class, 'deleteMenu'])->name('menus.delete');
-        Route::get('/news', [DashboardController::class, 'news'])->name('news');
-        Route::post('/news', [DashboardController::class, 'addNews'])->name('news.add');
-        Route::get('/news/{id}/details', [DashboardController::class, 'getNewsDetails'])->name('news.details');
-        Route::post('/news/{id}/update', [DashboardController::class, 'updateNews'])->name('news.update');
-        Route::delete('/news/{id}', [DashboardController::class, 'deleteNews'])->name('news.delete');
-
-        // Events & Pricing
-        Route::prefix('events')->name('events.')->group(function () {
-            Route::get('/', [DashboardController::class, 'events'])->name('index');
-            Route::post('/', [DashboardController::class, 'addEvent'])->name('add');
-            Route::post('/{id}', [DashboardController::class, 'updateEvent'])->name('update');
-            Route::delete('/{id}', [DashboardController::class, 'deleteEvent'])->name('delete');
-            Route::get('/bookings', [EventBookingController::class, 'index'])->name('bookings');
-            Route::get('/bookings/export', [EventBookingController::class, 'exportPdf'])->name('bookings.export');
-            Route::get('/bookings/stats', [EventBookingController::class, 'stats'])->name('bookings.stats');
-            Route::get('/bookings/{id}/status/{status}', [EventBookingController::class, 'updateStatus'])->name('bookings.status');
-            Route::get('/bookings/{id}/resend', [EventBookingController::class, 'resendTicket'])->name('bookings.resend');
-            Route::get('/bookings/{id}/edit', [EventBookingController::class, 'edit'])->name('bookings.edit');
-            Route::post('/bookings/{id}/update', [EventBookingController::class, 'update'])->name('bookings.update');
-            Route::delete('/bookings/{id}', [EventBookingController::class, 'destroy'])->name('bookings.delete');
-            Route::get('/fare-logic', [DashboardController::class, 'fareLogic'])->name('fare-logic');
-            Route::post('/fare-logic/categories', [DashboardController::class, 'saveFareCategory'])->name('fare-logic.categories.save');
-            Route::delete('/fare-logic/categories/{id}', [DashboardController::class, 'deleteFareCategory'])->name('fare-logic.categories.delete');
-            Route::post('/fare-logic/rubrics', [DashboardController::class, 'saveFareRubric'])->name('fare-logic.rubrics.save');
-            Route::delete('/fare-logic/rubrics/{id}', [DashboardController::class, 'deleteFareRubric'])->name('fare-logic.rubrics.delete');
-
-            Route::get('/stats', [EventBookingController::class, 'stats'])->name('stats');
-        });
-
-        // Sponsors & Offers
-        Route::prefix('sponsors')->name('sponsors.')->group(function () {
-            Route::get('/offers', [DashboardController::class, 'offers'])->name('offers');
-            Route::post('/offers', [DashboardController::class, 'addOffer'])->name('offers.add');
-            Route::post('/offers/{id}', [DashboardController::class, 'updateOffer'])->name('offers.update');
-            Route::get('/redemptions', [DashboardController::class, 'redemptions'])->name('redemptions');
-        });
-
-        // Media & Financials
-        Route::get('/gallery', [DashboardController::class, 'gallery'])->name('gallery');
-        Route::post('/gallery', [DashboardController::class, 'addGallery'])->name('gallery.add');
-        Route::delete('/gallery/{id}', [DashboardController::class, 'deleteGallery'])->name('gallery.delete');
-        Route::get('/albums', [DashboardController::class, 'albums'])->name('albums');
-        Route::get('/videos', [DashboardController::class, 'videos'])->name('videos');
-        Route::get('/accounting', [DashboardController::class, 'accounting'])->name('accounting');
-        Route::get('/accounting/export', [DashboardController::class, 'exportTransactions'])->name('accounting.export');
-        Route::post('/accounting/sync', [DashboardController::class, 'syncFinancials'])->name('accounting.sync');
-        Route::post('/accounting/revoke', [DashboardController::class, 'revokeReconciliation'])->name('accounting.revoke');
-        Route::post('/accounting', [DashboardController::class, 'storeTransaction'])->name('accounting.store');
-        Route::get('/accounting/{id}/details', [DashboardController::class, 'getTransactionDetails'])->name('accounting.details');
-        Route::post('/accounting/{id}/update', [DashboardController::class, 'updateTransaction'])->name('accounting.update');
-        Route::delete('/accounting/{id}', [DashboardController::class, 'deleteTransaction'])->name('accounting.delete');
-
-        // System Security & Master Config
-        Route::get('/security-audit', [DashboardController::class, 'securityAudit'])->name('security-audit');
-        Route::post('/security-audit/waf', [DashboardController::class, 'updateWafSettings'])->name('security-audit.waf.update');
-        Route::get('/access-control', [DashboardController::class, 'accessControl'])->name('access-control');
-        Route::post('/access-control', [DashboardController::class, 'storeAdmin'])->name('access-control.store');
-        Route::patch('/access-control/{id}', [DashboardController::class, 'updateAdmin'])->name('access-control.update');
-        Route::patch('/access-control/{id}/password', [DashboardController::class, 'updateAdminPassword'])->name('access-control.update-password');
-        Route::delete('/access-control/{id}', [DashboardController::class, 'deleteAdmin'])->name('access-control.delete');
-        Route::get('/activity-logs', [DashboardController::class, 'activityLogs'])->name('activity-logs');
-
-        Route::prefix('config')->name('config.')->group(function () {
-            Route::get('/settings', [DashboardController::class, 'settings'])->name('settings');
-            Route::post('/settings', [DashboardController::class, 'updateSettings'])->name('settings.update');
-            Route::get('/file-explorer', [DashboardController::class, 'fileExplorer'])->name('file-explorer');
-            Route::delete('/file-explorer', [DashboardController::class, 'deleteFile'])->name('file-explorer.delete');
-            Route::get('/system-repair', [DashboardController::class, 'systemRepair'])->name('system-repair');
-            Route::post('/system-repair', [DashboardController::class, 'runSystemRepair'])->name('system-repair.run');
-            Route::get('/legal', [DashboardController::class, 'legal'])->name('legal');
-            Route::get('/db-logs', [DashboardController::class, 'dbLogs'])->name('db-logs');
-            Route::post('/db-logs/clear', [DashboardController::class, 'clearSystemLogs'])->name('db-logs.clear');
-            Route::get('/ip-tool', [DashboardController::class, 'ipTool'])->name('ip-tool');
-            Route::get('/terminal', [DashboardController::class, 'terminal'])->name('terminal');
-            Route::post('/terminal/run', [DashboardController::class, 'runTerminalCommand'])->name('terminal.run');
-        });
-
-        Route::get('/email-settings', [DashboardController::class, 'emailSettings'])->name('email-settings');
-        Route::post('/email-settings', [DashboardController::class, 'updateEmailSettings'])->name('email-settings.update');
-        Route::post('/email-settings/test', [DashboardController::class, 'testEmailConnection'])->name('email-settings.test');
 
         // Staff Counter Dashboard
-        Route::prefix('staff')->name('staff.')->group(function () {
+        Route::prefix('staff')->name('staff.')->middleware('admin.role:staff,admin,superadmin')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\StaffController::class, 'dashboard'])->name('dashboard');
             Route::get('/search', [\App\Http\Controllers\Admin\StaffController::class, 'search'])->name('search');
             Route::post('/check-in', [\App\Http\Controllers\Admin\StaffController::class, 'checkIn'])->name('check-in');
@@ -393,7 +395,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 });
 
 // Event Bookings
-Route::get('/verify-ticket/{reference}', [BookingController::class, 'verifyTicket'])->name('event.verify-ticket')->middleware('auth:admin');
+Route::get('/verify-ticket/{reference}', [BookingController::class, 'verifyTicket'])->name('event.verify-ticket')->middleware(['auth:admin', 'admin.role:staff,admin,superadmin']);
 Route::get('/event/book/{id}', [BookingController::class, 'showForm'])->name('event.book');
 Route::post('/event/book/process', [BookingController::class, 'process'])->name('event.book.process');
 Route::get('/event/verify-member', [BookingController::class, 'verifyMember'])->name('event.verify-member');
