@@ -386,14 +386,37 @@
                 <p class="mb-4 md:mb-0">&copy; {{ date('Y') }} PMCC-UK Made and maintained with ❤️ by Tom Jacob .
 
                 </p>
-                <div class="flex flex-wrap gap-x-6 gap-y-2 justify-center md:justify-end text-slate-500 mt-4 md:mt-0">
-                    <a href="{{ route('privacy') }}" class="hover:text-white transition-colors">Privacy Policy</a>
-                    <a href="{{ route('cookie-policy') }}" class="hover:text-white transition-colors">Cookie Policy</a>
-                    <a href="{{ route('terms') }}" class="hover:text-white transition-colors">Terms & Conditions</a>
-                    <a href="{{ route('refund-policy') }}" class="hover:text-white transition-colors">Refund & Cancellation</a>
-                    <a href="{{ route('safeguarding') }}" class="hover:text-white transition-colors">Safeguarding Policy</a>
-                    <a href="{{ route('code-of-conduct') }}" class="hover:text-white transition-colors">Code of Conduct</a>
-                    <a href="{{ route('accessibility') }}" class="hover:text-white transition-colors">Accessibility</a>
+                <div class="relative inline-block text-left mt-4 md:mt-0">
+                    <!-- Dropup Trigger Button -->
+                    <button id="legal-dropup-btn" type="button" class="flex items-center space-x-2 text-slate-500 hover:text-white transition-colors bg-white/5 border border-white/10 px-6 py-3 rounded-full font-black uppercase tracking-widest text-[10px] shadow-lg hover:bg-white/10">
+                        <span>Legal Agreements</span>
+                        <i class="fas fa-chevron-up text-[9px] translate-y-[-0.5px]"></i>
+                    </button>
+                    
+                    <!-- Dropup Menu Content -->
+                    <div id="legal-dropup-menu" class="hidden absolute bottom-full right-0 mb-4 w-64 rounded-[2rem] bg-slate-900 border border-white/10 shadow-2xl p-3 z-50 flex flex-col space-y-1 text-slate-400 font-bold normal-case text-left">
+                        <a href="{{ route('privacy') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
+                            <i class="fas fa-user-shield w-8 text-secondary"></i> Privacy Policy
+                        </a>
+                        <a href="{{ route('cookie-policy') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
+                            <i class="fas fa-cookie-bite w-8 text-secondary"></i> Cookie Policy
+                        </a>
+                        <a href="{{ route('terms') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
+                            <i class="fas fa-file-contract w-8 text-secondary"></i> Terms & Conditions
+                        </a>
+                        <a href="{{ route('refund-policy') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
+                            <i class="fas fa-undo-alt w-8 text-secondary"></i> Refund & Cancellation
+                        </a>
+                        <a href="{{ route('safeguarding') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
+                            <i class="fas fa-child w-8 text-secondary"></i> Safeguarding Policy
+                        </a>
+                        <a href="{{ route('code-of-conduct') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
+                            <i class="fas fa-handshake w-8 text-secondary"></i> Code of Conduct
+                        </a>
+                        <a href="{{ route('accessibility') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
+                            <i class="fas fa-universal-access w-8 text-secondary"></i> Accessibility Statement
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -412,6 +435,21 @@
         const mobileMenu = document.getElementById('mobile-menu');
         menuBtn?.addEventListener('click', () => {
             mobileMenu.classList.toggle('hidden');
+        });
+
+        // Legal Policy Dropup Toggle
+        const legalBtn = document.getElementById('legal-dropup-btn');
+        const legalMenu = document.getElementById('legal-dropup-menu');
+        
+        legalBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            legalMenu.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (legalMenu && !legalMenu.classList.contains('hidden') && !legalMenu.contains(e.target) && e.target !== legalBtn) {
+                legalMenu.classList.add('hidden');
+            }
         });
 
         function reveal() {
