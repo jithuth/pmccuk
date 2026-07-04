@@ -26,6 +26,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\MemberIdCardEmail;
 use Illuminate\Support\Carbon;
+use App\Models\EventBooking;
+use App\Models\FareRubricItem;
+use Illuminate\Support\Facades\Hash;
 
 class DashboardController extends Controller
 {
@@ -1290,7 +1293,7 @@ class DashboardController extends Controller
         ];
 
         // 14. Audits & Activity Logging
-        $logCount = \App\Models\ActivityLog::count();
+        $logCount = ActivityLog::count();
         $checks['logging'] = [
             'name' => 'Security Logging & Audit Trails',
             'status' => ($logCount > 0) ? 'passed' : 'warning',
@@ -1314,7 +1317,7 @@ class DashboardController extends Controller
         $wafIpBlocklist = Setting::where('setting_key', 'waf_ip_blocklist')->value('setting_value') ?? '';
         
         // Fetch recent WAF blocked logs
-        $blockedLogs = \App\Models\ActivityLog::where('action', 'waf_blocked')
+        $blockedLogs = ActivityLog::where('action', 'waf_blocked')
             ->orderBy('id', 'desc')
             ->take(10)
             ->get();
@@ -1406,7 +1409,7 @@ class DashboardController extends Controller
             return redirect()->route('admin.access-control')
                 ->with('error', 'You cannot delete your own account.');
         }
-        $admin = \App\Models\Admin::findOrFail($id);
+        $admin = Admin::findOrFail($id);
         $admin->delete();
 
         // Send Telegram Alert
@@ -1427,7 +1430,7 @@ class DashboardController extends Controller
     public function updateAdmin(Request $request, $id)
     {
         $this->ensureSuperAdmin();
-        $admin = \App\Models\Admin::findOrFail($id);
+        $admin = Admin::findOrFail($id);
 
         $request->validate([
             'username' => 'required|max:60|unique:admins,username,' . $id,
