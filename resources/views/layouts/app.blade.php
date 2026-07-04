@@ -386,9 +386,14 @@
                 <p class="mb-4 md:mb-0">&copy; {{ date('Y') }} PMCC-UK Made and maintained with ❤️ by Tom Jacob .
 
                 </p>
-                <div class="flex space-x-8">
-                    <a href="{{ route('privacy') }}" class="hover:text-white transition-colors">Privacy</a>
-                    <a href="{{ route('terms') }}" class="hover:text-white transition-colors">Terms</a>
+                <div class="flex flex-wrap gap-x-6 gap-y-2 justify-center md:justify-end text-slate-500 mt-4 md:mt-0">
+                    <a href="{{ route('privacy') }}" class="hover:text-white transition-colors">Privacy Policy</a>
+                    <a href="{{ route('cookie-policy') }}" class="hover:text-white transition-colors">Cookie Policy</a>
+                    <a href="{{ route('terms') }}" class="hover:text-white transition-colors">Terms & Conditions</a>
+                    <a href="{{ route('refund-policy') }}" class="hover:text-white transition-colors">Refund & Cancellation</a>
+                    <a href="{{ route('safeguarding') }}" class="hover:text-white transition-colors">Safeguarding Policy</a>
+                    <a href="{{ route('code-of-conduct') }}" class="hover:text-white transition-colors">Code of Conduct</a>
+                    <a href="{{ route('accessibility') }}" class="hover:text-white transition-colors">Accessibility</a>
                 </div>
             </div>
         </div>

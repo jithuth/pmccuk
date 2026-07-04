@@ -18,7 +18,7 @@
                     </button>
                 </div>
                 <div class="card-body p-4">
-                    <ul class="nav nav-tabs nav-fill mb-4" id="legalTabs" role="tablist">
+                    <ul class="nav nav-tabs mb-4" id="legalTabs" role="tablist">
                         <li class="nav-item">
                             <button class="nav-link active fw-bold" id="terms-tab" data-bs-toggle="tab" data-bs-target="#terms" type="button" role="tab">
                                 <i class="fas fa-file-contract me-2"></i> Terms & Conditions
@@ -31,7 +31,27 @@
                         </li>
                         <li class="nav-item">
                             <button class="nav-link fw-bold" id="cookies-tab" data-bs-toggle="tab" data-bs-target="#cookies" type="button" role="tab">
-                                <i class="fas fa-cookie-bite me-2"></i> Cookie & Disclosure Policy
+                                <i class="fas fa-cookie-bite me-2"></i> Cookie Policy
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold" id="refund-tab" data-bs-toggle="tab" data-bs-target="#refund" type="button" role="tab">
+                                <i class="fas fa-undo-alt me-2"></i> Refund & Cancellation
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold" id="safeguarding-tab" data-bs-toggle="tab" data-bs-target="#safeguarding" type="button" role="tab">
+                                <i class="fas fa-child me-2"></i> Safeguarding
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold" id="conduct-tab" data-bs-toggle="tab" data-bs-target="#conduct" type="button" role="tab">
+                                <i class="fas fa-handshake me-2"></i> Code of Conduct
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold" id="accessibility-tab" data-bs-toggle="tab" data-bs-target="#accessibility" type="button" role="tab">
+                                <i class="fas fa-universal-access me-2"></i> Accessibility
                             </button>
                         </li>
                     </ul>
@@ -61,6 +81,42 @@
                                 <label class="form-label fw-bold">Cookie & System Disclosure</label>
                                 <textarea name="legal_cookie_policy" id="cookies_editor" class="form-control" rows="12">{{ $settings['legal_cookie_policy'] ?? 'Our system uses cookies solely for authentication and session management to ensure a smooth administrative experience.' }}</textarea>
                                 <div class="form-text mt-1 text-muted">Describes cookies and background activities to users.</div>
+                            </div>
+                        </div>
+
+                        <!-- REFUND & CANCELLATION -->
+                        <div class="tab-pane fade" id="refund" role="tabpanel">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Refund & Cancellation Policy (Events)</label>
+                                <textarea name="legal_refund_cancellation" id="refund_editor" class="form-control" rows="12">{{ $settings['legal_refund_cancellation'] ?? 'Tickets purchased for PMCC events are non-refundable except in cases where the event is cancelled or rescheduled. Under exceptional circumstances, refund requests submitted 7 days prior to the event may be considered by the committee.' }}</textarea>
+                                <div class="form-text mt-1 text-muted">Details regarding ticket bookings refund policies.</div>
+                            </div>
+                        </div>
+
+                        <!-- SAFEGUARDING POLICY -->
+                        <div class="tab-pane fade" id="safeguarding" role="tabpanel">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Safeguarding Policy</label>
+                                <textarea name="legal_safeguarding" id="safeguarding_editor" class="form-control" rows="12">{{ $settings['legal_safeguarding'] ?? 'PMCC is committed to safeguarding children, young people, and vulnerable adults. We ensure all activities involving children are conducted with proper supervision, DBS-checked volunteers where necessary, and compliance with local safeguarding guidelines.' }}</textarea>
+                                <div class="form-text mt-1 text-muted">Safeguarding policy for children and vulnerable groups during community events.</div>
+                            </div>
+                        </div>
+
+                        <!-- CODE OF CONDUCT -->
+                        <div class="tab-pane fade" id="conduct" role="tabpanel">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Member Code of Conduct</label>
+                                <textarea name="legal_code_of_conduct" id="conduct_editor" class="form-control" rows="12">{{ $settings['legal_code_of_conduct'] ?? 'Members are expected to treat all other community members, volunteers, and guests with respect, dignity, and inclusivity. Harassment, discrimination, or abusive behaviour during events or on community platforms will result in termination of membership.' }}</textarea>
+                                <div class="form-text mt-1 text-muted">Sets behavioral standards and rules for community members.</div>
+                            </div>
+                        </div>
+
+                        <!-- ACCESSIBILITY STATEMENT -->
+                        <div class="tab-pane fade" id="accessibility" role="tabpanel">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Accessibility Statement</label>
+                                <textarea name="legal_accessibility" id="accessibility_editor" class="form-control" rows="12">{{ $settings['legal_accessibility'] ?? 'PMCC is committed to making its website and cultural events accessible to everyone, including individuals with disabilities. We strive to improve web accessibility in accordance with WCAG 2.1 guidelines.' }}</textarea>
+                                <div class="form-text mt-1 text-muted">Accessibility policy details and accommodations.</div>
                             </div>
                         </div>
                     </div>
@@ -107,6 +163,10 @@
         $('#terms_editor').summernote(summernoteConfig);
         $('#privacy_editor').summernote(summernoteConfig);
         $('#cookies_editor').summernote(summernoteConfig);
+        $('#refund_editor').summernote(summernoteConfig);
+        $('#safeguarding_editor').summernote(summernoteConfig);
+        $('#conduct_editor').summernote(summernoteConfig);
+        $('#accessibility_editor').summernote(summernoteConfig);
     });
 </script>
 @endsection

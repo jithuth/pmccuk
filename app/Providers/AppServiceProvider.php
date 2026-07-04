@@ -41,7 +41,8 @@ class AppServiceProvider extends ServiceProvider
                 'mail_host', 'mail_username', 'mail_password', 'mail_from_address', 'mail_from_name',
                 'social_facebook', 'social_instagram', 'social_youtube', 'social_twitter',
                 'bank_account_no', 'bank_sort_code',
-                'legal_privacy_policy', 'legal_terms_conditions', 'legal_cookie_policy'
+                'legal_privacy_policy', 'legal_terms_conditions', 'legal_cookie_policy',
+                'legal_refund_cancellation', 'legal_safeguarding', 'legal_code_of_conduct', 'legal_accessibility'
             ];
             
             foreach ($encryptedFields as $field) {

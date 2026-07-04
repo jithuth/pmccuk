@@ -225,6 +225,26 @@ Route::get('/terms', function () {
     return view('terms');
 })->name('terms');
 
+Route::get('/cookie-policy', function () {
+    return view('cookie_policy');
+})->name('cookie-policy');
+
+Route::get('/refund-policy', function () {
+    return view('refund_policy');
+})->name('refund-policy');
+
+Route::get('/safeguarding', function () {
+    return view('safeguarding');
+})->name('safeguarding');
+
+Route::get('/code-of-conduct', function () {
+    return view('code_of_conduct');
+})->name('code-of-conduct');
+
+Route::get('/accessibility', function () {
+    return view('accessibility');
+})->name('accessibility');
+
 Route::get('/student-corner', function () {
     return view('student_corner');
 })->name('student-corner');
