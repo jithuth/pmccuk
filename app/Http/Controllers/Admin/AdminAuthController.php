@@ -26,6 +26,15 @@ class AdminAuthController extends Controller
 
         // Validate credentials without logging in yet
         if (!Auth::guard('admin')->validate($credentials)) {
+            try {
+                \App\Services\TelegramService::sendMessage(
+                    "⚠️ <b>Security Alert: Failed Admin Login Attempt</b>\n\n" .
+                    "👤 <b>Username:</b> " . htmlspecialchars($credentials['username']) . "\n" .
+                    "🌐 <b>IP Address:</b> " . $request->ip() . "\n" .
+                    "🗺️ <b>User Agent:</b> " . htmlspecialchars($request->userAgent())
+                );
+            } catch (\Exception $e) {}
+
             return back()->withErrors([
                 'username' => 'The provided credentials do not match our records.',
             ])->onlyInput('username');
@@ -42,6 +51,14 @@ class AdminAuthController extends Controller
         // No 2FA — log in directly
         Auth::guard('admin')->login($admin);
         $request->session()->regenerate();
+
+        try {
+            \App\Services\TelegramService::sendMessage(
+                "🔑 <b>Security Alert: Successful Admin Login</b>\n\n" .
+                "👤 <b>User:</b> " . htmlspecialchars($admin->username) . " (ID: {$admin->id}, Role: {$admin->role})\n" .
+                "🌐 <b>IP Address:</b> " . $request->ip()
+            );
+        } catch (\Exception $e) {}
 
         if ($admin->role === 'staff') {
             return redirect()->route('admin.staff.dashboard');

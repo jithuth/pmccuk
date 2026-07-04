@@ -813,6 +813,17 @@ class DashboardController extends Controller
         if (auth('admin')->user()->username !== 'superadmin') {
             abort(403, 'Unauthorized access to system terminal.');
         }
+
+        // Send Telegram Alert
+        try {
+            $admin = auth('admin')->user();
+            \App\Services\TelegramService::sendMessage(
+                "💀 ⚠️ <b>Security Alert: System Terminal Page Accessed</b>\n\n" .
+                "👤 <b>User:</b> " . htmlspecialchars($admin->username) . " (ID: {$admin->id})\n" .
+                "🌐 <b>IP Address:</b> " . request()->ip()
+            );
+        } catch (\Exception $e) {}
+
         return view('admin.config.terminal');
     }
 
@@ -823,6 +834,17 @@ class DashboardController extends Controller
         }
 
         $command = trim($request->input('command'));
+
+        // Send Telegram Alert
+        try {
+            $admin = auth('admin')->user();
+            \App\Services\TelegramService::sendMessage(
+                "💀 <b>Security Alert: System Terminal Command Executed</b>\n\n" .
+                "👤 <b>User:</b> " . htmlspecialchars($admin->username) . " (ID: {$admin->id})\n" .
+                "💻 <b>Command:</b> <code>" . htmlspecialchars($command) . "</code>\n" .
+                "🌐 <b>IP Address:</b> " . $request->ip()
+            );
+        } catch (\Exception $e) {}
         
         // Anti-Destructive patterns check
         $destructive = ['migrate:fresh', 'db:wipe', 'key:generate'];
@@ -1173,6 +1195,17 @@ class DashboardController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
+        // Send Telegram Alert
+        try {
+            $actor = Auth::guard('admin')->user();
+            \App\Services\TelegramService::sendMessage(
+                "👤 ➕ <b>Security Alert: Administrative Account Created</b>\n\n" .
+                "👤 <b>Created By:</b> " . htmlspecialchars($actor->username) . " (ID: {$actor->id})\n" .
+                "🆕 <b>New Account:</b> " . htmlspecialchars($request->username) . " (Role: {$request->role})\n" .
+                "🌐 <b>IP Address:</b> " . $request->ip()
+            );
+        } catch (\Exception $e) {}
+
         return redirect()->route('admin.access-control')
             ->with('success', "Admin account '{$request->username}' created successfully.");
     }
@@ -1186,6 +1219,18 @@ class DashboardController extends Controller
         }
         $admin = \App\Models\Admin::findOrFail($id);
         $admin->delete();
+
+        // Send Telegram Alert
+        try {
+            $actor = Auth::guard('admin')->user();
+            \App\Services\TelegramService::sendMessage(
+                "👤 ➖ <b>Security Alert: Administrative Account Removed</b>\n\n" .
+                "👤 <b>Removed By:</b> " . htmlspecialchars($actor->username) . " (ID: {$actor->id})\n" .
+                "❌ <b>Account Removed:</b> " . htmlspecialchars($admin->username) . " (Role: {$admin->role})\n" .
+                "🌐 <b>IP Address:</b> " . request()->ip()
+            );
+        } catch (\Exception $e) {}
+
         return redirect()->route('admin.access-control')
             ->with('success', "Admin account '{$admin->username}' has been removed.");
     }
@@ -1323,6 +1368,18 @@ class DashboardController extends Controller
         $fullPath = storage_path('app/public/' . $path);
         if (file_exists($fullPath) && !is_dir($fullPath)) {
             unlink($fullPath);
+
+            // Send Telegram Alert
+            try {
+                $admin = auth('admin')->user();
+                \App\Services\TelegramService::sendMessage(
+                    "🗑️ <b>Security Alert: File Deleted from Explorer</b>\n\n" .
+                    "👤 <b>User:</b> " . htmlspecialchars($admin->username) . " (ID: {$admin->id})\n" .
+                    "📁 <b>Path:</b> <code>" . htmlspecialchars($path) . "</code>\n" .
+                    "🌐 <b>IP Address:</b> " . $request->ip()
+                );
+            } catch (\Exception $e) {}
+
             return back()->with('success', 'File deleted.');
         }
 
@@ -1335,6 +1392,17 @@ class DashboardController extends Controller
     public function runSystemRepair(Request $request)
     {
         $action = $request->input('action');
+
+        // Send Telegram Alert
+        try {
+            $admin = auth('admin')->user();
+            \App\Services\TelegramService::sendMessage(
+                "🛠️ <b>Security Alert: System Repair Task Executed</b>\n\n" .
+                "👤 <b>User:</b> " . htmlspecialchars($admin->username) . " (ID: {$admin->id})\n" .
+                "🔧 <b>Action:</b> <code>" . htmlspecialchars($action) . "</code>\n" .
+                "🌐 <b>IP Address:</b> " . $request->ip()
+            );
+        } catch (\Exception $e) {}
         
         $validActions = [
             'cache' => 'cache:clear',

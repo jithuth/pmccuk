@@ -38,6 +38,14 @@ class TwoFactorController extends Controller
         $valid = $this->google2fa->verifyKey($secret, $request->otp);
 
         if (!$valid) {
+            try {
+                \App\Services\TelegramService::sendMessage(
+                    "⚠️ 🛡️ <b>Security Alert: Failed 2FA Attempt</b>\n\n" .
+                    "👤 <b>User:</b> " . htmlspecialchars($admin->username) . " (ID: {$admin->id})\n" .
+                    "🌐 <b>IP Address:</b> " . $request->ip()
+                );
+            } catch (\Exception $e) {}
+
             return back()->withErrors(['otp' => 'Invalid code. Please try again.']);
         }
 
@@ -45,6 +53,14 @@ class TwoFactorController extends Controller
         Auth::guard('admin')->login($admin);
         session()->forget('2fa_admin_id');
         $request->session()->regenerate();
+
+        try {
+            \App\Services\TelegramService::sendMessage(
+                "🔑 🛡️ <b>Security Alert: Successful Admin Login (via 2FA)</b>\n\n" .
+                "👤 <b>User:</b> " . htmlspecialchars($admin->username) . " (ID: {$admin->id}, Role: {$admin->role})\n" .
+                "🌐 <b>IP Address:</b> " . $request->ip()
+            );
+        } catch (\Exception $e) {}
 
         return redirect()->intended(route('admin.dashboard'));
     }
