@@ -99,8 +99,11 @@
                                     @forelse($activityLogs as $log)
                                         <tr>
                                             <td class="ps-3 py-3">
-                                                <span class="fw-bold text-slate-800 d-block">{{ $log->created_at->format('M d, Y') }}</span>
-                                                <small class="text-muted text-xs">{{ $log->created_at->format('H:i:s') }}</small>
+                                                @php
+                                                    $createdAt = ($log->created_at instanceof \Carbon\Carbon) ? $log->created_at : \Illuminate\Support\Carbon::parse($log->created_at);
+                                                @endphp
+                                                <span class="fw-bold text-slate-800 d-block">{{ $createdAt->format('M d, Y') }}</span>
+                                                <small class="text-muted text-xs">{{ $createdAt->format('H:i:s') }}</small>
                                             </td>
                                             <td>
                                                 <div class="d-flex align-items-center">

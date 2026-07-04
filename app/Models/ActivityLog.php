@@ -14,5 +14,6 @@ class ActivityLog extends Model
     protected $casts = [
         "action" => "encrypted",
         "details" => "encrypted",
+        "created_at" => "datetime",
     ];
 }
