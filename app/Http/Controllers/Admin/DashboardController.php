@@ -1639,10 +1639,68 @@ class DashboardController extends Controller
         }
         return view('admin.config.legal', compact('settings'));
     }
-    public function dbLogs()
+    public function dbLogs(Request $request)
     {
         $this->ensureSuperAdmin();
-        return view('admin.config.db_logs');
+
+        $query = ActivityLog::orderBy('id', 'desc');
+
+        if ($request->filled('action')) {
+            $query->where('action', $request->input('action'));
+        }
+        if ($request->filled('user_type')) {
+            $query->where('user_type', $request->input('user_type'));
+        }
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('details', 'LIKE', "%{$search}%")
+                  ->orWhere('ip_address', 'LIKE', "%{$search}%")
+                  ->orWhere('admin_username', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $activityLogs = $query->paginate(20)->withQueryString();
+
+        // Fetch recent Laravel system log entries
+        $systemLogs = 'No application logs found.';
+        $logPath = storage_path('logs/laravel.log');
+        if (file_exists($logPath)) {
+            $fileSize = filesize($logPath);
+            // Read last 150KB to prevent memory exhaustion
+            $readSize = min($fileSize, 150000);
+            $fh = fopen($logPath, 'r');
+            if ($fh) {
+                fseek($fh, -$readSize, SEEK_END);
+                $systemLogs = fread($fh, $readSize);
+                fclose($fh);
+                $systemLogs = htmlspecialchars($systemLogs);
+            }
+        }
+
+        // Get unique log actions for filter dropdown
+        $actions = ActivityLog::select('action')->distinct()->pluck('action');
+
+        return view('admin.config.db_logs', compact('activityLogs', 'systemLogs', 'actions'));
+    }
+
+    public function clearSystemLogs()
+    {
+        $this->ensureSuperAdmin();
+        $logPath = storage_path('logs/laravel.log');
+        if (file_exists($logPath)) {
+            file_put_contents($logPath, '');
+            // Log this action
+            try {
+                ActivityLog::create([
+                    'user_type' => 'admin',
+                    'action' => 'logs_cleared',
+                    'details' => 'Application system logs (laravel.log) cleared by SuperAdmin',
+                    'ip_address' => request()->ip()
+                ]);
+            } catch (\Exception $e) {}
+        }
+        return back()->with('success', 'Application log file cleared successfully!');
     }
     public function ipTool()
     {
@@ -1710,4 +1768,6 @@ class DashboardController extends Controller
             return back()->with('error', 'Mail Connection Failed: ' . $e->getMessage())->withInput();
         }
     }
+
+
 }
