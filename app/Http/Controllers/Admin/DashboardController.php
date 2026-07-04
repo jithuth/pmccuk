@@ -1128,7 +1128,8 @@ class DashboardController extends Controller
     }
     public function redemptions()
     {
-        return view('admin.sponsors.redemptions');
+        $redemptions = OfferRedemption::with(['offer', 'member'])->orderBy('id', 'desc')->paginate(30);
+        return view('admin.sponsors.redemptions', compact('redemptions'));
     }
 
     // --- MEDIA & FINANCE ---
