@@ -212,6 +212,21 @@ class BookingController extends Controller
             'booking_status' => 'pending',
         ]);
 
+        // Send Telegram Notification
+        try {
+            \App\Services\TelegramService::sendMessage(
+                "🎟️ <b>New Event Ticket Booking</b>\n\n" .
+                "📅 <b>Event:</b> " . $event->title . "\n" .
+                "👤 <b>Booked By:</b> " . $request->full_name . "\n" .
+                "📧 <b>Email:</b> " . $request->email . "\n" .
+                "📱 <b>Phone:</b> " . $request->phone . "\n" .
+                "🎫 <b>Tickets:</b> " . ($adults + $children + $infants) . " (" . $adults . " Adult, " . $children . " Child, " . $infants . " Infant)\n" .
+                "💰 <b>Total Paid:</b> £" . number_format($total_amount, 2)
+            );
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Telegram failed for event booking: " . $e->getMessage());
+        }
+
         return view('events.booking_confirmation', [
             'booking' => $booking,
             'event' => $event,

@@ -31,6 +31,11 @@
                                 <i class="fas fa-search me-2"></i> SEO & SOCIAL
                             </button>
                         </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link fw-bold py-3" data-bs-toggle="pill" data-bs-target="#notificationsTab">
+                                <i class="fab fa-telegram-plane me-2"></i> TELEGRAM ALERTS
+                            </button>
+                        </li>
                     </ul>
                 </div>
 
@@ -199,6 +204,25 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- TELEGRAM NOTIFICATIONS -->
+                        <div class="tab-pane fade" id="notificationsTab">
+                            <h6 class="fw-bold mb-4 border-bottom pb-2 text-primary uppercase small italic">Telegram Bot Alerts Configuration</h6>
+                            <p class="text-muted mb-4">Provide your Telegram Bot credentials to receive instant real-time alerts in your administrative group when members submit registration requests or event bookings.</p>
+                            
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Telegram Bot Token</label>
+                                    <input type="text" name="telegram_bot_token" class="form-control form-control-lg bg-light border-0" value="{{ $settings['telegram_bot_token'] ?? '' }}" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ">
+                                    <div class="form-text mt-1 text-muted">The API token obtained from Telegram's @BotFather.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Telegram Chat ID</label>
+                                    <input type="text" name="telegram_chat_id" class="form-control form-control-lg bg-light border-0" value="{{ $settings['telegram_chat_id'] ?? '' }}" placeholder="-1001234567890">
+                                    <div class="form-text mt-1 text-muted">The unique ID of the Telegram group/channel or administrative chat.</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -245,6 +269,9 @@
             if (el) bootstrap.Tab.getOrCreateInstance(el).show();
         } else if (tab === 'seo') {
             const el = document.querySelector('[data-bs-target="#seoTab"]');
+            if (el) bootstrap.Tab.getOrCreateInstance(el).show();
+        } else if (tab === 'notifications') {
+            const el = document.querySelector('[data-bs-target="#notificationsTab"]');
             if (el) bootstrap.Tab.getOrCreateInstance(el).show();
         }
     });

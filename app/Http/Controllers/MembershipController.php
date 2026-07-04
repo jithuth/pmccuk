@@ -271,6 +271,29 @@ class MembershipController extends Controller
             \Illuminate\Support\Facades\Log::error("Email failed for {$request->input('email')}: " . $e->getMessage());
         }
 
+        // Send Telegram Notification
+        try {
+            if ($is_renewal) {
+                \App\Services\TelegramService::sendMessage(
+                    "🔄 <b>New Membership Renewal Request</b>\n\n" .
+                    "👤 <b>Name:</b> " . $request->input('full_name') . "\n" .
+                    "📧 <b>Email:</b> " . $request->input('email') . "\n" .
+                    "📱 <b>Mobile:</b> " . $request->input('mobile_number') . "\n" .
+                    "💳 <b>Membership Type:</b> " . $request->input('membership_type')
+                );
+            } else {
+                \App\Services\TelegramService::sendMessage(
+                    "📝 <b>New Membership Application</b>\n\n" .
+                    "👤 <b>Name:</b> " . $request->input('full_name') . "\n" .
+                    "📧 <b>Email:</b> " . $request->input('email') . "\n" .
+                    "📱 <b>Mobile:</b> " . $request->input('mobile_number') . "\n" .
+                    "💳 <b>Membership Type:</b> " . $request->input('membership_type')
+                );
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Telegram failed for membership: " . $e->getMessage());
+        }
+
         return redirect()->route('membership')->with('status', 'success');
     }
 }
