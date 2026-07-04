@@ -217,9 +217,9 @@
                                     <div class="form-text mt-1 text-muted">The API token obtained from Telegram's @BotFather.</div>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="form-label fw-bold">Telegram Chat ID</label>
-                                    <input type="text" name="telegram_chat_id" class="form-control form-control-lg bg-light border-0" value="{{ $settings['telegram_chat_id'] ?? '' }}" placeholder="-1001234567890">
-                                    <div class="form-text mt-1 text-muted">The unique ID of the Telegram group/channel or administrative chat.</div>
+                                    <label class="form-label fw-bold">Telegram Chat ID(s)</label>
+                                    <input type="text" name="telegram_chat_id" class="form-control form-control-lg bg-light border-0" value="{{ $settings['telegram_chat_id'] ?? '' }}" placeholder="-1001234567890, -1009876543210">
+                                    <div class="form-text mt-1 text-muted">The unique ID of the Telegram group/chat. Enter multiple IDs separated by commas or spaces to notify multiple chats.</div>
                                 </div>
                             </div>
                         </div>

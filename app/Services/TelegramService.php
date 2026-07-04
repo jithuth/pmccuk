@@ -36,23 +36,35 @@ class TelegramService
             return false;
         }
 
-        try {
-            $url = "https://api.telegram.org/bot{$token}/sendMessage";
-            $response = Http::timeout(5)->post($url, [
-                'chat_id' => $chatId,
-                'text' => $message,
-                'parse_mode' => 'HTML',
-            ]);
+        // Split multiple chat IDs (by spaces, commas, semicolons, or newlines)
+        $chatIds = preg_split('/[\s,;]+/', trim($chatId));
+        $chatIds = array_filter(array_map('trim', $chatIds));
 
-            if ($response->successful()) {
-                return true;
-            }
-
-            Log::error('Telegram API Error: ' . $response->body());
-            return false;
-        } catch (\Exception $e) {
-            Log::error('Telegram Notification Failed: ' . $e->getMessage());
+        if (empty($chatIds)) {
+            Log::warning('Telegram Notification Skipped: No valid CHAT_IDs found.');
             return false;
         }
+
+        $allSuccessful = true;
+        foreach ($chatIds as $id) {
+            try {
+                $url = "https://api.telegram.org/bot{$token}/sendMessage";
+                $response = Http::timeout(5)->post($url, [
+                    'chat_id' => $id,
+                    'text' => $message,
+                    'parse_mode' => 'HTML',
+                ]);
+
+                if (!$response->successful()) {
+                    Log::error("Telegram API Error for chat ID {$id}: " . $response->body());
+                    $allSuccessful = false;
+                }
+            } catch (\Exception $e) {
+                Log::error("Telegram Notification Failed for chat ID {$id}: " . $e->getMessage());
+                $allSuccessful = false;
+            }
+        }
+
+        return $allSuccessful;
     }
 }
