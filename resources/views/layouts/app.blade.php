@@ -394,7 +394,7 @@
                     </button>
                     
                     <!-- Dropup Menu Content -->
-                    <div id="legal-dropup-menu" class="hidden absolute bottom-full right-0 mb-4 w-64 rounded-[2rem] bg-slate-900 border border-white/10 shadow-2xl p-3 z-50 flex flex-col space-y-1 text-slate-400 font-bold normal-case text-left">
+                    <div id="legal-dropup-menu" class="hidden absolute right-0 mb-4 w-64 rounded-[2rem] bg-slate-900 border border-white/10 shadow-2xl p-3 z-50 flex flex-col space-y-1 text-slate-400 font-bold normal-case text-left" style="bottom: 100% !important;">
                         <a href="{{ route('privacy') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
                             <i class="fas fa-user-shield w-8 text-secondary"></i> Privacy Policy
                         </a>
