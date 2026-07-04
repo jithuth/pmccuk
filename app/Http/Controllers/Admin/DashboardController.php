@@ -353,7 +353,7 @@ class DashboardController extends Controller
         $count = 0;
 
         // 1. Sync Approved Event Bookings
-        $bookings = \App\Models\EventBooking::where('booking_status', 'approved')->get();
+        $bookings = EventBooking::where('booking_status', 'approved')->get();
         foreach ($bookings as $b) {
             $exists = FinancialTransaction::where('ref_no', "EVT-{$b->id}")->exists();
             if ($exists)
