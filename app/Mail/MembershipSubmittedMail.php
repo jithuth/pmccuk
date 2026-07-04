@@ -11,6 +11,10 @@ class MembershipSubmittedMail extends Mailable
     use Queueable, SerializesModels;
 
     public $full_name;
+    public $bank_name;
+    public $bank_account_name;
+    public $bank_sort_code;
+    public $bank_account_no;
 
     /**
      * Create a new message instance.
@@ -18,6 +22,18 @@ class MembershipSubmittedMail extends Mailable
     public function __construct($full_name)
     {
         $this->full_name = $full_name;
+        
+        try {
+            $this->bank_name = \App\Models\Setting::where('setting_key', 'bank_name')->value('setting_value') ?? 'Barclays Bank';
+            $this->bank_account_name = \App\Models\Setting::where('setting_key', 'bank_account_name')->value('setting_value') ?? 'PMCC-UK';
+            $this->bank_sort_code = \App\Models\Setting::where('setting_key', 'bank_sort_code')->value('setting_value') ?? 'XX-XX-XX';
+            $this->bank_account_no = \App\Models\Setting::where('setting_key', 'bank_account_no')->value('setting_value') ?? 'XXXXXXXX';
+        } catch (\Exception $e) {
+            $this->bank_name = 'Barclays Bank';
+            $this->bank_account_name = 'PMCC-UK';
+            $this->bank_sort_code = 'XX-XX-XX';
+            $this->bank_account_no = 'XXXXXXXX';
+        }
     }
 
     /**
