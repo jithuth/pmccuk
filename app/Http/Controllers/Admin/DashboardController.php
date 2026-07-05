@@ -21,6 +21,8 @@ use App\Models\SponsorOffer;
 use App\Models\OfferRedemption;
 use App\Models\Admin;
 use App\Models\Gallery;
+use App\Models\Album;
+use App\Models\Video;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -1135,19 +1137,24 @@ class DashboardController extends Controller
     // --- MEDIA & FINANCE ---
     public function gallery(Request $request)
     {
-        $gallery = Gallery::orderBy('created_at', 'desc')->paginate(30);
-        return view('admin.media.gallery', compact('gallery'));
+        $gallery = Gallery::with('album')->orderBy('id', 'desc')->paginate(30);
+        $albums = Album::orderBy('name', 'asc')->get();
+        return view('admin.media.gallery', compact('gallery', 'albums'));
     }
 
     public function addGallery(Request $request)
     {
-        $request->validate(['gallery_image' => 'required|image']);
+        $request->validate([
+            'gallery_image' => 'required|image',
+            'album_id' => 'required|exists:albums,id'
+        ]);
 
         if ($request->hasFile('gallery_image')) {
             $path = $request->file('gallery_image')->store('gallery', 'public');
             Gallery::create([
                 'title' => $request->title,
-                'image_url' => $path
+                'image_url' => $path,
+                'album_id' => $request->album_id
             ]);
         }
 
@@ -1160,13 +1167,72 @@ class DashboardController extends Controller
         $g->delete();
         return redirect()->back()->with('success', 'Media removed.');
     }
+
     public function albums()
     {
-        return view('admin.media.albums');
+        $albums = Album::withCount('photos')->orderBy('id', 'desc')->paginate(20);
+        return view('admin.media.albums', compact('albums'));
     }
+
+    public function storeAlbum(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'description' => 'nullable|string',
+            'cover_image' => 'nullable|image'
+        ]);
+
+        $coverPath = null;
+        if ($request->hasFile('cover_image')) {
+            $coverPath = $request->file('cover_image')->store('albums', 'public');
+        }
+
+        Album::create([
+            'name' => $request->name,
+            'description' => $request->description,
+            'cover_image_url' => $coverPath
+        ]);
+
+        return redirect()->back()->with('success', 'Photo album created successfully!');
+    }
+
+    public function deleteAlbum($id)
+    {
+        $album = Album::findOrFail($id);
+        $album->photos()->delete();
+        $album->delete();
+        return redirect()->back()->with('success', 'Album deleted successfully!');
+    }
+
     public function videos()
     {
-        return view('admin.media.videos');
+        $videos = Video::orderBy('id', 'desc')->paginate(20);
+        return view('admin.media.videos', compact('videos'));
+    }
+
+    public function storeVideo(Request $request)
+    {
+        $request->validate([
+            'title' => 'required|string|max:100',
+            'video_url' => 'required|url',
+            'description' => 'nullable|string'
+        ]);
+
+        Video::create([
+            'title' => $request->title,
+            'video_url' => $request->video_url,
+            'description' => $request->description,
+            'platform' => 'youtube'
+        ]);
+
+        return redirect()->back()->with('success', 'Video added to gallery successfully!');
+    }
+
+    public function deleteVideo($id)
+    {
+        $video = Video::findOrFail($id);
+        $video->delete();
+        return redirect()->back()->with('success', 'Video removed successfully!');
     }
 
     // --- SYSTEM ---

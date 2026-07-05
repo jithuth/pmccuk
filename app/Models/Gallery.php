@@ -8,6 +8,11 @@ class Gallery extends Model
     public $timestamps = false; // Legacy table
 
     protected $fillable = [
-        'title', 'image_url'
+        'title', 'image_url', 'album_id'
     ];
+
+    public function album()
+    {
+        return $this->belongsTo(Album::class, 'album_id');
+    }
 }

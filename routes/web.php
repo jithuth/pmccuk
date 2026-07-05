@@ -206,6 +206,7 @@ Route::get('/news', [NewsController::class, 'index'])->name('news');
 Route::get('/news/{id}', [NewsController::class, 'show'])->name('news.show');
 
 Route::get('/gallery', [GalleryController::class, 'index'])->name('gallery');
+Route::get('/videos', [GalleryController::class, 'videos'])->name('public.videos');
 Route::get('/offers', [OfferController::class, 'index'])->name('offers');
 Route::get('/team', [TeamController::class, 'index'])->name('team');
 
@@ -344,7 +345,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::post('/gallery', [DashboardController::class, 'addGallery'])->name('gallery.add');
             Route::delete('/gallery/{id}', [DashboardController::class, 'deleteGallery'])->name('gallery.delete');
             Route::get('/albums', [DashboardController::class, 'albums'])->name('albums');
+            Route::post('/albums', [DashboardController::class, 'storeAlbum'])->name('albums.store');
+            Route::delete('/albums/{id}', [DashboardController::class, 'deleteAlbum'])->name('albums.delete');
             Route::get('/videos', [DashboardController::class, 'videos'])->name('videos');
+            Route::post('/videos', [DashboardController::class, 'storeVideo'])->name('videos.store');
+            Route::delete('/videos/{id}', [DashboardController::class, 'deleteVideo'])->name('videos.delete');
             Route::get('/accounting', [DashboardController::class, 'accounting'])->name('accounting');
             Route::get('/accounting/export', [DashboardController::class, 'exportTransactions'])->name('accounting.export');
             Route::post('/accounting/sync', [DashboardController::class, 'syncFinancials'])->name('accounting.sync');
@@ -413,6 +418,14 @@ Route::get('/uploads/{path}', function ($path) {
     }
     abort(404);
 })->where('path', '.*');
+
+// Redirect legacy .php URLs
+Route::get('/gallery.php', function () {
+    return redirect()->route('gallery', request()->query());
+});
+Route::get('/videos.php', function () {
+    return redirect()->route('public.videos', request()->query());
+});
 
 
 

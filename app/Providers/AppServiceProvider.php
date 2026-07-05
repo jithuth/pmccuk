@@ -76,10 +76,28 @@ class AppServiceProvider extends ServiceProvider
             if (Schema::hasTable('menus')) {
                 $menusRaw = Menu::where('parent_id', 0)->where('is_active', 1)->orderBy('order_no')->get();
                 foreach($menusRaw as $m) {
+                    $url = $m->url;
+                    if ($url !== '#') {
+                        $url = str_replace('.php', '', $url);
+                    }
+                    
+                    $submenus = [];
+                    $submenusRaw = Menu::where('parent_id', $m->id)->where('is_active', 1)->orderBy('order_no')->get();
+                    foreach ($submenusRaw as $sub) {
+                        $subUrl = $sub->url;
+                        if ($subUrl !== '#') {
+                            $subUrl = str_replace('.php', '', $subUrl);
+                        }
+                        $submenus[] = [
+                            'title' => $sub->title,
+                            'url' => $subUrl
+                        ];
+                    }
+
                     $menus[] = [
                         'title' => $m->title,
-                        'url' => $m->url,
-                        'submenus' => Menu::where('parent_id', $m->id)->where('is_active', 1)->orderBy('order_no')->get()
+                        'url' => $url,
+                        'submenus' => $submenus
                     ];
                 }
             }
