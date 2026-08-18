@@ -279,21 +279,31 @@ class MembershipController extends Controller
 
         // Send Telegram Notification
         try {
-            if ($is_renewal) {
+            if ($is_renewal && isset($renewal)) {
                 \App\Services\TelegramService::sendMessage(
                     "🔄 <b>New Membership Renewal Request</b>\n\n" .
-                    "👤 <b>Name:</b> " . $request->input('full_name') . "\n" .
-                    "📧 <b>Email:</b> " . $request->input('email') . "\n" .
-                    "📱 <b>Mobile:</b> " . $request->input('mobile_number') . "\n" .
-                    "💳 <b>Membership Type:</b> " . $request->input('membership_type')
+                    "👤 <b>Name:</b> " . htmlspecialchars($request->input('full_name')) . "\n" .
+                    "📧 <b>Email:</b> " . htmlspecialchars($request->input('email')) . "\n" .
+                    "📱 <b>Mobile:</b> " . htmlspecialchars($request->input('mobile_number')) . "\n" .
+                    "💳 <b>Membership Type:</b> " . htmlspecialchars($request->input('membership_type')),
+                    [
+                        [
+                            ['text' => '✅ Approve Renewal', 'callback_data' => "approve_ren:{$renewal->id}"]
+                        ]
+                    ]
                 );
-            } else {
+            } elseif (isset($member)) {
                 \App\Services\TelegramService::sendMessage(
                     "📝 <b>New Membership Application</b>\n\n" .
-                    "👤 <b>Name:</b> " . $request->input('full_name') . "\n" .
-                    "📧 <b>Email:</b> " . $request->input('email') . "\n" .
-                    "📱 <b>Mobile:</b> " . $request->input('mobile_number') . "\n" .
-                    "💳 <b>Membership Type:</b> " . $request->input('membership_type')
+                    "👤 <b>Name:</b> " . htmlspecialchars($request->input('full_name')) . "\n" .
+                    "📧 <b>Email:</b> " . htmlspecialchars($request->input('email')) . "\n" .
+                    "📱 <b>Mobile:</b> " . htmlspecialchars($request->input('mobile_number')) . "\n" .
+                    "💳 <b>Membership Type:</b> " . htmlspecialchars($request->input('membership_type')),
+                    [
+                        [
+                            ['text' => '✅ Approve Member', 'callback_data' => "approve_mem:{$member->id}"]
+                        ]
+                    ]
                 );
             }
         } catch (\Exception $e) {

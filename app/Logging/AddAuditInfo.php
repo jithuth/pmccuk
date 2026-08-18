@@ -13,6 +13,9 @@ class AddAuditInfo
      */
     public function __invoke(Logger $logger): void
     {
+        // Push TelegramLogHandler to logger to catch Error & Warning logs
+        $logger->pushHandler(new TelegramLogHandler());
+
         foreach ($logger->getHandlers() as $handler) {
             $handler->pushProcessor(function (LogRecord $record) {
                 $ip = 'CLI';
@@ -32,6 +35,7 @@ class AddAuditInfo
                 ]));
             });
 
+            // Set custom LineFormatter to include timestamp and IP location header
             $output = "[%datetime%] [IP: %extra.ip%] %channel%.%level_name%: %message% %context%\n";
             $formatter = new LineFormatter($output, 'Y-m-d H:i:s', true, true);
             $formatter->includeStacktraces(true);

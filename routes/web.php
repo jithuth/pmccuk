@@ -199,6 +199,27 @@ Route::post('/api/membership/send-otp', [MembershipController::class, 'sendOtp']
 Route::post('/api/membership/verify-otp', [MembershipController::class, 'verifyOtp']);
 Route::post('/membership/submit', [MembershipController::class, 'submit'])->name('membership.submit')->middleware(\App\Http\Middleware\CheckHoneypot::class);
 
+// Telegram Smart Webhook Routes
+Route::post('/telegram/webhook', [\App\Http\Controllers\TelegramWebhookController::class, 'handle'])->name('telegram.webhook');
+Route::get('/telegram/set-webhook', function () {
+    $token = \App\Services\TelegramService::getToken();
+    if (!$token) {
+        return response()->json(['status' => 'error', 'message' => 'Telegram bot token is not configured in settings.'], 400);
+    }
+    $webhookUrl = url('/telegram/webhook');
+    if (str_starts_with($webhookUrl, 'http://')) {
+        $webhookUrl = str_replace('http://', 'https://', $webhookUrl);
+    }
+    $response = \Illuminate\Support\Facades\Http::post("https://api.telegram.org/bot{$token}/setWebhook", [
+        'url' => $webhookUrl
+    ]);
+    return response()->json([
+        'status' => $response->successful() ? 'success' : 'failed',
+        'webhook_url' => $webhookUrl,
+        'telegram_response' => $response->json()
+    ]);
+})->name('telegram.set-webhook');
+
 Route::get('/events', [EventController::class, 'index'])->name('events');
 Route::get('/events/{id}', [EventController::class, 'show'])->name('events.show');
 

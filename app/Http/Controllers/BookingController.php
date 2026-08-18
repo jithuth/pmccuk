@@ -216,12 +216,17 @@ class BookingController extends Controller
         try {
             \App\Services\TelegramService::sendMessage(
                 "🎟️ <b>New Event Ticket Booking</b>\n\n" .
-                "📅 <b>Event:</b> " . $event->title . "\n" .
-                "👤 <b>Booked By:</b> " . $request->full_name . "\n" .
-                "📧 <b>Email:</b> " . $request->email . "\n" .
-                "📱 <b>Phone:</b> " . $request->phone . "\n" .
+                "📅 <b>Event:</b> " . htmlspecialchars($event->title) . "\n" .
+                "👤 <b>Booked By:</b> " . htmlspecialchars($request->full_name) . "\n" .
+                "📧 <b>Email:</b> " . htmlspecialchars($request->email) . "\n" .
+                "📱 <b>Phone:</b> " . htmlspecialchars($request->phone) . "\n" .
                 "🎫 <b>Tickets:</b> " . ($adults + $children + $infants) . " (" . $adults . " Adult, " . $children . " Child, " . $infants . " Infant)\n" .
-                "💰 <b>Total Paid:</b> £" . number_format($total_amount, 2)
+                "💰 <b>Total Paid:</b> £" . number_format($total_amount, 2),
+                [
+                    [
+                        ['text' => '✅ Approve Booking', 'callback_data' => "approve_book:{$booking->id}"]
+                    ]
+                ]
             );
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Telegram failed for event booking: " . $e->getMessage());
