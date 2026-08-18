@@ -4,40 +4,51 @@
     <meta charset="utf-8">
     <title>Event Ticket - {{ $booking->event->title ?? 'PMCC Event' }}</title>
     <style>
-        @page { margin: 0px; }
+        @page {
+            size: a5 portrait;
+            margin: 0px;
+        }
         * { box-sizing: border-box; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; margin: 0px; padding: 0px; background-color: #ffffff; }
-        
-        .ticket-card { 
+        html, body { 
+            font-family: 'Helvetica', 'Arial', sans-serif; 
+            margin: 0px; 
+            padding: 0px; 
             width: 100%; 
             height: 100%; 
-            min-height: 575px; 
-            position: relative; 
-            background: #ffffff; 
-            border: 3px solid #0f172a; 
-            border-radius: 16px; 
+            background-color: #ffffff; 
             overflow: hidden; 
-            margin: 0 auto; 
         }
         
-        .header { background: #0f172a; color: #ffffff; padding: 15px 20px; text-align: center; height: 85px; }
-        .header-title { font-size: 15px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; line-height: 1.2; }
-        .header-sub { font-size: 9px; color: #fbbf24; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; }
+        .ticket-card { 
+            width: 92%; 
+            height: 540px; 
+            position: relative; 
+            background: #ffffff; 
+            border: 2px solid #0f172a; 
+            border-radius: 14px; 
+            overflow: hidden; 
+            margin: 12px auto; 
+            page-break-inside: avoid;
+        }
         
-        .body-section { padding: 20px; text-align: center; }
-        .status-badge { background-color: #dcfce7; color: #166534; font-size: 11px; font-weight: bold; padding: 5px 14px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; }
-        .event-name { font-size: 22px; font-weight: bold; color: #0f172a; margin-bottom: 4px; line-height: 1.1; }
-        .event-date { font-size: 13px; color: #475569; margin-bottom: 15px; font-weight: bold; }
+        .header { background: #0f172a; color: #ffffff; padding: 12px 15px; text-align: center; height: 75px; }
+        .header-title { font-size: 14px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; line-height: 1.2; }
+        .header-sub { font-size: 8px; color: #fbbf24; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; margin-top: 3px; }
         
-        .qr-box { background: #f8fafc; padding: 12px 18px; border-radius: 14px; border: 2px dashed #cbd5e1; display: inline-block; margin: 5px 0 15px 0; text-align: center; }
-        .qr-img { width: 145px; height: 145px; }
-        .ref-no { font-family: monospace; font-size: 14px; font-weight: bold; color: #0f172a; margin-top: 6px; letter-spacing: 0.5px; }
+        .body-section { padding: 15px; text-align: center; height: 410px; position: relative; }
+        .status-badge { background-color: #dcfce7; color: #166534; font-size: 10px; font-weight: bold; padding: 4px 12px; border-radius: 12px; display: inline-block; margin-bottom: 8px; text-transform: uppercase; }
+        .event-name { font-size: 20px; font-weight: bold; color: #0f172a; margin-bottom: 3px; line-height: 1.1; }
+        .event-date { font-size: 12px; color: #475569; margin-bottom: 10px; font-weight: bold; }
         
-        .details-table { width: 100%; border-collapse: collapse; margin-top: 10px; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 12px 0; text-align: left; }
-        .label { font-size: 9px; color: #64748b; font-weight: bold; text-transform: uppercase; }
-        .val { font-size: 13px; color: #0f172a; font-weight: bold; margin-top: 2px; }
+        .qr-box { background: #f8fafc; padding: 10px 15px; border-radius: 12px; border: 1.5px dashed #cbd5e1; display: inline-block; margin: 2px 0 10px 0; text-align: center; }
+        .qr-img { width: 135px; height: 135px; }
+        .ref-no { font-family: monospace; font-size: 13px; font-weight: bold; color: #0f172a; margin-top: 5px; letter-spacing: 0.5px; }
         
-        .footer { background: #f8fafc; padding: 12px 20px; text-align: center; font-size: 10px; color: #64748b; border-top: 1px solid #e2e8f0; position: absolute; bottom: 0; left: 0; right: 0; height: 55px; }
+        .details-table { width: 100%; border-collapse: collapse; margin-top: 8px; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 8px 0; text-align: left; }
+        .label { font-size: 8px; color: #64748b; font-weight: bold; text-transform: uppercase; }
+        .val { font-size: 12px; color: #0f172a; font-weight: bold; margin-top: 2px; }
+        
+        .footer { background: #f8fafc; padding: 10px 15px; text-align: center; font-size: 9px; color: #64748b; border-top: 1px solid #e2e8f0; position: absolute; bottom: 0; left: 0; right: 0; height: 50px; }
     </style>
 </head>
 <body>
