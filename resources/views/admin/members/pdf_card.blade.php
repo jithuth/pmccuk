@@ -5,22 +5,36 @@
     <title>ID Card - {{ $member->full_name }}</title>
     <style>
         @page { margin: 0px; }
+        * { box-sizing: border-box; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; margin: 0px; padding: 0px; background-color: #ffffff; }
-        .card { width: 500px; height: 300px; position: relative; border: 2px solid #004d40; border-radius: 12px; overflow: hidden; background: #ffffff; margin: 10px auto; }
-        .header { background-color: #004d40; height: 65px; color: #ffffff; padding: 8px 15px; }
-        .header table { width: 100%; border-collapse: collapse; }
-        .org-logo { height: 48px; max-width: 48px; border-radius: 50%; background: #ffffff; padding: 2px; }
-        .org-title { font-size: 14px; font-weight: bold; color: #ffffff; text-transform: uppercase; line-height: 1.2; }
-        .org-sub { font-size: 8px; color: #80cbc4; letter-spacing: 1px; font-weight: bold; margin-top: 2px; }
-        .body-content { padding: 15px 20px; position: relative; height: 160px; }
-        .label { font-size: 9px; color: #78909c; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
-        .value { font-size: 13px; font-weight: bold; color: #263238; text-transform: uppercase; margin-bottom: 8px; }
-        .value-highlight { font-size: 15px; font-weight: bold; color: #d32f2f; text-transform: uppercase; margin-bottom: 8px; }
-        .photo-box { position: absolute; right: 20px; top: 15px; width: 105px; height: 110px; border: 3px solid #004d40; border-radius: 8px; overflow: hidden; background: #f1f5f9; text-align: center; }
-        .photo-img { width: 105px; height: 110px; object-fit: cover; }
-        .footer { background-color: #004d40; height: 35px; color: #ffffff; padding: 5px 20px; position: absolute; bottom: 0; left: 0; right: 0; }
-        .footer table { width: 100%; font-size: 10px; color: #ffffff; }
-        .footer-sub { color: #80cbc4; font-size: 8px; text-transform: uppercase; font-weight: bold; }
+        .card { width: 500px; height: 300px; position: relative; border: 2px solid #004d40; border-radius: 14px; overflow: hidden; background: #ffffff; margin: 0 auto; }
+        
+        .card-header { background-color: #004d40; height: 75px; color: #ffffff; padding: 10px 18px; }
+        .header-table { width: 100%; border-collapse: collapse; }
+        .org-logo { width: 54px; height: 54px; border-radius: 50%; background: #ffffff; padding: 2px; }
+        .org-name { font-size: 15px; font-weight: bold; color: #ffffff; text-transform: uppercase; line-height: 1.15; text-align: right; }
+        .org-tagline { font-size: 8px; font-weight: bold; color: #80cbc4; letter-spacing: 1.5px; margin-top: 3px; text-align: right; text-transform: uppercase; }
+
+        .card-body { padding: 12px 18px; position: relative; height: 180px; }
+        .content-table { width: 100%; border-collapse: collapse; }
+
+        .field-group { margin-bottom: 5px; }
+        .label { font-size: 9px; color: #78909c; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 1px; }
+        .val-name { font-size: 15px; font-weight: bold; color: #000000; text-transform: uppercase; line-height: 1.1; max-width: 250px; }
+        .val-highlight { font-size: 15px; font-weight: bold; color: #d32f2f; text-transform: uppercase; }
+        .val-text { font-size: 12px; font-weight: bold; color: #263238; text-transform: uppercase; }
+        .val-address { font-size: 9px; font-weight: bold; color: #455a64; text-transform: uppercase; max-width: 250px; line-height: 1.2; }
+
+        .qr-box { width: 75px; height: 75px; border: 2px solid #004d40; border-radius: 8px; padding: 3px; background: #ffffff; text-align: center; }
+        .qr-img { width: 65px; height: 65px; }
+
+        .photo-box { width: 110px; height: 110px; border: 3px solid #004d40; border-radius: 10px; overflow: hidden; background: #f1f5f9; text-align: center; }
+        .photo-img { width: 110px; height: 110px; object-fit: cover; }
+
+        .card-footer { background-color: #004d40; height: 45px; color: #ffffff; padding: 6px 18px; position: absolute; bottom: 0; left: 0; right: 0; }
+        .footer-table { width: 100%; border-collapse: collapse; }
+        .footer-label { color: #80cbc4; font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+        .footer-val { color: #ffffff; font-size: 11px; font-weight: bold; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -78,57 +92,108 @@
                  ?: resolveDompdfImage('assets/img/697c0e1fba726.webp')
                  ?: resolveDompdfImage('assets/img/logo.png')
                  ?: resolveDompdfImage('favicon.ico');
+
+        // Verification QR Code
+        $secret = 'pmcc_secret_key_2026';
+        $v_token = substr(hash('sha256', $member->id . $secret), 0, 10);
+        $verify_url = route('admin.members.verify', ['id' => $member->id, 'token' => $v_token]);
+        $qr_api_url = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($verify_url);
+        
+        $qr_src = null;
+        try {
+            $qrContent = @file_get_contents($qr_api_url);
+            if ($qrContent) {
+                $qr_src = 'data:image/png;base64,' . base64_encode($qrContent);
+            }
+        } catch (\Exception $e) {}
+
+        $fullAddress = trim(str_replace(["\r\n", "\r", "\n"], ", ", trim($member->house_details ?? '')));
+        if (!empty($member->post_code)) {
+            $fullAddress .= ($fullAddress ? ', ' : '') . $member->post_code;
+        }
     @endphp
 
     <div class="card">
-        <div class="header">
-            <table>
+        <!-- Header -->
+        <div class="card-header">
+            <table class="header-table">
                 <tr>
-                    @if($logo_src)
-                        <td style="width: 55px; vertical-align: middle;">
+                    <td style="width: 60px; vertical-align: middle;">
+                        @if($logo_src)
                             <img src="{{ $logo_src }}" class="org-logo">
-                        </td>
-                    @endif
-                    <td style="vertical-align: middle;">
-                        <div class="org-title">Plymouth Malayalee<br>Cultural Community</div>
-                        <div class="org-sub">THE POWER OF UNITY</div>
+                        @endif
                     </td>
-                    <td style="width: 25%; text-align: right; vertical-align: top;">
-                        <span style="font-size: 10px; font-weight: bold; color: #80cbc4; text-transform: uppercase;">MEMBER CARD</span>
+                    <td style="vertical-align: middle; text-align: right;">
+                        <div class="org-name">Plymouth Malayalee<br>Cultural Community</div>
+                        <div class="org-tagline">THE POWER OF UNITY</div>
                     </td>
                 </tr>
             </table>
         </div>
 
-        <div class="body-content">
-            <div class="photo-box">
-                @if($photo_src)
-                    <img src="{{ $photo_src }}" class="photo-img">
-                @else
-                    <div style="padding-top: 45px; font-size: 9px; color: #78909c; font-weight: bold;">NO PHOTO</div>
-                @endif
-            </div>
+        <!-- Body -->
+        <div class="card-body">
+            <table class="content-table">
+                <tr>
+                    <!-- Left: Details -->
+                    <td style="vertical-align: top; width: 250px;">
+                        <div class="field-group">
+                            <span class="label">Name</span>
+                            <div class="val-name">{{ $member->full_name }}</div>
+                        </div>
 
-            <div class="label">Member Name</div>
-            <div class="value" style="font-size: 15px; color: #000;">{{ $member->full_name }}</div>
+                        <div class="field-group">
+                            <span class="label">Membership No</span>
+                            <div class="val-highlight">{{ $reg_no }}</div>
+                        </div>
 
-            <div class="label">Membership Number</div>
-            <div class="value-highlight">{{ $reg_no }}</div>
+                        <div class="field-group">
+                            <span class="label">Type</span>
+                            <div class="val-text">{{ $member->membership_type }}</div>
+                        </div>
 
-            <div class="label">Membership Type</div>
-            <div class="value">{{ $member->membership_type }}</div>
+                        @if(!empty($fullAddress))
+                            <div class="field-group" style="margin-top: 4px;">
+                                <span class="label">Address</span>
+                                <div class="val-address">{{ $fullAddress }}</div>
+                            </div>
+                        @endif
+                    </td>
+
+                    <!-- Center: Verification QR -->
+                    <td style="vertical-align: middle; text-align: center; width: 90px;">
+                        @if($qr_src)
+                            <div class="qr-box">
+                                <img src="{{ $qr_src }}" class="qr-img">
+                            </div>
+                        @endif
+                    </td>
+
+                    <!-- Right: Member Photo -->
+                    <td style="vertical-align: middle; text-align: right; width: 120px;">
+                        <div class="photo-box" style="margin-left: auto;">
+                            @if($photo_src)
+                                <img src="{{ $photo_src }}" class="photo-img">
+                            @else
+                                <div style="padding-top: 45px; font-size: 9px; color: #78909c; font-weight: bold;">NO PHOTO</div>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+            </table>
         </div>
 
-        <div class="footer">
-            <table>
+        <!-- Footer -->
+        <div class="card-footer">
+            <table class="footer-table">
                 <tr>
-                    <td style="text-align: left;">
-                        <div class="footer-sub">Issued On</div>
-                        <div style="font-weight: bold;">{{ $issued_on }}</div>
+                    <td style="text-align: left; vertical-align: middle;">
+                        <div class="footer-label">Issued On</div>
+                        <div class="footer-val">{{ $issued_on }}</div>
                     </td>
-                    <td style="text-align: right;">
-                        <div class="footer-sub">Valid Until</div>
-                        <div style="font-weight: bold;">{{ $valid_till }}</div>
+                    <td style="text-align: right; vertical-align: middle;">
+                        <div class="footer-label">Valid Until</div>
+                        <div class="footer-val">{{ $valid_till }}</div>
                     </td>
                 </tr>
             </table>

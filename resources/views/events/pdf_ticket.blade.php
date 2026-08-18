@@ -5,22 +5,28 @@
     <title>Event Ticket - {{ $booking->event->title ?? 'PMCC Event' }}</title>
     <style>
         @page { margin: 0px; }
+        * { box-sizing: border-box; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; margin: 0px; padding: 0px; background-color: #ffffff; }
-        .ticket-card { width: 500px; margin: 10px auto; background: #ffffff; border-radius: 12px; border: 2px solid #0f172a; overflow: hidden; }
-        .header { background: #0f172a; color: #ffffff; padding: 12px 20px; text-align: center; }
-        .header-title { font-size: 16px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; }
-        .header-sub { font-size: 9px; color: #fbbf24; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; }
-        .body-section { padding: 15px 20px; text-align: center; }
-        .status-badge { background-color: #dcfce7; color: #166534; font-size: 10px; font-weight: bold; padding: 3px 10px; border-radius: 10px; display: inline-block; margin-bottom: 8px; text-transform: uppercase; }
+        .ticket-card { width: 500px; height: 300px; position: relative; margin: 0 auto; background: #ffffff; border-radius: 14px; border: 2px solid #0f172a; overflow: hidden; }
+        
+        .header { background: #0f172a; color: #ffffff; padding: 10px 15px; text-align: center; height: 60px; }
+        .header-title { font-size: 13px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; }
+        .header-sub { font-size: 8px; color: #fbbf24; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; margin-top: 3px; }
+        
+        .body-section { padding: 10px 18px; text-align: center; height: 195px; position: relative; }
+        .status-badge { background-color: #dcfce7; color: #166534; font-size: 9px; font-weight: bold; padding: 3px 10px; border-radius: 10px; display: inline-block; margin-bottom: 4px; text-transform: uppercase; }
         .event-name { font-size: 16px; font-weight: bold; color: #0f172a; margin-bottom: 2px; }
-        .event-date { font-size: 11px; color: #475569; margin-bottom: 10px; font-weight: bold; }
-        .qr-box { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e1; display: inline-block; margin: 5px 0; text-align: center; }
-        .qr-img { width: 130px; height: 130px; }
-        .ref-no { font-family: monospace; font-size: 13px; font-weight: bold; color: #0f172a; margin-top: 4px; }
-        .details-table { width: 100%; border-collapse: collapse; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 10px; text-align: left; }
+        .event-date { font-size: 10px; color: #475569; margin-bottom: 6px; font-weight: bold; }
+        
+        .qr-box { background: #f8fafc; padding: 6px 12px; border-radius: 10px; border: 1.5px dashed #cbd5e1; display: inline-block; margin: 2px 0; text-align: center; }
+        .qr-img { width: 95px; height: 95px; }
+        .ref-no { font-family: monospace; font-size: 11px; font-weight: bold; color: #0f172a; margin-top: 3px; }
+        
+        .details-table { width: 100%; border-collapse: collapse; margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 6px; text-align: left; }
         .label { font-size: 8px; color: #64748b; font-weight: bold; text-transform: uppercase; }
-        .val { font-size: 12px; color: #0f172a; font-weight: bold; margin-top: 2px; }
-        .footer { background: #f8fafc; padding: 8px 15px; text-align: center; font-size: 9px; color: #64748b; border-top: 1px solid #e2e8f0; }
+        .val { font-size: 11px; color: #0f172a; font-weight: bold; margin-top: 1px; }
+        
+        .footer { background: #f8fafc; padding: 6px 15px; text-align: center; font-size: 8px; color: #64748b; border-top: 1px solid #e2e8f0; position: absolute; bottom: 0; left: 0; right: 0; height: 40px; }
     </style>
 </head>
 <body>
@@ -46,7 +52,7 @@
 
     <div class="ticket-card">
         <div class="header">
-            <div class="header-title">Plymouth Malayalee Cultural Community</div>
+            <div class="header-title">PLYMOUTH MALAYALEE CULTURAL COMMUNITY</div>
             <div class="header-sub">OFFICIAL EVENT ENTRY TICKET</div>
         </div>
 
@@ -54,13 +60,13 @@
             <div class="status-badge">CONFIRMED ENTRY TICKET</div>
 
             <div class="event-name">{{ $eventTitle }}</div>
-            <div class="event-date">📅 {{ $eventDate }}</div>
+            <div class="event-date">Date: {{ $eventDate }}</div>
 
             <div class="qr-box">
                 @if($qrBase64)
                     <img src="{{ $qrBase64 }}" class="qr-img">
                 @else
-                    <div style="font-size: 9px; padding: 40px 0; color: #666; font-weight: bold;">SCAN QR AT ENTRANCE</div>
+                    <div style="font-size: 8px; padding: 30px 0; color: #666; font-weight: bold;">SCAN QR AT ENTRANCE</div>
                 @endif
                 <div class="ref-no">{{ $refNo }}</div>
             </div>
@@ -77,11 +83,11 @@
                     </td>
                 </tr>
                 <tr>
-                    <td style="padding-top: 8px;">
+                    <td style="padding-top: 4px;">
                         <div class="label">Membership No</div>
                         <div class="val" style="color: #d32f2f;">{{ $booking->membership_no ?: 'NON-MEMBER' }}</div>
                     </td>
-                    <td style="padding-top: 8px; text-align: right;">
+                    <td style="padding-top: 4px; text-align: right;">
                         <div class="label">Ticket Breakdown</div>
                         <div class="val">{{ $booking->adult_count }} Adult, {{ $booking->child_count }} Child, {{ $booking->infant_count }} Infant</div>
                     </td>
@@ -90,7 +96,7 @@
         </div>
 
         <div class="footer">
-            📍 <b>Location:</b> {{ $eventLocation }}<br>
+            <b>Location:</b> {{ $eventLocation }}<br>
             Please present this PDF ticket or QR code on your phone at the event entrance for scan verification.
         </div>
     </div>
