@@ -128,7 +128,7 @@ class TelegramWebhookController extends Controller
                 TelegramService::sendMessageToChat(
                     $chatId,
                     "🎟️ <b>Download Event Entry Ticket (PDF)</b>\n\n" .
-                    "Please reply with your <b>Ticket Reference Number</b> or <b>Booking ID</b> (e.g. <code>BOOK-NM-42</code> or <code>42</code>):"
+                    "Please reply with your <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>1052</code>) or <b>Ticket Reference Number</b> (e.g. <code>BOOK-42</code>):"
                 );
                 break;
 
@@ -494,23 +494,74 @@ class TelegramWebhookController extends Controller
     }
 
     /**
-     * Process Event Ticket Download Input
+     * Process Event Ticket Download Input (Searches by Membership ID & Active Event ID, or Ticket Ref)
      */
     protected function processTicketInput(string $input, $fromId, string $chatId)
     {
         Cache::forget("tg_user_state_{$fromId}");
 
         $cleanInput = trim($input);
+        $upperInput = strtoupper($cleanInput);
         $numericId = preg_replace('/\D/', '', $cleanInput);
+        $formattedMemId = "PMCC-{$numericId}";
 
+        // Get Active / Upcoming Event ID
+        $activeEvent = \App\Models\Event::orderBy('event_date', 'desc')->first();
+        $activeEventId = $activeEvent ? $activeEvent->id : null;
+
+        // 1. Search by exact ticket reference number or numeric booking ID
         $booking = EventBooking::where('reference_no', $cleanInput)
+            ->orWhere('reference_no', $upperInput)
             ->orWhere('id', $numericId)
             ->first();
+
+        // 2. Search by Membership ID + Active Event ID
+        if (!$booking && $activeEventId) {
+            $booking = EventBooking::where('event_id', $activeEventId)
+                ->where(function($q) use ($upperInput, $formattedMemId, $numericId) {
+                    $q->where('membership_no', $upperInput)
+                      ->orWhere('membership_no', $formattedMemId)
+                      ->orWhere('membership_no', $numericId);
+                })
+                ->first();
+        }
+
+        // 3. Search by Membership ID across all events (latest booking)
+        if (!$booking) {
+            $booking = EventBooking::where(function($q) use ($upperInput, $formattedMemId, $numericId) {
+                $q->where('membership_no', $upperInput)
+                  ->orWhere('membership_no', $formattedMemId)
+                  ->orWhere('membership_no', $numericId);
+            })
+            ->latest('id')
+            ->first();
+        }
+
+        // 4. Map member table -> assigned membership_no -> event booking
+        if (!$booking) {
+            $member = Member::where('membership_id_assigned', $upperInput)
+                ->orWhere('membership_id_assigned', $formattedMemId)
+                ->orWhere('id', $numericId)
+                ->first();
+
+            if ($member) {
+                $assignedNo = $member->membership_id_assigned ?: "PMCC-{$member->id}";
+                $booking = EventBooking::where(function($q) use ($assignedNo, $member) {
+                    $q->where('membership_no', $assignedNo)
+                      ->orWhere('membership_no', "PMCC-{$member->id}")
+                      ->orWhere('membership_no', (string)$member->id);
+                })
+                ->when($activeEventId, function($q) use ($activeEventId) {
+                    $q->orderByRaw("event_id = {$activeEventId} DESC");
+                })
+                ->first();
+            }
+        }
 
         if (!$booking) {
             TelegramService::sendMessageToChat(
                 $chatId,
-                "❌ <b>Event Ticket Not Found</b>\n\nNo ticket booking matching <code>{$cleanInput}</code> was found. Please verify your reference number and try again."
+                "❌ <b>Event Ticket Not Found</b>\n\nNo active ticket booking matching <code>{$cleanInput}</code> was found. Please check your Membership ID or Ticket Reference Number."
             );
             return;
         }
