@@ -7,10 +7,11 @@
         @page { margin: 0px; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; margin: 0px; padding: 0px; background-color: #ffffff; }
         .card { width: 500px; height: 300px; position: relative; border: 2px solid #004d40; border-radius: 12px; overflow: hidden; background: #ffffff; margin: 10px auto; }
-        .header { background-color: #004d40; height: 65px; color: #ffffff; padding: 10px 20px; }
+        .header { background-color: #004d40; height: 65px; color: #ffffff; padding: 8px 15px; }
         .header table { width: 100%; border-collapse: collapse; }
-        .org-title { font-size: 16px; font-weight: bold; color: #ffffff; text-transform: uppercase; line-height: 1.2; }
-        .org-sub { font-size: 8px; color: #80cbc4; letter-spacing: 1px; font-weight: bold; margin-top: 3px; }
+        .org-logo { height: 48px; max-width: 48px; border-radius: 50%; background: #ffffff; padding: 2px; }
+        .org-title { font-size: 14px; font-weight: bold; color: #ffffff; text-transform: uppercase; line-height: 1.2; }
+        .org-sub { font-size: 8px; color: #80cbc4; letter-spacing: 1px; font-weight: bold; margin-top: 2px; }
         .body-content { padding: 15px 20px; position: relative; height: 160px; }
         .label { font-size: 9px; color: #78909c; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
         .value { font-size: 13px; font-weight: bold; color: #263238; text-transform: uppercase; margin-bottom: 8px; }
@@ -28,20 +29,65 @@
         $valid_till = $member->expiry_date ? \Carbon\Carbon::parse($member->expiry_date)->format('d M Y') : \Carbon\Carbon::parse($member->created_at)->addYear()->format('d M Y');
         $issued_on = \Carbon\Carbon::parse($member->created_at)->format('d M Y');
 
+        // Robust Member Photo Resolution
         $photo_src = null;
-        if (!empty($member->photo)) {
-            $path = storage_path('app/public/' . $member->photo);
-            if (file_exists($path)) {
-                $photo_src = 'data:image/' . pathinfo($path, PATHINFO_EXTENSION) . ';base64,' . base64_encode(file_get_contents($path));
+        $rawPhoto = $member->photo;
+        if (!empty($rawPhoto)) {
+            $stripped = preg_replace('/^photos\//', '', ltrim($rawPhoto, '/'));
+            $possiblePaths = [
+                storage_path('app/public/' . ltrim($rawPhoto, '/')),
+                storage_path('app/public/photos/' . ltrim($rawPhoto, '/')),
+                storage_path('app/public/photos/' . $stripped),
+                storage_path('app/public/' . $stripped),
+                storage_path('app/' . ltrim($rawPhoto, '/')),
+                storage_path('app/photos/' . ltrim($rawPhoto, '/')),
+                public_path('storage/' . ltrim($rawPhoto, '/')),
+                public_path('storage/photos/' . ltrim($rawPhoto, '/')),
+            ];
+
+            foreach ($possiblePaths as $path) {
+                if (file_exists($path) && !is_dir($path) && filesize($path) > 0) {
+                    $ext = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpeg';
+                    $photo_src = 'data:image/' . strtolower($ext) . ';base64,' . base64_encode(file_get_contents($path));
+                    break;
+                }
             }
         }
+
+        // Robust Logo Resolution
+        $logo_src = null;
+        try {
+            $logoSetting = \App\Models\Setting::where('setting_key', 'site_logo')->value('setting_value');
+            $possibleLogoPaths = [];
+            if (!empty($logoSetting)) {
+                $possibleLogoPaths[] = storage_path('app/public/' . ltrim($logoSetting, '/'));
+                $possibleLogoPaths[] = public_path('storage/' . ltrim($logoSetting, '/'));
+                $possibleLogoPaths[] = public_path(ltrim($logoSetting, '/'));
+            }
+            $possibleLogoPaths[] = public_path('assets/img/697c0e1fba726.webp');
+            $possibleLogoPaths[] = public_path('assets/img/logo.png');
+            $possibleLogoPaths[] = public_path('favicon.ico');
+
+            foreach ($possibleLogoPaths as $path) {
+                if (file_exists($path) && !is_dir($path) && filesize($path) > 0) {
+                    $ext = pathinfo($path, PATHINFO_EXTENSION) ?: 'png';
+                    $logo_src = 'data:image/' . strtolower($ext) . ';base64,' . base64_encode(file_get_contents($path));
+                    break;
+                }
+            }
+        } catch (\Exception $e) {}
     @endphp
 
     <div class="card">
         <div class="header">
             <table>
                 <tr>
-                    <td style="width: 75%;">
+                    @if($logo_src)
+                        <td style="width: 55px; vertical-align: middle;">
+                            <img src="{{ $logo_src }}" class="org-logo">
+                        </td>
+                    @endif
+                    <td style="vertical-align: middle;">
                         <div class="org-title">Plymouth Malayalee<br>Cultural Community</div>
                         <div class="org-sub">THE POWER OF UNITY</div>
                     </td>

@@ -510,7 +510,9 @@ class TelegramWebhookController extends Controller
 
             // Render PDF via Dompdf
             $pdf = Pdf::loadView('admin.members.pdf_card', compact('member'))
-                ->setPaper([0, 0, 396, 252], 'landscape'); // ID card standard dimensions
+                ->setPaper([0, 0, 396, 252], 'landscape')
+                ->setOption('isRemoteEnabled', true)
+                ->setOption('isHtml5ParserEnabled', true);
 
             $tempPath = storage_path("app/PMCC_ID_Card_{$member->id}.pdf");
             $pdf->save($tempPath);
