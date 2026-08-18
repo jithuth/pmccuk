@@ -7,26 +7,26 @@
         @page { margin: 0px; }
         * { box-sizing: border-box; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; margin: 0px; padding: 0px; background-color: #ffffff; }
-        .ticket-card { width: 500px; height: 300px; position: relative; margin: 0 auto; background: #ffffff; border-radius: 14px; border: 2px solid #0f172a; overflow: hidden; }
+        .ticket-card { width: 540px; height: 330px; position: relative; margin: 15px auto 0 auto; background: #ffffff; border-radius: 16px; border: 2px solid #0f172a; overflow: hidden; }
         
-        .header { background: #0f172a; color: #ffffff; padding: 10px 15px; text-align: center; height: 60px; }
-        .header-title { font-size: 13px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; }
-        .header-sub { font-size: 8px; color: #fbbf24; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; margin-top: 3px; }
+        .header { background: #0f172a; color: #ffffff; padding: 12px 20px; text-align: center; height: 65px; }
+        .header-title { font-size: 14px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; }
+        .header-sub { font-size: 9px; color: #fbbf24; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; margin-top: 3px; }
         
-        .body-section { padding: 10px 18px; text-align: center; height: 195px; position: relative; }
-        .status-badge { background-color: #dcfce7; color: #166534; font-size: 9px; font-weight: bold; padding: 3px 10px; border-radius: 10px; display: inline-block; margin-bottom: 4px; text-transform: uppercase; }
-        .event-name { font-size: 16px; font-weight: bold; color: #0f172a; margin-bottom: 2px; }
-        .event-date { font-size: 10px; color: #475569; margin-bottom: 6px; font-weight: bold; }
+        .body-section { padding: 12px 20px; text-align: center; height: 215px; position: relative; }
+        .status-badge { background-color: #dcfce7; color: #166534; font-size: 10px; font-weight: bold; padding: 4px 12px; border-radius: 12px; display: inline-block; margin-bottom: 6px; text-transform: uppercase; }
+        .event-name { font-size: 17px; font-weight: bold; color: #0f172a; margin-bottom: 3px; }
+        .event-date { font-size: 11px; color: #475569; margin-bottom: 8px; font-weight: bold; }
         
-        .qr-box { background: #f8fafc; padding: 6px 12px; border-radius: 10px; border: 1.5px dashed #cbd5e1; display: inline-block; margin: 2px 0; text-align: center; }
-        .qr-img { width: 95px; height: 95px; }
-        .ref-no { font-family: monospace; font-size: 11px; font-weight: bold; color: #0f172a; margin-top: 3px; }
+        .qr-box { background: #f8fafc; padding: 8px 14px; border-radius: 12px; border: 1.5px dashed #cbd5e1; display: inline-block; margin: 3px 0; text-align: center; }
+        .qr-img { width: 110px; height: 110px; }
+        .ref-no { font-family: monospace; font-size: 12px; font-weight: bold; color: #0f172a; margin-top: 4px; }
         
-        .details-table { width: 100%; border-collapse: collapse; margin-top: 6px; border-top: 1px solid #e2e8f0; padding-top: 6px; text-align: left; }
-        .label { font-size: 8px; color: #64748b; font-weight: bold; text-transform: uppercase; }
-        .val { font-size: 11px; color: #0f172a; font-weight: bold; margin-top: 1px; }
+        .details-table { width: 100%; border-collapse: collapse; margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 8px; text-align: left; }
+        .label { font-size: 9px; color: #64748b; font-weight: bold; text-transform: uppercase; }
+        .val { font-size: 12px; color: #0f172a; font-weight: bold; margin-top: 1px; }
         
-        .footer { background: #f8fafc; padding: 6px 15px; text-align: center; font-size: 8px; color: #64748b; border-top: 1px solid #e2e8f0; position: absolute; bottom: 0; left: 0; right: 0; height: 40px; }
+        .footer { background: #f8fafc; padding: 8px 20px; text-align: center; font-size: 9px; color: #64748b; border-top: 1px solid #e2e8f0; position: absolute; bottom: 0; left: 0; right: 0; height: 45px; }
     </style>
 </head>
 <body>
@@ -66,7 +66,7 @@
                 @if($qrBase64)
                     <img src="{{ $qrBase64 }}" class="qr-img">
                 @else
-                    <div style="font-size: 8px; padding: 30px 0; color: #666; font-weight: bold;">SCAN QR AT ENTRANCE</div>
+                    <div style="font-size: 9px; padding: 35px 0; color: #666; font-weight: bold;">SCAN QR AT ENTRANCE</div>
                 @endif
                 <div class="ref-no">{{ $refNo }}</div>
             </div>
@@ -83,11 +83,11 @@
                     </td>
                 </tr>
                 <tr>
-                    <td style="padding-top: 4px;">
+                    <td style="padding-top: 6px;">
                         <div class="label">Membership No</div>
                         <div class="val" style="color: #d32f2f;">{{ $booking->membership_no ?: 'NON-MEMBER' }}</div>
                     </td>
-                    <td style="padding-top: 4px; text-align: right;">
+                    <td style="padding-top: 6px; text-align: right;">
                         <div class="label">Ticket Breakdown</div>
                         <div class="val">{{ $booking->adult_count }} Adult, {{ $booking->child_count }} Child, {{ $booking->infant_count }} Infant</div>
                     </td>
