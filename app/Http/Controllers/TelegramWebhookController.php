@@ -585,7 +585,7 @@ class TelegramWebhookController extends Controller
             TelegramService::sendMessageToChat($chatId, "⏳ <i>Generating official PMCC-UK Event Ticket PDF for {$refNo}...</i>");
 
             $pdf = Pdf::loadView('events.pdf_ticket', compact('booking'))
-                ->setPaper('a5', 'landscape')
+                ->setPaper('a5', 'portrait')
                 ->setOption('isRemoteEnabled', true);
 
             $tempPath = storage_path("app/PMCC_Event_Ticket_{$booking->id}.pdf");

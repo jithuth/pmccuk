@@ -35,7 +35,7 @@ class EventTicketMail extends Mailable
         // Generate PDF ticket attachment
         try {
             $pdf = Pdf::loadView('events.pdf_ticket', ['booking' => $this->booking])
-                ->setPaper('a5', 'landscape')
+                ->setPaper('a5', 'portrait')
                 ->setOption('isRemoteEnabled', true);
 
             $mailable->attachData($pdf->output(), "PMCC_Event_Ticket_{$refNo}.pdf", [

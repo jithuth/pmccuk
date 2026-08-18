@@ -7,26 +7,37 @@
         @page { margin: 0px; }
         * { box-sizing: border-box; }
         body { font-family: 'Helvetica', 'Arial', sans-serif; margin: 0px; padding: 0px; background-color: #ffffff; }
-        .ticket-card { width: 540px; height: 330px; position: relative; margin: 15px auto 0 auto; background: #ffffff; border-radius: 16px; border: 2px solid #0f172a; overflow: hidden; }
         
-        .header { background: #0f172a; color: #ffffff; padding: 12px 20px; text-align: center; height: 65px; }
-        .header-title { font-size: 14px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; }
-        .header-sub { font-size: 9px; color: #fbbf24; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; margin-top: 3px; }
+        .ticket-card { 
+            width: 100%; 
+            height: 100%; 
+            min-height: 575px; 
+            position: relative; 
+            background: #ffffff; 
+            border: 3px solid #0f172a; 
+            border-radius: 16px; 
+            overflow: hidden; 
+            margin: 0 auto; 
+        }
         
-        .body-section { padding: 12px 20px; text-align: center; height: 215px; position: relative; }
-        .status-badge { background-color: #dcfce7; color: #166534; font-size: 10px; font-weight: bold; padding: 4px 12px; border-radius: 12px; display: inline-block; margin-bottom: 6px; text-transform: uppercase; }
-        .event-name { font-size: 17px; font-weight: bold; color: #0f172a; margin-bottom: 3px; }
-        .event-date { font-size: 11px; color: #475569; margin-bottom: 8px; font-weight: bold; }
+        .header { background: #0f172a; color: #ffffff; padding: 15px 20px; text-align: center; height: 85px; }
+        .header-title { font-size: 15px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px; text-transform: uppercase; line-height: 1.2; }
+        .header-sub { font-size: 9px; color: #fbbf24; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; }
         
-        .qr-box { background: #f8fafc; padding: 8px 14px; border-radius: 12px; border: 1.5px dashed #cbd5e1; display: inline-block; margin: 3px 0; text-align: center; }
-        .qr-img { width: 110px; height: 110px; }
-        .ref-no { font-family: monospace; font-size: 12px; font-weight: bold; color: #0f172a; margin-top: 4px; }
+        .body-section { padding: 20px; text-align: center; }
+        .status-badge { background-color: #dcfce7; color: #166534; font-size: 11px; font-weight: bold; padding: 5px 14px; border-radius: 12px; display: inline-block; margin-bottom: 12px; text-transform: uppercase; }
+        .event-name { font-size: 22px; font-weight: bold; color: #0f172a; margin-bottom: 4px; line-height: 1.1; }
+        .event-date { font-size: 13px; color: #475569; margin-bottom: 15px; font-weight: bold; }
         
-        .details-table { width: 100%; border-collapse: collapse; margin-top: 8px; border-top: 1px solid #e2e8f0; padding-top: 8px; text-align: left; }
+        .qr-box { background: #f8fafc; padding: 12px 18px; border-radius: 14px; border: 2px dashed #cbd5e1; display: inline-block; margin: 5px 0 15px 0; text-align: center; }
+        .qr-img { width: 145px; height: 145px; }
+        .ref-no { font-family: monospace; font-size: 14px; font-weight: bold; color: #0f172a; margin-top: 6px; letter-spacing: 0.5px; }
+        
+        .details-table { width: 100%; border-collapse: collapse; margin-top: 10px; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; padding: 12px 0; text-align: left; }
         .label { font-size: 9px; color: #64748b; font-weight: bold; text-transform: uppercase; }
-        .val { font-size: 12px; color: #0f172a; font-weight: bold; margin-top: 1px; }
+        .val { font-size: 13px; color: #0f172a; font-weight: bold; margin-top: 2px; }
         
-        .footer { background: #f8fafc; padding: 8px 20px; text-align: center; font-size: 9px; color: #64748b; border-top: 1px solid #e2e8f0; position: absolute; bottom: 0; left: 0; right: 0; height: 45px; }
+        .footer { background: #f8fafc; padding: 12px 20px; text-align: center; font-size: 10px; color: #64748b; border-top: 1px solid #e2e8f0; position: absolute; bottom: 0; left: 0; right: 0; height: 55px; }
     </style>
 </head>
 <body>
@@ -39,7 +50,7 @@
 
         // Verification QR Code
         $verifyUrl = route('event.verify-ticket', ['reference' => $refNo]);
-        $qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($verifyUrl);
+        $qrApiUrl = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" . urlencode($verifyUrl);
         
         $qrBase64 = null;
         try {
@@ -66,28 +77,28 @@
                 @if($qrBase64)
                     <img src="{{ $qrBase64 }}" class="qr-img">
                 @else
-                    <div style="font-size: 9px; padding: 35px 0; color: #666; font-weight: bold;">SCAN QR AT ENTRANCE</div>
+                    <div style="font-size: 10px; padding: 50px 0; color: #666; font-weight: bold;">SCAN QR AT ENTRANCE</div>
                 @endif
                 <div class="ref-no">{{ $refNo }}</div>
             </div>
 
             <table class="details-table">
                 <tr>
-                    <td style="width: 50%;">
+                    <td style="width: 50%; padding: 6px 0;">
                         <div class="label">Attendee Name</div>
                         <div class="val">{{ $booking->full_name }}</div>
                     </td>
-                    <td style="width: 50%; text-align: right;">
+                    <td style="width: 50%; padding: 6px 0; text-align: right;">
                         <div class="label">Total Attendees</div>
                         <div class="val">{{ $totalTickets }} Person(s)</div>
                     </td>
                 </tr>
                 <tr>
-                    <td style="padding-top: 6px;">
+                    <td style="padding: 6px 0;">
                         <div class="label">Membership No</div>
                         <div class="val" style="color: #d32f2f;">{{ $booking->membership_no ?: 'NON-MEMBER' }}</div>
                     </td>
-                    <td style="padding-top: 6px; text-align: right;">
+                    <td style="padding: 6px 0; text-align: right;">
                         <div class="label">Ticket Breakdown</div>
                         <div class="val">{{ $booking->adult_count }} Adult, {{ $booking->child_count }} Child, {{ $booking->infant_count }} Infant</div>
                     </td>
