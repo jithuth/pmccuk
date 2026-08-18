@@ -571,15 +571,22 @@ class TelegramWebhookController extends Controller
             }
         }
 
-        if (!$booking) {
+        $refNo = $booking->reference_no ?: ("BOOK-" . ($booking->membership_no != 'NON-MEMBER' ? $booking->membership_no : 'NM') . "-" . $booking->id);
+
+        // Check if Booking Status is Approved
+        if ($booking->booking_status !== 'approved') {
+            $statusStr = strtoupper($booking->booking_status ?: 'PENDING');
             TelegramService::sendMessageToChat(
                 $chatId,
-                "❌ <b>Event Ticket Not Found</b>\n\nNo active ticket booking matching <code>{$cleanInput}</code> was found. Please check your Membership ID or Ticket Reference Number."
+                "⚠️ <b>Event Ticket Not Approved</b>\n\n" .
+                "🎟️ <b>Ticket Ref:</b> <code>{$refNo}</code>\n" .
+                "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name) . "\n" .
+                "📅 <b>Event:</b> " . htmlspecialchars($booking->event->title ?? 'PMCC Event') . "\n" .
+                "⚠️ <b>Current Status:</b> <b>{$statusStr}</b>\n\n" .
+                "<i>Entry tickets can only be downloaded after your event booking has been approved by PMCC-UK admins.</i>"
             );
             return;
         }
-
-        $refNo = $booking->reference_no ?: ("BOOK-" . ($booking->membership_no != 'NON-MEMBER' ? $booking->membership_no : 'NM') . "-" . $booking->id);
 
         try {
             TelegramService::sendMessageToChat($chatId, "⏳ <i>Generating official PMCC-UK Event Ticket PDF for {$refNo}...</i>");
