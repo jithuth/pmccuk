@@ -52,6 +52,11 @@ class WebApplicationFirewall
             }
         }
 
+        // Exclude Telegram Webhook and API endpoints from WAF payload inspection
+        if ($request->is('telegram/*') || $request->is('api/telegram/*')) {
+            return $next($request);
+        }
+
         // If WAF check is not enabled, skip payload inspection
         if ($wafEnabled !== '1') {
             return $next($request);
@@ -97,7 +102,7 @@ class WebApplicationFirewall
                             "🌐 <b>IP Address:</b> {$ip}\n" .
                             "🔥 <b>Attack Type:</b> {$ruleName}\n" .
                             "📍 <b>Request Source:</b> " . ucfirst($source) . "\n" .
-                            "🕵️ <b>User Agent:</b> " . htmlspecialchars($request->userAgent())
+                            "🕵️ <b>User Agent:</b> " . htmlspecialchars($request->userAgent() ?: 'Unknown / Bot')
                         );
                     } catch (\Exception $e) {}
 
