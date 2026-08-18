@@ -170,7 +170,10 @@ class MembershipController extends Controller
             if ($prev_no && !str_starts_with($prev_no, 'PMCC-')) {
                 $prev_no = 'PMCC-' . $prev_no;
             }
-            $existing_member = Member::where('membership_id_assigned', $prev_no)->firstOrFail();
+            $existing_member = Member::where('membership_id_assigned', $prev_no)->first();
+            if (!$existing_member) {
+                return redirect()->back()->withInput()->withErrors(['prev_membership_no' => 'Membership record not found for ' . $prev_no]);
+            }
 
             // Create Renewal Request
             $renewal = \App\Models\RenewalRequest::create([

@@ -87,7 +87,7 @@
                             <span class="text-sm font-bold uppercase tracking-wider" id="progress-text">Personal Details</span>
                         </div>
                     </div>
-                    <div class="text-slate-400 text-xs font-black uppercase tracking-widest">Step <span id="current-step-display">1</span> of 4</div>
+                    <div class="text-slate-400 text-xs font-black uppercase tracking-widest">Step <span id="current-step-display">1</span> of <span id="total-steps-display">4</span></div>
                 </div>
 
                 <div class="p-8 md:p-12">
@@ -461,15 +461,26 @@
             document.getElementById('display-plan-desc').innerText = 'Includes Spouse & Children';
             document.getElementById('display-plan-price').innerText = '£5.00 / YEAR';
             document.getElementById('step-3').removeAttribute('data-skip');
+            
+            const marriedRadio = document.querySelector('input[name="marital_status"][value="Married"]');
+            if (marriedRadio) { marriedRadio.checked = true; toggleSpouse(true); }
         } else if (type === 'Student') {
             document.getElementById('display-plan-desc').innerText = 'Student Support Application (Free/Discounted)';
             document.getElementById('display-plan-price').innerText = 'FREE / SPECIAL';
             document.getElementById('step-3').setAttribute('data-skip', 'true');
+            
+            const singleRadio = document.querySelector('input[name="marital_status"][value="Single"]');
+            if (singleRadio) { singleRadio.checked = true; toggleSpouse(false); }
         } else {
             document.getElementById('display-plan-desc').innerText = 'Individual Application';
             document.getElementById('display-plan-price').innerText = '£5.00 / YEAR';
             document.getElementById('step-3').setAttribute('data-skip', 'true');
+            
+            const singleRadio = document.querySelector('input[name="marital_status"][value="Single"]');
+            if (singleRadio) { singleRadio.checked = true; toggleSpouse(false); }
         }
+        
+        updateStepProgressDisplay(1);
     }
 
     function toggleSpouse(show) {
@@ -482,6 +493,25 @@
     function startNewReg() {
         document.getElementById('step-check').classList.add('hidden');
         document.getElementById('main-form').classList.remove('hidden');
+    }
+
+    function updateStepProgressDisplay(step) {
+        const isSingleOrStudent = (currentMemType === 'Single' || currentMemType === 'Student');
+        const stepDisplay = isSingleOrStudent ? (step === 4 ? 3 : step) : step;
+        const totalSteps = isSingleOrStudent ? 3 : 4;
+        
+        const progNum = document.getElementById('progress-num');
+        if (progNum) progNum.innerText = stepDisplay;
+        
+        const stepDisp = document.getElementById('current-step-display');
+        if (stepDisp) stepDisp.innerText = stepDisplay;
+        
+        const totalDisp = document.getElementById('total-steps-display');
+        if (totalDisp) totalDisp.innerText = totalSteps;
+        
+        const titles = {1: 'Personal Details', 2: 'Address Details', 3: 'Family Info', 4: 'Membership Plan'};
+        const progText = document.getElementById('progress-text');
+        if (progText) progText.innerText = titles[step];
     }
 
     function nextStep(step) {
@@ -511,10 +541,7 @@
         target.classList.remove('hidden');
         
         // Update UI
-        document.getElementById('progress-num').innerText = step;
-        document.getElementById('current-step-display').innerText = step;
-        const titles = {1: 'Personal Details', 2: 'Address Details', 3: 'Family Info', 4: 'Membership Plan'};
-        document.getElementById('progress-text').innerText = titles[step];
+        updateStepProgressDisplay(step);
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
