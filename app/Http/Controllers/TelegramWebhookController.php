@@ -502,26 +502,35 @@ class TelegramWebhookController extends Controller
 
         $cleanInput = trim($input);
         $upperInput = strtoupper($cleanInput);
-        $numericId = preg_replace('/\D/', '', $cleanInput);
-        $formattedMemId = "PMCC-{$numericId}";
+        
+        // Extract numeric ID from input string (e.g. BOOK-54 -> 54, BOOK-PMCC-1052-54 -> 54, 54 -> 54)
+        $numericId = null;
+        if (preg_match('/(\d+)$/', $cleanInput, $matches)) {
+            $numericId = $matches[1];
+        }
+
+        $formattedMemId = $numericId ? "PMCC-{$numericId}" : $upperInput;
 
         // Get Active / Upcoming Event ID
         $activeEvent = \App\Models\Event::orderBy('event_date', 'desc')->first();
         $activeEventId = $activeEvent ? $activeEvent->id : null;
 
-        // 1. Search by exact ticket reference number or numeric booking ID
-        $booking = EventBooking::where('reference_no', $cleanInput)
-            ->orWhere('reference_no', $upperInput)
-            ->orWhere('id', $numericId)
-            ->first();
+        $booking = null;
+
+        // 1. Search by numeric booking ID (primary key id)
+        if ($numericId) {
+            $booking = EventBooking::find($numericId);
+        }
 
         // 2. Search by Membership ID + Active Event ID
         if (!$booking && $activeEventId) {
             $booking = EventBooking::where('event_id', $activeEventId)
                 ->where(function($q) use ($upperInput, $formattedMemId, $numericId) {
                     $q->where('membership_no', $upperInput)
-                      ->orWhere('membership_no', $formattedMemId)
-                      ->orWhere('membership_no', $numericId);
+                      ->orWhere('membership_no', $formattedMemId);
+                    if ($numericId) {
+                        $q->orWhere('membership_no', $numericId);
+                    }
                 })
                 ->first();
         }
@@ -530,8 +539,10 @@ class TelegramWebhookController extends Controller
         if (!$booking) {
             $booking = EventBooking::where(function($q) use ($upperInput, $formattedMemId, $numericId) {
                 $q->where('membership_no', $upperInput)
-                  ->orWhere('membership_no', $formattedMemId)
-                  ->orWhere('membership_no', $numericId);
+                  ->orWhere('membership_no', $formattedMemId);
+                if ($numericId) {
+                    $q->orWhere('membership_no', $numericId);
+                }
             })
             ->latest('id')
             ->first();
@@ -539,17 +550,19 @@ class TelegramWebhookController extends Controller
 
         // 4. Map member table -> assigned membership_no -> event booking
         if (!$booking) {
-            $member = Member::where('membership_id_assigned', $upperInput)
-                ->orWhere('membership_id_assigned', $formattedMemId)
-                ->orWhere('id', $numericId)
-                ->first();
+            $memberQuery = Member::where('membership_id_assigned', $upperInput)
+                ->orWhere('membership_id_assigned', $formattedMemId);
+            if ($numericId) {
+                $memberQuery->orWhere('id', $numericId);
+            }
+            $memberObj = $memberQuery->first();
 
-            if ($member) {
-                $assignedNo = $member->membership_id_assigned ?: "PMCC-{$member->id}";
-                $booking = EventBooking::where(function($q) use ($assignedNo, $member) {
+            if ($memberObj) {
+                $assignedNo = $memberObj->membership_id_assigned ?: "PMCC-{$memberObj->id}";
+                $booking = EventBooking::where(function($q) use ($assignedNo, $memberObj) {
                     $q->where('membership_no', $assignedNo)
-                      ->orWhere('membership_no', "PMCC-{$member->id}")
-                      ->orWhere('membership_no', (string)$member->id);
+                      ->orWhere('membership_no', "PMCC-{$memberObj->id}")
+                      ->orWhere('membership_no', (string)$memberObj->id);
                 })
                 ->when($activeEventId, function($q) use ($activeEventId) {
                     $q->orderByRaw("event_id = {$activeEventId} DESC");
