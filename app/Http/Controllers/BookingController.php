@@ -224,7 +224,8 @@ class BookingController extends Controller
                 "💰 <b>Total Paid:</b> £" . number_format($total_amount, 2),
                 [
                     [
-                        ['text' => '✅ Approve Booking', 'callback_data' => "approve_book:{$booking->id}"]
+                        ['text' => '✅ Approve Booking', 'callback_data' => "approve_book:{$booking->id}"],
+                        ['text' => '❌ Decline', 'callback_data' => "decline_book:{$booking->id}"]
                     ]
                 ]
             );

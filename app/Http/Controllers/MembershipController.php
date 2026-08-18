@@ -288,7 +288,8 @@ class MembershipController extends Controller
                     "💳 <b>Membership Type:</b> " . htmlspecialchars($request->input('membership_type')),
                     [
                         [
-                            ['text' => '✅ Approve Renewal', 'callback_data' => "approve_ren:{$renewal->id}"]
+                            ['text' => '✅ Approve Renewal', 'callback_data' => "approve_ren:{$renewal->id}"],
+                            ['text' => '❌ Decline', 'callback_data' => "decline_ren:{$renewal->id}"]
                         ]
                     ]
                 );
@@ -301,7 +302,8 @@ class MembershipController extends Controller
                     "💳 <b>Membership Type:</b> " . htmlspecialchars($request->input('membership_type')),
                     [
                         [
-                            ['text' => '✅ Approve Member', 'callback_data' => "approve_mem:{$member->id}"]
+                            ['text' => '✅ Approve Member', 'callback_data' => "approve_mem:{$member->id}"],
+                            ['text' => '❌ Decline', 'callback_data' => "decline_mem:{$member->id}"]
                         ]
                     ]
                 );

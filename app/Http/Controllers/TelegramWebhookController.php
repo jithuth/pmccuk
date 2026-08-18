@@ -29,7 +29,7 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // 2. Handle Text Message Commands (e.g. /approve_mem 123)
+        // 2. Handle Text Message Commands (e.g. /approve_mem 123 or /decline_mem 123)
         if (isset($update['message']['text'])) {
             $this->handleTextMessage($update['message']);
             return response()->json(['status' => 'ok']);
@@ -68,12 +68,24 @@ class TelegramWebhookController extends Controller
                 $this->processMemberApproval($id, $callbackId, $chatId, $messageId, $adminName);
                 break;
 
+            case 'decline_mem':
+                $this->processMemberDecline($id, $callbackId, $chatId, $messageId, $adminName);
+                break;
+
             case 'approve_ren':
                 $this->processRenewalApproval($id, $callbackId, $chatId, $messageId, $adminName);
                 break;
 
+            case 'decline_ren':
+                $this->processRenewalDecline($id, $callbackId, $chatId, $messageId, $adminName);
+                break;
+
             case 'approve_book':
                 $this->processBookingApproval($id, $callbackId, $chatId, $messageId, $adminName);
+                break;
+
+            case 'decline_book':
+                $this->processBookingDecline($id, $callbackId, $chatId, $messageId, $adminName);
                 break;
 
             default:
@@ -168,6 +180,38 @@ class TelegramWebhookController extends Controller
     }
 
     /**
+     * Process Member Decline/Rejection via Telegram
+     */
+    protected function processMemberDecline($id, string $callbackId, string $chatId, int $messageId, string $adminName)
+    {
+        $member = Member::find($id);
+        if (!$member) {
+            TelegramService::answerCallbackQuery($callbackId, "Member #{$id} not found.", true);
+            return;
+        }
+
+        $member->update(['status' => 'rejected']);
+
+        try {
+            ActivityLog::create([
+                'user_type' => 'telegram_admin',
+                'action' => 'decline_member_telegram',
+                'details' => "Member {$member->full_name} (ID: {$id}) declined via Telegram by {$adminName}",
+                'ip_address' => 'Telegram Bot API'
+            ]);
+        } catch (\Exception $e) {}
+
+        TelegramService::answerCallbackQuery($callbackId, "❌ Declined membership for {$member->full_name}", true);
+
+        $newText = "❌ <b>MEMBER REGISTRATION DECLINED</b>\n\n" .
+            "👤 <b>Name:</b> " . htmlspecialchars($member->full_name) . "\n" .
+            "📧 <b>Email:</b> " . htmlspecialchars($member->email ?? 'N/A') . "\n" .
+            "⚡ <b>Declined By:</b> {$adminName}";
+
+        TelegramService::editMessageText($chatId, $messageId, $newText);
+    }
+
+    /**
      * Process Renewal Approval via Telegram
      */
     protected function processRenewalApproval($id, string $callbackId, string $chatId, int $messageId, string $adminName)
@@ -209,6 +253,29 @@ class TelegramWebhookController extends Controller
     }
 
     /**
+     * Process Renewal Decline via Telegram
+     */
+    protected function processRenewalDecline($id, string $callbackId, string $chatId, int $messageId, string $adminName)
+    {
+        $renewal = RenewalRequest::find($id);
+        if (!$renewal) {
+            TelegramService::answerCallbackQuery($callbackId, "Renewal Request #{$id} not found.", true);
+            return;
+        }
+
+        $renewal->update(['status' => 'rejected']);
+
+        TelegramService::answerCallbackQuery($callbackId, "❌ Renewal request declined for {$renewal->full_name}", true);
+
+        $newText = "❌ <b>RENEWAL REQUEST DECLINED</b>\n\n" .
+            "👤 <b>Name:</b> " . htmlspecialchars($renewal->full_name) . "\n" .
+            "🆔 <b>Membership No:</b> <code>{$renewal->membership_no}</code>\n" .
+            "⚡ <b>Declined By:</b> {$adminName}";
+
+        TelegramService::editMessageText($chatId, $messageId, $newText);
+    }
+
+    /**
      * Process Booking Approval via Telegram
      */
     protected function processBookingApproval($id, string $callbackId, string $chatId, int $messageId, string $adminName)
@@ -219,12 +286,12 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        $booking->update(['payment_status' => 'paid', 'check_in_status' => 'confirmed']);
+        $booking->update(['booking_status' => 'approved', 'payment_status' => 'paid', 'check_in_status' => 'confirmed']);
 
         TelegramService::answerCallbackQuery($callbackId, "✅ Event booking confirmed!", true);
 
         $newText = "✅ <b>BOOKING CONFIRMED VIA TELEGRAM</b>\n\n" .
-            "🎟️ <b>Ticket Ref:</b> <code>{$booking->ticket_ref}</code>\n" .
+            "🎟️ <b>Ticket Ref:</b> <code>" . ($booking->ticket_ref ?? "BOOK-{$booking->id}") . "</code>\n" .
             "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name) . "\n" .
             "⚡ <b>Confirmed By:</b> {$adminName}";
 
@@ -232,12 +299,33 @@ class TelegramWebhookController extends Controller
     }
 
     /**
-     * Handle Text Commands (e.g. /approve_mem 104)
+     * Process Booking Decline via Telegram
+     */
+    protected function processBookingDecline($id, string $callbackId, string $chatId, int $messageId, string $adminName)
+    {
+        $booking = EventBooking::find($id);
+        if (!$booking) {
+            TelegramService::answerCallbackQuery($callbackId, "Booking #{$id} not found.", true);
+            return;
+        }
+
+        $booking->update(['booking_status' => 'cancelled', 'payment_status' => 'cancelled']);
+
+        TelegramService::answerCallbackQuery($callbackId, "❌ Booking cancelled.", true);
+
+        $newText = "❌ <b>BOOKING DECLINED VIA TELEGRAM</b>\n\n" .
+            "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name) . "\n" .
+            "⚡ <b>Declined By:</b> {$adminName}";
+
+        TelegramService::editMessageText($chatId, $messageId, $newText);
+    }
+
+    /**
+     * Handle Text Commands (e.g. /approve_mem 104 or /decline_mem 104)
      */
     protected function handleTextMessage(array $message)
     {
         $text = trim($message['text'] ?? '');
-        $chatId = (string) $message['chat']['id'];
         $adminName = $message['from']['first_name'] ?? 'Admin';
 
         if (preg_match('/^\/approve_mem\s+(\d+)$/i', $text, $matches)) {
@@ -248,6 +336,15 @@ class TelegramWebhookController extends Controller
                 $expiryDate = Carbon::now()->addYear()->subDay()->format('Y-m-d');
                 $member->update(['status' => 'active', 'membership_id_assigned' => $assignedNo, 'expiry_date' => $expiryDate]);
                 TelegramService::sendMessage("✅ Member <b>{$member->full_name}</b> approved manually by {$adminName}. Reg No: <code>{$assignedNo}</code>");
+            } else {
+                TelegramService::sendMessage("❌ Member #{$memberId} not found.");
+            }
+        } elseif (preg_match('/^\/decline_mem\s+(\d+)$/i', $text, $matches)) {
+            $memberId = $matches[1];
+            $member = Member::find($memberId);
+            if ($member) {
+                $member->update(['status' => 'rejected']);
+                TelegramService::sendMessage("❌ Member <b>{$member->full_name}</b> registration declined by {$adminName}.");
             } else {
                 TelegramService::sendMessage("❌ Member #{$memberId} not found.");
             }
