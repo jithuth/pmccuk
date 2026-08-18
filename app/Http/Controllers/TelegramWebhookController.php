@@ -12,6 +12,8 @@ use App\Models\ActivityLog;
 use App\Mail\MemberIdCardEmail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 
 class TelegramWebhookController extends Controller
@@ -29,7 +31,7 @@ class TelegramWebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        // 2. Handle Text Message Commands (e.g. /approve_mem 123 or /decline_mem 123)
+        // 2. Handle Text Message Commands and State Inputs
         if (isset($update['message']['text'])) {
             $this->handleTextMessage($update['message']);
             return response()->json(['status' => 'ok']);
@@ -47,6 +49,7 @@ class TelegramWebhookController extends Controller
         $chatId = (string) $callbackQuery['message']['chat']['id'];
         $messageId = (int) $callbackQuery['message']['message_id'];
         $data = $callbackQuery['data'] ?? '';
+        $fromId = $callbackQuery['from']['id'] ?? $chatId;
         $adminName = $callbackQuery['from']['first_name'] ?? 'Admin';
 
         if (empty($data)) {
@@ -54,6 +57,14 @@ class TelegramWebhookController extends Controller
             return;
         }
 
+        // Menu Actions (Interactive User Services)
+        if (str_starts_with($data, 'menu_action:')) {
+            $actionType = str_replace('menu_action:', '', $data);
+            $this->handleMenuActionClick($actionType, $fromId, $chatId, $callbackId);
+            return;
+        }
+
+        // Admin Approval Actions
         $parts = explode(':', $data);
         $action = $parts[0] ?? '';
         $id = $parts[1] ?? null;
@@ -95,6 +106,59 @@ class TelegramWebhookController extends Controller
     }
 
     /**
+     * Handle Menu Action Click (ID Card Download, Status Check, Expiry Check)
+     */
+    protected function handleMenuActionClick(string $actionType, $fromId, string $chatId, string $callbackId)
+    {
+        switch ($actionType) {
+            case 'download_pdf':
+                Cache::put("tg_user_state_{$fromId}", 'download_pdf', 600);
+                TelegramService::answerCallbackQuery($callbackId, "Please enter your Membership ID");
+                TelegramService::sendMessageToChat(
+                    $chatId,
+                    "🪪 <b>Download Membership ID Card (PDF)</b>\n\n" .
+                    "Please reply with your <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>1052</code>):"
+                );
+                break;
+
+            case 'check_status':
+                Cache::put("tg_user_state_{$fromId}", 'check_status', 600);
+                TelegramService::answerCallbackQuery($callbackId, "Please enter your Membership ID");
+                TelegramService::sendMessageToChat(
+                    $chatId,
+                    "🔍 <b>Check Membership Status</b>\n\n" .
+                    "Please reply with your <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>1052</code>):"
+                );
+                break;
+
+            case 'check_expiry':
+                Cache::put("tg_user_state_{$fromId}", 'check_expiry', 600);
+                TelegramService::answerCallbackQuery($callbackId, "Please enter your Membership ID");
+                TelegramService::sendMessageToChat(
+                    $chatId,
+                    "📅 <b>Check Expiry Date</b>\n\n" .
+                    "Please reply with your <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>1052</code>):"
+                );
+                break;
+
+            case 'support':
+                TelegramService::answerCallbackQuery($callbackId, "PMCC-UK Support");
+                TelegramService::sendMessageToChat(
+                    $chatId,
+                    "🤝 <b>PMCC-UK Support & Inquiries</b>\n\n" .
+                    "🌐 <b>Website:</b> https://pmccuk.org\n" .
+                    "📧 <b>Email:</b> info@pmccuk.org\n" .
+                    "📍 <b>Location:</b> Plymouth, United Kingdom"
+                );
+                break;
+
+            default:
+                TelegramService::answerCallbackQuery($callbackId, "Unknown menu action.");
+                break;
+        }
+    }
+
+    /**
      * Process Member Approval via Telegram
      */
     protected function processMemberApproval($id, string $callbackId, string $chatId, int $messageId, string $adminName)
@@ -111,7 +175,6 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        // Determine assigned membership number
         $assignedNo = $member->membership_id_assigned;
         if (empty($assignedNo)) {
             $nextVal = 1000 + $member->id;
@@ -135,7 +198,6 @@ class TelegramWebhookController extends Controller
 
         $member->update($updateData);
 
-        // Record financial transaction
         try {
             FinancialTransaction::create([
                 'type' => 'income',
@@ -148,7 +210,6 @@ class TelegramWebhookController extends Controller
             ]);
         } catch (\Exception $e) {}
 
-        // Record activity log
         try {
             ActivityLog::create([
                 'user_type' => 'telegram_admin',
@@ -158,7 +219,6 @@ class TelegramWebhookController extends Controller
             ]);
         } catch (\Exception $e) {}
 
-        // Send ID card email
         if (!empty($member->email)) {
             try {
                 Mail::to($member->email)->send(new MemberIdCardEmail($member));
@@ -180,7 +240,7 @@ class TelegramWebhookController extends Controller
     }
 
     /**
-     * Process Member Decline/Rejection via Telegram
+     * Process Member Decline via Telegram
      */
     protected function processMemberDecline($id, string $callbackId, string $chatId, int $messageId, string $adminName)
     {
@@ -229,7 +289,6 @@ class TelegramWebhookController extends Controller
 
         $renewal->update(['status' => 'approved', 'processed_at' => now()]);
 
-        // Find member and extend expiry
         $member = Member::where('membership_id_assigned', $renewal->membership_no)->first();
         if ($member) {
             $newExpiry = Carbon::now()->addYear()->subDay()->format('Y-m-d');
@@ -321,33 +380,160 @@ class TelegramWebhookController extends Controller
     }
 
     /**
-     * Handle Text Commands (e.g. /approve_mem 104 or /decline_mem 104)
+     * Handle Text Commands & Member Inputs
      */
     protected function handleTextMessage(array $message)
     {
         $text = trim($message['text'] ?? '');
-        $adminName = $message['from']['first_name'] ?? 'Admin';
+        $chatId = (string) $message['chat']['id'];
+        $fromId = $message['from']['id'] ?? $chatId;
+        $userName = $message['from']['first_name'] ?? 'User';
 
+        // Command: /start, /menu, menu, help
+        if (in_array(strtolower($text), ['/start', '/menu', 'menu', 'help', '/help'])) {
+            $this->sendInteractiveMenu($chatId, $userName);
+            return;
+        }
+
+        // Direct Commands: /approve_mem 104 or /decline_mem 104
         if (preg_match('/^\/approve_mem\s+(\d+)$/i', $text, $matches)) {
-            $memberId = $matches[1];
-            $member = Member::find($memberId);
-            if ($member) {
-                $assignedNo = "PMCC-" . (1000 + $member->id);
-                $expiryDate = Carbon::now()->addYear()->subDay()->format('Y-m-d');
-                $member->update(['status' => 'active', 'membership_id_assigned' => $assignedNo, 'expiry_date' => $expiryDate]);
-                TelegramService::sendMessage("✅ Member <b>{$member->full_name}</b> approved manually by {$adminName}. Reg No: <code>{$assignedNo}</code>");
-            } else {
-                TelegramService::sendMessage("❌ Member #{$memberId} not found.");
+            $this->processMemberApproval($matches[1], 'cmd', $chatId, 0, $userName);
+            return;
+        }
+        if (preg_match('/^\/decline_mem\s+(\d+)$/i', $text, $matches)) {
+            $this->processMemberDecline($matches[1], 'cmd', $chatId, 0, $userName);
+            return;
+        }
+
+        // Check if user is in a state flow (e.g. download_pdf, check_status, check_expiry)
+        $userState = Cache::get("tg_user_state_{$fromId}");
+        if ($userState || preg_match('/^(PMCC-)?\d+$/i', $text)) {
+            $this->processMemberIdInput($text, $userState ?? 'download_pdf', $fromId, $chatId);
+            return;
+        }
+
+        // Default response for unrecognized text
+        TelegramService::sendMessageToChat(
+            $chatId,
+            "👋 Hello <b>{$userName}</b>!\n\nType or send <b>/menu</b> anytime to access the PMCC-UK Interactive Member Bot."
+        );
+    }
+
+    /**
+     * Send Interactive Member Services Menu
+     */
+    protected function sendInteractiveMenu(string $chatId, string $userName)
+    {
+        $menuText = "🤖 <b>PMCC-UK Interactive Member Assistant</b>\n\n" .
+            "Hello <b>{$userName}</b>! Select a member action from the menu options below:";
+
+        $menuButtons = [
+            [
+                ['text' => '🪪 Download ID Card (PDF)', 'callback_data' => 'menu_action:download_pdf']
+            ],
+            [
+                ['text' => '🔍 Check Membership Status', 'callback_data' => 'menu_action:check_status'],
+                ['text' => '📅 Check Expiry Date', 'callback_data' => 'menu_action:check_expiry']
+            ],
+            [
+                ['text' => '❓ Contact & Support Info', 'callback_data' => 'menu_action:support']
+            ]
+        ];
+
+        TelegramService::sendMessageToChat($chatId, $menuText, $menuButtons);
+    }
+
+    /**
+     * Process Membership ID Input for ID Card PDF Generation / Status Check
+     */
+    protected function processMemberIdInput(string $input, string $state, $fromId, string $chatId)
+    {
+        // Clear pending user state
+        Cache::forget("tg_user_state_{$fromId}");
+
+        $cleanInput = strtoupper(trim($input));
+        $searchId = $cleanInput;
+        if (is_numeric($cleanInput)) {
+            $searchId = "PMCC-{$cleanInput}";
+        }
+
+        $rawNumeric = ltrim($cleanInput, 'PMCC-');
+
+        // Look up member
+        $member = Member::where('membership_id_assigned', $searchId)
+            ->orWhere('membership_id_assigned', $cleanInput)
+            ->orWhere('prev_membership_no', $searchId)
+            ->orWhere('id', $rawNumeric)
+            ->first();
+
+        if (!$member) {
+            TelegramService::sendMessageToChat(
+                $chatId,
+                "❌ <b>Membership Not Found</b>\n\nNo member record matching <code>{$cleanInput}</code> was found in PMCC-UK records. Please check your Membership ID and try again."
+            );
+            return;
+        }
+
+        $regNo = $member->membership_id_assigned ?: ($member->prev_membership_no ?: "PMCC-{$member->id}");
+        $validTill = $member->expiry_date ? Carbon::parse($member->expiry_date)->format('d M Y') : 'N/A';
+
+        // Check if member is Active
+        if ($member->status !== 'active') {
+            TelegramService::sendMessageToChat(
+                $chatId,
+                "⚠️ <b>Membership Inactive</b>\n\n" .
+                "👤 <b>Name:</b> " . htmlspecialchars($member->full_name) . "\n" .
+                "🆔 <b>Reg No:</b> <code>{$regNo}</code>\n" .
+                "⚠️ <b>Current Status:</b> <b>" . strtoupper($member->status) . "</b>\n\n" .
+                "<i>Your membership application is currently pending approval by PMCC-UK admins. ID card download will be available once approved.</i>"
+            );
+            return;
+        }
+
+        // Handle specific action
+        if ($state === 'check_status' || $state === 'check_expiry') {
+            TelegramService::sendMessageToChat(
+                $chatId,
+                "✅ <b>PMCC-UK Membership Record</b>\n\n" .
+                "👤 <b>Member Name:</b> " . htmlspecialchars($member->full_name) . "\n" .
+                "🆔 <b>Assigned Reg No:</b> <code>{$regNo}</code>\n" .
+                "💳 <b>Membership Type:</b> " . htmlspecialchars($member->membership_type) . "\n" .
+                "📅 <b>Expiry Date:</b> {$validTill}\n" .
+                "✅ <b>Account Status:</b> ACTIVE"
+            );
+            return;
+        }
+
+        // Default / download_pdf Action: Generate and Send PDF
+        try {
+            TelegramService::sendMessageToChat($chatId, "⏳ <i>Generating official PMCC-UK Membership ID Card PDF for {$regNo}...</i>");
+
+            // Render PDF via Dompdf
+            $pdf = Pdf::loadView('admin.members.pdf_card', compact('member'))
+                ->setPaper([0, 0, 396, 252], 'landscape'); // ID card standard dimensions
+
+            $tempPath = storage_path("app/PMCC_ID_Card_{$member->id}.pdf");
+            $pdf->save($tempPath);
+
+            $filename = "PMCC_ID_Card_{$regNo}.pdf";
+            $caption = "✅ <b>Official PMCC-UK Membership ID Card</b>\n\n" .
+                "👤 <b>Member:</b> " . htmlspecialchars($member->full_name) . "\n" .
+                "🆔 <b>Reg No:</b> <code>{$regNo}</code>\n" .
+                "📅 <b>Valid Until:</b> {$validTill}";
+
+            // Send Document via Telegram
+            TelegramService::sendDocument($chatId, $tempPath, $filename, $caption);
+
+            // Clean up temporary file
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
             }
-        } elseif (preg_match('/^\/decline_mem\s+(\d+)$/i', $text, $matches)) {
-            $memberId = $matches[1];
-            $member = Member::find($memberId);
-            if ($member) {
-                $member->update(['status' => 'rejected']);
-                TelegramService::sendMessage("❌ Member <b>{$member->full_name}</b> registration declined by {$adminName}.");
-            } else {
-                TelegramService::sendMessage("❌ Member #{$memberId} not found.");
-            }
+        } catch (\Exception $e) {
+            Log::error("Telegram PDF Generation Failed: " . $e->getMessage());
+            TelegramService::sendMessageToChat(
+                $chatId,
+                "❌ <b>PDF Generation Error</b>: " . htmlspecialchars($e->getMessage())
+            );
         }
     }
 }

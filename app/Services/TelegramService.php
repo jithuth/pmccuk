@@ -53,6 +53,67 @@ class TelegramService
     }
 
     /**
+     * Send a message to a specific Chat ID (e.g. direct response to a user in Telegram).
+     */
+    public static function sendMessageToChat(string $chatId, string $message, ?array $inlineKeyboard = null): bool
+    {
+        $token = self::getToken();
+        if (empty($token)) return false;
+
+        try {
+            $url = "https://api.telegram.org/bot{$token}/sendMessage";
+            $payload = [
+                'chat_id' => $chatId,
+                'text' => $message,
+                'parse_mode' => 'HTML',
+                'disable_web_page_preview' => true,
+            ];
+
+            if ($inlineKeyboard) {
+                $payload['reply_markup'] = json_encode(['inline_keyboard' => $inlineKeyboard]);
+            }
+
+            $response = Http::timeout(5)->post($url, $payload);
+            return $response->successful();
+        } catch (\Exception $e) {
+            Log::error("Telegram sendMessageToChat Failed: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Send a document/file attachment (e.g. PDF ID Card) to a specific Chat ID via Telegram Bot API.
+     */
+    public static function sendDocument(string $chatId, string $filePath, string $filename, string $caption = ''): bool
+    {
+        $token = self::getToken();
+        if (empty($token) || !file_exists($filePath)) {
+            Log::warning("Telegram sendDocument failed: Token missing or file not found at {$filePath}");
+            return false;
+        }
+
+        try {
+            $url = "https://api.telegram.org/bot{$token}/sendDocument";
+            $response = Http::timeout(20)
+                ->attach('document', file_get_contents($filePath), $filename)
+                ->post($url, [
+                    'chat_id' => $chatId,
+                    'caption' => $caption,
+                    'parse_mode' => 'HTML',
+                ]);
+
+            if (!$response->successful()) {
+                Log::error("Telegram sendDocument API Error: " . $response->body());
+            }
+
+            return $response->successful();
+        } catch (\Exception $e) {
+            Log::error("Telegram sendDocument Exception: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Edit an existing Telegram message (e.g. after approval button click).
      */
     public static function editMessageText(string $chatId, int $messageId, string $newText, ?array $inlineKeyboard = null): bool
