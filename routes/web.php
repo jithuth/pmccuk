@@ -249,6 +249,7 @@ Route::get('/accessibility', function () {
 Route::get('/student-corner', function () {
     return view('student_corner');
 })->name('student-corner');
+Route::post('/student-submit', [MembershipController::class, 'submitStudentRequest'])->name('student.submit');
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/login', [AdminAuthController::class, 'showLogin'])->name('login')->middleware('throttle:login');

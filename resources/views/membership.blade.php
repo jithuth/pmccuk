@@ -99,7 +99,7 @@
 
                         <div class="mb-10 p-6 bg-blue-50/50 rounded-2xl border border-blue-100">
                             <label class="block text-xs font-black text-slate-400 mb-4 uppercase tracking-widest">Membership Type *</label>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <label class="flex items-center justify-center p-5 bg-white border-2 border-slate-200 rounded-2xl cursor-pointer hover:border-primary transition-all group relative overflow-hidden">
                                     <input type="radio" name="membership_type" value="Family" checked onclick="handleMembershipType('Family')" class="absolute opacity-0">
                                     <div class="text-center">
@@ -112,6 +112,13 @@
                                     <div class="text-center">
                                         <div class="font-black text-slate-800 group-hover:text-primary transition-colors">SINGLE</div>
                                         <div class="text-xs font-bold text-slate-400 group-hover:text-slate-600">£5.00 / Year</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-center justify-center p-5 bg-white border-2 border-slate-200 rounded-2xl cursor-pointer hover:border-primary transition-all group relative overflow-hidden">
+                                    <input type="radio" name="membership_type" value="Student" onclick="handleMembershipType('Student')" class="absolute opacity-0">
+                                    <div class="text-center">
+                                        <div class="font-black text-slate-800 group-hover:text-primary transition-colors">STUDENT</div>
+                                        <div class="text-xs font-bold text-slate-400 group-hover:text-slate-600">Free / Special</div>
                                     </div>
                                 </label>
                             </div>
@@ -253,7 +260,7 @@
                             <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
                             <span class="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-4 block">Selected Package</span>
                             <h2 id="display-plan-name" class="text-4xl font-black mb-2">Family Membership</h2>
-                            <p class="text-2xl font-bold text-secondary mb-4 italic">£5.00 / YEAR</p>
+                            <p id="display-plan-price" class="text-2xl font-bold text-secondary mb-4 italic">£5.00 / YEAR</p>
                             <p id="display-plan-desc" class="text-white/60 font-medium">Includes Spouse & Children</p>
                         </div>
 
@@ -411,9 +418,24 @@
                 if (data.post_code) document.getElementById('f_post_code').value = data.post_code;
                 if (data.house_details) document.getElementById('f_house_details').value = data.house_details;
                 if (data.emergency_name) document.getElementById('f_emergency_name').value = data.emergency_name;
-                if (data.emergency_mobile) document.getElementById('f_emergency_mobile').value = data.emergency_mobile;
+                if (data.membership_type) {
+                    const mTypeRadio = document.querySelector(`input[name="membership_type"][value="${data.membership_type}"]`);
+                    if (mTypeRadio) {
+                        mTypeRadio.checked = true;
+                        handleMembershipType(data.membership_type);
+                    }
+                }
 
-                // Handle children later or clear existing...
+                // Pre-fill children details for family renewal
+                const childrenContainer = document.getElementById('children-container');
+                childrenContainer.querySelectorAll('.child-row').forEach(el => el.remove());
+
+                if (data.children && data.children.length > 0) {
+                    data.children.forEach(c => {
+                        addChildRowWithData(c.child_name, c.sex, c.dob);
+                    });
+                }
+                checkChildrenEmpty();
                 
                 document.getElementById('step-check').classList.add('hidden');
                 document.getElementById('main-form').classList.remove('hidden');
@@ -434,12 +456,19 @@
     function handleMembershipType(type) {
         currentMemType = type;
         document.getElementById('display-plan-name').innerText = type + ' Membership';
-        document.getElementById('display-plan-desc').innerText = type === 'Family' ? 'Includes Spouse & Children' : 'Individual Application';
         
-        if (type === 'Single') {
+        if (type === 'Family') {
+            document.getElementById('display-plan-desc').innerText = 'Includes Spouse & Children';
+            document.getElementById('display-plan-price').innerText = '£5.00 / YEAR';
+            document.getElementById('step-3').removeAttribute('data-skip');
+        } else if (type === 'Student') {
+            document.getElementById('display-plan-desc').innerText = 'Student Support Application (Free/Discounted)';
+            document.getElementById('display-plan-price').innerText = 'FREE / SPECIAL';
             document.getElementById('step-3').setAttribute('data-skip', 'true');
         } else {
-            document.getElementById('step-3').removeAttribute('data-skip');
+            document.getElementById('display-plan-desc').innerText = 'Individual Application';
+            document.getElementById('display-plan-price').innerText = '£5.00 / YEAR';
+            document.getElementById('step-3').setAttribute('data-skip', 'true');
         }
     }
 
@@ -471,8 +500,8 @@
            if (!valid) return;
         }
 
-        // Handle skip logic for step 3 if Single
-        if (currentMemType === 'Single') {
+        // Handle skip logic for step 3 if Single or Student
+        if (currentMemType === 'Single' || currentMemType === 'Student') {
             if (currentNum === 2 && step === 3) step = 4;
             if (currentNum === 4 && step === 3) step = 2;
         }
@@ -489,10 +518,19 @@
         window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
-    function addChildRow() {
+    function addChildRow(name = '', sex = 'Male', dob = '') {
+        addChildRowWithData(name, sex, dob);
+    }
+
+    function addChildRowWithData(name = '', sex = 'Male', dob = '') {
         const container = document.getElementById('children-container');
         const template = document.getElementById('child-row-template');
         const clone = template.content.cloneNode(true);
+        
+        if (name) clone.querySelector('input[name="child_name[]"]').value = name;
+        if (sex) clone.querySelector('select[name="child_sex[]"]').value = sex;
+        if (dob) clone.querySelector('input[name="child_dob[]"]').value = dob;
+
         container.appendChild(clone);
         checkChildrenEmpty();
     }

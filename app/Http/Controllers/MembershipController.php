@@ -202,11 +202,14 @@ class MembershipController extends Controller
             if ($request->has('child_name')) {
                 foreach ($request->input('child_name') as $i => $name) {
                     if (!empty($name)) {
+                        $dob = $request->input('child_dob')[$i] ?? null;
+                        $age = $dob ? now()->diff(\Illuminate\Support\Carbon::parse($dob))->y : 0;
                         \App\Models\RenewalChild::create([
                             'renewal_id' => $renewal->id,
                             'child_name' => $name,
                             'sex' => $request->input('child_sex')[$i] ?? 'Male',
-                            'dob' => $request->input('child_dob')[$i] ?? null
+                            'dob' => $dob,
+                            'age' => $age
                         ]);
                     }
                 }
@@ -295,5 +298,46 @@ class MembershipController extends Controller
         }
 
         return redirect()->route('membership')->with('status', 'success');
+    }
+
+    public function submitStudentRequest(Request $request)
+    {
+        $request->validate([
+            'full_name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'phone' => 'required|string|max:100',
+            'university' => 'required|string|max:255',
+            'study_year' => 'nullable|string|max:100',
+        ]);
+
+        \App\Models\StudentRequest::create([
+            'full_name' => $request->input('full_name'),
+            'email' => $request->input('email'),
+            'phone' => $request->input('phone'),
+            'university' => $request->input('university'),
+            'study_year' => $request->input('study_year'),
+            'status' => 'pending'
+        ]);
+
+        try {
+            \App\Models\ActivityLog::create([
+                'user_type' => 'guest',
+                'action' => 'student_registration',
+                'details' => "Student Applied: {$request->input('full_name')} ({$request->input('university')})",
+                'ip_address' => $request->ip()
+            ]);
+        } catch (\Exception $e) {}
+
+        try {
+            \App\Services\TelegramService::sendMessage(
+                "🎓 <b>New Student Network Registration</b>\n\n" .
+                "👤 <b>Name:</b> " . $request->input('full_name') . "\n" .
+                "📧 <b>Email:</b> " . $request->input('email') . "\n" .
+                "📱 <b>Phone:</b> " . $request->input('phone') . "\n" .
+                "🏛️ <b>University:</b> " . $request->input('university') . " (" . $request->input('study_year') . ")"
+            );
+        } catch (\Exception $e) {}
+
+        return redirect()->back()->with('success', 'Student registration submitted successfully! Our student representative will get in touch with you shortly.');
     }
 }

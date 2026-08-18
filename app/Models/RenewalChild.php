@@ -14,6 +14,21 @@ class RenewalChild extends Model
         'dob'        => 'encrypted',
     ];
 
+    protected $appends = ['age'];
+
+    public function getAgeAttribute()
+    {
+        if (isset($this->attributes['age']) && !is_null($this->attributes['age']) && $this->attributes['age'] > 0) {
+            return (int) $this->attributes['age'];
+        }
+        if (empty($this->dob)) return null;
+        try {
+            return \Illuminate\Support\Carbon::parse($this->dob)->age;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
     public function renewal()
     {
         return $this->belongsTo(RenewalRequest::class, 'renewal_id');

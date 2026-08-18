@@ -55,6 +55,15 @@
         <div class="h-2 w-24 bg-primary mx-auto mt-6"></div>
     </div>
     <div class="max-w-3xl mx-auto px-4">
+        @if(session('success'))
+            <div class="bg-green-50 border border-green-200 text-green-800 p-8 rounded-3xl mb-8 text-center animate-fade-in shadow-lg">
+                <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fas fa-check"></i>
+                </div>
+                <h3 class="text-2xl font-black mb-2">Registration Submitted!</h3>
+                <p class="font-bold text-sm text-green-700">{{ session('success') }}</p>
+            </div>
+        @endif
         <div class="bg-white p-12 rounded-[3.5rem] shadow-2xl shadow-slate-200 border border-slate-100">
             <form action="{{ url('student-submit') }}" method="POST" class="space-y-6">
                 @csrf

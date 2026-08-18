@@ -24,11 +24,17 @@ class WebApplicationFirewall
             $wafEnabledSetting = Setting::where('setting_key', 'waf_enabled')->first();
             if ($wafEnabledSetting) {
                 $wafEnabled = $wafEnabledSetting->setting_value;
+                try {
+                    $wafEnabled = decrypt($wafEnabled);
+                } catch (\Exception $e) {}
             }
 
             $blocklistSetting = Setting::where('setting_key', 'waf_ip_blocklist')->first();
             if ($blocklistSetting) {
                 $blocklistStr = $blocklistSetting->setting_value;
+                try {
+                    $blocklistStr = decrypt($blocklistStr);
+                } catch (\Exception $e) {}
             }
         } catch (\Exception $e) {
             Log::error('WAF config fetch error: ' . $e->getMessage());
