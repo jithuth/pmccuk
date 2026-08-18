@@ -10,6 +10,7 @@ use App\Models\EventBooking;
 use App\Models\FinancialTransaction;
 use App\Models\ActivityLog;
 use App\Mail\MemberIdCardEmail;
+use App\Mail\EventTicketMail;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
@@ -106,7 +107,7 @@ class TelegramWebhookController extends Controller
     }
 
     /**
-     * Handle Menu Action Click (ID Card Download, Status Check, Expiry Check)
+     * Handle Menu Action Click (ID Card Download, Ticket Download, Status Check, Expiry Check)
      */
     protected function handleMenuActionClick(string $actionType, $fromId, string $chatId, string $callbackId)
     {
@@ -118,6 +119,16 @@ class TelegramWebhookController extends Controller
                     $chatId,
                     "🪪 <b>Download Membership ID Card (PDF)</b>\n\n" .
                     "Please reply with your <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>1052</code>):"
+                );
+                break;
+
+            case 'download_ticket':
+                Cache::put("tg_user_state_{$fromId}", 'download_ticket', 600);
+                TelegramService::answerCallbackQuery($callbackId, "Please enter your Ticket Reference");
+                TelegramService::sendMessageToChat(
+                    $chatId,
+                    "🎟️ <b>Download Event Entry Ticket (PDF)</b>\n\n" .
+                    "Please reply with your <b>Ticket Reference Number</b> or <b>Booking ID</b> (e.g. <code>BOOK-NM-42</code> or <code>42</code>):"
                 );
                 break;
 
@@ -347,12 +358,45 @@ class TelegramWebhookController extends Controller
 
         $booking->update(['booking_status' => 'approved', 'payment_status' => 'paid', 'check_in_status' => 'confirmed']);
 
+        // Email ticket to attendee
+        if (!empty($booking->email)) {
+            try {
+                Mail::to($booking->email)->send(new EventTicketMail($booking));
+            } catch (\Exception $e) {
+                Log::error("EventTicketMail failed during Telegram booking approval: " . $e->getMessage());
+            }
+        }
+
+        // Generate and dispatch Ticket PDF via Telegram
+        try {
+            $refNo = $booking->reference_no ?: ("BOOK-" . ($booking->membership_no != 'NON-MEMBER' ? $booking->membership_no : 'NM') . "-" . $booking->id);
+            $pdf = Pdf::loadView('events.pdf_ticket', compact('booking'))
+                ->setPaper([0, 0, 396, 252], 'landscape')
+                ->setOption('isRemoteEnabled', true);
+
+            $tempPath = storage_path("app/PMCC_Ticket_{$booking->id}.pdf");
+            $pdf->save($tempPath);
+
+            TelegramService::sendDocument(
+                $chatId,
+                $tempPath,
+                "PMCC_Event_Ticket_{$refNo}.pdf",
+                "🎟️ <b>Official PMCC-UK Event Ticket PDF</b>\n\n" .
+                "📅 <b>Event:</b> " . htmlspecialchars($booking->event->title ?? 'PMCC Event') . "\n" .
+                "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name) . "\n" .
+                "🎟️ <b>Ticket Ref:</b> <code>{$refNo}</code>"
+            );
+
+            if (file_exists($tempPath)) unlink($tempPath);
+        } catch (\Exception $e) {}
+
         TelegramService::answerCallbackQuery($callbackId, "✅ Event booking confirmed!", true);
 
         $newText = "✅ <b>BOOKING CONFIRMED VIA TELEGRAM</b>\n\n" .
-            "🎟️ <b>Ticket Ref:</b> <code>" . ($booking->ticket_ref ?? "BOOK-{$booking->id}") . "</code>\n" .
+            "🎟️ <b>Ticket Ref:</b> <code>" . ($booking->reference_no ?? "BOOK-{$booking->id}") . "</code>\n" .
             "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name) . "\n" .
-            "⚡ <b>Confirmed By:</b> {$adminName}";
+            "⚡ <b>Confirmed By:</b> {$adminName}\n" .
+            "📧 <i>Ticket PDF emailed and attached.</i>";
 
         TelegramService::editMessageText($chatId, $messageId, $newText);
     }
@@ -405,8 +449,13 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        // Check if user is in a state flow (e.g. download_pdf, check_status, check_expiry)
+        // Check if user is in a state flow
         $userState = Cache::get("tg_user_state_{$fromId}");
+        if ($userState === 'download_ticket' || preg_match('/^BOOK-/i', $text)) {
+            $this->processTicketInput($text, $fromId, $chatId);
+            return;
+        }
+
         if ($userState || preg_match('/^(PMCC-)?\d+$/i', $text)) {
             $this->processMemberIdInput($text, $userState ?? 'download_pdf', $fromId, $chatId);
             return;
@@ -425,11 +474,12 @@ class TelegramWebhookController extends Controller
     protected function sendInteractiveMenu(string $chatId, string $userName)
     {
         $menuText = "🤖 <b>PMCC-UK Interactive Member Assistant</b>\n\n" .
-            "Hello <b>{$userName}</b>! Select a member action from the menu options below:";
+            "Hello <b>{$userName}</b>! Select a service from the options below:";
 
         $menuButtons = [
             [
-                ['text' => '🪪 Download ID Card (PDF)', 'callback_data' => 'menu_action:download_pdf']
+                ['text' => '🪪 Download ID Card (PDF)', 'callback_data' => 'menu_action:download_pdf'],
+                ['text' => '🎟️ Download Event Ticket (PDF)', 'callback_data' => 'menu_action:download_ticket']
             ],
             [
                 ['text' => '🔍 Check Membership Status', 'callback_data' => 'menu_action:check_status'],
@@ -444,11 +494,59 @@ class TelegramWebhookController extends Controller
     }
 
     /**
+     * Process Event Ticket Download Input
+     */
+    protected function processTicketInput(string $input, $fromId, string $chatId)
+    {
+        Cache::forget("tg_user_state_{$fromId}");
+
+        $cleanInput = trim($input);
+        $numericId = preg_replace('/\D/', '', $cleanInput);
+
+        $booking = EventBooking::where('reference_no', $cleanInput)
+            ->orWhere('id', $numericId)
+            ->first();
+
+        if (!$booking) {
+            TelegramService::sendMessageToChat(
+                $chatId,
+                "❌ <b>Event Ticket Not Found</b>\n\nNo ticket booking matching <code>{$cleanInput}</code> was found. Please verify your reference number and try again."
+            );
+            return;
+        }
+
+        $refNo = $booking->reference_no ?: ("BOOK-" . ($booking->membership_no != 'NON-MEMBER' ? $booking->membership_no : 'NM') . "-" . $booking->id);
+
+        try {
+            TelegramService::sendMessageToChat($chatId, "⏳ <i>Generating official PMCC-UK Event Ticket PDF for {$refNo}...</i>");
+
+            $pdf = Pdf::loadView('events.pdf_ticket', compact('booking'))
+                ->setPaper([0, 0, 396, 252], 'landscape')
+                ->setOption('isRemoteEnabled', true);
+
+            $tempPath = storage_path("app/PMCC_Event_Ticket_{$booking->id}.pdf");
+            $pdf->save($tempPath);
+
+            $filename = "PMCC_Event_Ticket_{$refNo}.pdf";
+            $caption = "🎟️ <b>Official PMCC-UK Event Entry Ticket</b>\n\n" .
+                "📅 <b>Event:</b> " . htmlspecialchars($booking->event->title ?? 'PMCC Event') . "\n" .
+                "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name) . "\n" .
+                "🎟️ <b>Ref:</b> <code>{$refNo}</code>";
+
+            TelegramService::sendDocument($chatId, $tempPath, $filename, $caption);
+
+            if (file_exists($tempPath)) unlink($tempPath);
+        } catch (\Exception $e) {
+            Log::error("Telegram Ticket PDF Generation Failed: " . $e->getMessage());
+            TelegramService::sendMessageToChat($chatId, "❌ <b>Ticket PDF Error</b>: " . htmlspecialchars($e->getMessage()));
+        }
+    }
+
+    /**
      * Process Membership ID Input for ID Card PDF Generation / Status Check
      */
     protected function processMemberIdInput(string $input, string $state, $fromId, string $chatId)
     {
-        // Clear pending user state
         Cache::forget("tg_user_state_{$fromId}");
 
         $cleanInput = strtoupper(trim($input));
@@ -459,7 +557,6 @@ class TelegramWebhookController extends Controller
 
         $rawNumeric = ltrim($cleanInput, 'PMCC-');
 
-        // Look up member
         $member = Member::where('membership_id_assigned', $searchId)
             ->orWhere('membership_id_assigned', $cleanInput)
             ->orWhere('prev_membership_no', $searchId)
@@ -469,7 +566,7 @@ class TelegramWebhookController extends Controller
         if (!$member) {
             TelegramService::sendMessageToChat(
                 $chatId,
-                "❌ <b>Membership Not Found</b>\n\nNo member record matching <code>{$cleanInput}</code> was found in PMCC-UK records. Please check your Membership ID and try again."
+                "❌ <b>Membership Not Found</b>\n\nNo member record matching <code>{$cleanInput}</code> was found. Please check your Membership ID and try again."
             );
             return;
         }
@@ -477,7 +574,6 @@ class TelegramWebhookController extends Controller
         $regNo = $member->membership_id_assigned ?: ($member->prev_membership_no ?: "PMCC-{$member->id}");
         $validTill = $member->expiry_date ? Carbon::parse($member->expiry_date)->format('d M Y') : 'N/A';
 
-        // Check if member is Active
         if ($member->status !== 'active') {
             TelegramService::sendMessageToChat(
                 $chatId,
@@ -485,12 +581,11 @@ class TelegramWebhookController extends Controller
                 "👤 <b>Name:</b> " . htmlspecialchars($member->full_name) . "\n" .
                 "🆔 <b>Reg No:</b> <code>{$regNo}</code>\n" .
                 "⚠️ <b>Current Status:</b> <b>" . strtoupper($member->status) . "</b>\n\n" .
-                "<i>Your membership application is currently pending approval by PMCC-UK admins. ID card download will be available once approved.</i>"
+                "<i>Your membership is pending approval. ID card download will be available once approved.</i>"
             );
             return;
         }
 
-        // Handle specific action
         if ($state === 'check_status' || $state === 'check_expiry') {
             TelegramService::sendMessageToChat(
                 $chatId,
@@ -508,7 +603,6 @@ class TelegramWebhookController extends Controller
         try {
             TelegramService::sendMessageToChat($chatId, "⏳ <i>Generating official PMCC-UK Membership ID Card PDF for {$regNo}...</i>");
 
-            // Render PDF via Dompdf
             $pdf = Pdf::loadView('admin.members.pdf_card', compact('member'))
                 ->setPaper([0, 0, 396, 252], 'landscape')
                 ->setOption('isRemoteEnabled', true)
@@ -523,19 +617,12 @@ class TelegramWebhookController extends Controller
                 "🆔 <b>Reg No:</b> <code>{$regNo}</code>\n" .
                 "📅 <b>Valid Until:</b> {$validTill}";
 
-            // Send Document via Telegram
             TelegramService::sendDocument($chatId, $tempPath, $filename, $caption);
 
-            // Clean up temporary file
-            if (file_exists($tempPath)) {
-                unlink($tempPath);
-            }
+            if (file_exists($tempPath)) unlink($tempPath);
         } catch (\Exception $e) {
             Log::error("Telegram PDF Generation Failed: " . $e->getMessage());
-            TelegramService::sendMessageToChat(
-                $chatId,
-                "❌ <b>PDF Generation Error</b>: " . htmlspecialchars($e->getMessage())
-            );
+            TelegramService::sendMessageToChat($chatId, "❌ <b>PDF Generation Error</b>: " . htmlspecialchars($e->getMessage()));
         }
     }
 }
