@@ -29,53 +29,55 @@
         $valid_till = $member->expiry_date ? \Carbon\Carbon::parse($member->expiry_date)->format('d M Y') : \Carbon\Carbon::parse($member->created_at)->addYear()->format('d M Y');
         $issued_on = \Carbon\Carbon::parse($member->created_at)->format('d M Y');
 
-        // Robust Member Photo Resolution
-        $photo_src = null;
-        $rawPhoto = $member->photo;
-        if (!empty($rawPhoto)) {
-            $stripped = preg_replace('/^photos\//', '', ltrim($rawPhoto, '/'));
-            $possiblePaths = [
-                storage_path('app/public/' . ltrim($rawPhoto, '/')),
-                storage_path('app/public/photos/' . ltrim($rawPhoto, '/')),
-                storage_path('app/public/photos/' . $stripped),
-                storage_path('app/public/' . $stripped),
-                storage_path('app/' . ltrim($rawPhoto, '/')),
-                storage_path('app/photos/' . ltrim($rawPhoto, '/')),
-                public_path('storage/' . ltrim($rawPhoto, '/')),
-                public_path('storage/photos/' . ltrim($rawPhoto, '/')),
-            ];
+        if (!function_exists('resolveDompdfImage')) {
+            function resolveDompdfImage(?string $rawPath) {
+                if (empty($rawPath)) return null;
 
-            foreach ($possiblePaths as $path) {
-                if (file_exists($path) && !is_dir($path) && filesize($path) > 0) {
-                    $ext = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpeg';
-                    $photo_src = 'data:image/' . strtolower($ext) . ';base64,' . base64_encode(file_get_contents($path));
-                    break;
+                $clean = ltrim($rawPath, '/');
+                $filenameOnly = basename($clean);
+
+                $possiblePaths = [
+                    storage_path('app/public/photos/' . $filenameOnly),
+                    storage_path('app/public/' . $clean),
+                    storage_path('app/public/photos/' . $clean),
+                    storage_path('app/' . $clean),
+                    storage_path('app/photos/' . $filenameOnly),
+                    public_path('storage/photos/' . $filenameOnly),
+                    public_path('storage/' . $clean),
+                    public_path($clean),
+                ];
+
+                foreach ($possiblePaths as $path) {
+                    if (file_exists($path) && !is_dir($path) && filesize($path) > 0) {
+                        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+                        if ($ext === 'webp' && function_exists('imagecreatefromwebp')) {
+                            $img = @imagecreatefromwebp($path);
+                            if ($img) {
+                                ob_start();
+                                imagejpeg($img, null, 90);
+                                $data = ob_get_clean();
+                                imagedestroy($img);
+                                return 'data:image/jpeg;base64,' . base64_encode($data);
+                            }
+                        }
+
+                        $mime = ($ext === 'png') ? 'image/png' : (($ext === 'gif') ? 'image/gif' : 'image/jpeg');
+                        return 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($path));
+                    }
                 }
+
+                return null;
             }
         }
 
-        // Robust Logo Resolution
-        $logo_src = null;
-        try {
-            $logoSetting = \App\Models\Setting::where('setting_key', 'site_logo')->value('setting_value');
-            $possibleLogoPaths = [];
-            if (!empty($logoSetting)) {
-                $possibleLogoPaths[] = storage_path('app/public/' . ltrim($logoSetting, '/'));
-                $possibleLogoPaths[] = public_path('storage/' . ltrim($logoSetting, '/'));
-                $possibleLogoPaths[] = public_path(ltrim($logoSetting, '/'));
-            }
-            $possibleLogoPaths[] = public_path('assets/img/697c0e1fba726.webp');
-            $possibleLogoPaths[] = public_path('assets/img/logo.png');
-            $possibleLogoPaths[] = public_path('favicon.ico');
+        $photo_src = resolveDompdfImage($member->photo);
 
-            foreach ($possibleLogoPaths as $path) {
-                if (file_exists($path) && !is_dir($path) && filesize($path) > 0) {
-                    $ext = pathinfo($path, PATHINFO_EXTENSION) ?: 'png';
-                    $logo_src = 'data:image/' . strtolower($ext) . ';base64,' . base64_encode(file_get_contents($path));
-                    break;
-                }
-            }
-        } catch (\Exception $e) {}
+        $logoSetting = \App\Models\Setting::where('setting_key', 'site_logo')->value('setting_value');
+        $logo_src = resolveDompdfImage($logoSetting) 
+                 ?: resolveDompdfImage('assets/img/697c0e1fba726.webp')
+                 ?: resolveDompdfImage('assets/img/logo.png')
+                 ?: resolveDompdfImage('favicon.ico');
     @endphp
 
     <div class="card">
