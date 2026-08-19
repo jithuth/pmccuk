@@ -93,7 +93,15 @@ class TelegramWebhookController extends Controller
                 break;
 
             case 'approve_book':
+                $this->promptBookingApprovalConfirmation($id, $callbackId, $chatId, $messageId, $adminName);
+                break;
+
+            case 'confirm_approve_book':
                 $this->processBookingApproval($id, $callbackId, $chatId, $messageId, $adminName);
+                break;
+
+            case 'cancel_book':
+                $this->processBookingCancelPrompt($id, $callbackId, $chatId, $messageId, $adminName);
                 break;
 
             case 'decline_book':
@@ -346,6 +354,51 @@ class TelegramWebhookController extends Controller
     }
 
     /**
+     * Prompt Confirmation for Booking Approval via Telegram
+     */
+    protected function promptBookingApprovalConfirmation($id, string $callbackId, string $chatId, int $messageId, string $adminName)
+    {
+        $booking = EventBooking::find($id);
+        if (!$booking) {
+            TelegramService::answerCallbackQuery($callbackId, "Booking #{$id} not found.", true);
+            return;
+        }
+
+        // If already approved, return message already approved
+        if ($booking->booking_status === 'approved') {
+            TelegramService::answerCallbackQuery($callbackId, "Booking #{$id} is already APPROVED!", true);
+            $alreadyText = "✅ <b>BOOKING ALREADY APPROVED</b>\n\n" .
+                "🎟️ <b>Ticket Ref:</b> <code>" . ($booking->reference_no ?? "BOOK-{$booking->id}") . "</code>\n" .
+                "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name) . "\n" .
+                "📧 <b>Email:</b> " . htmlspecialchars($booking->email) . "\n" .
+                "⚡ <b>Status:</b> Approved";
+            TelegramService::editMessageText($chatId, $messageId, $alreadyText);
+            return;
+        }
+
+        TelegramService::answerCallbackQuery($callbackId, "Confirmation required.");
+
+        $totalTickets = $booking->adult_count + $booking->child_count + $booking->infant_count;
+        $confirmText = "⚠️ <b>CONFIRM BOOKING APPROVAL</b>\n\n" .
+            "Are you sure you want to approve this event ticket booking?\n\n" .
+            "📅 <b>Event:</b> " . htmlspecialchars($booking->event->title ?? 'PMCC Event') . "\n" .
+            "👤 <b>Booked By:</b> " . htmlspecialchars($booking->full_name) . "\n" .
+            "📧 <b>Email:</b> " . htmlspecialchars($booking->email) . "\n" .
+            "📱 <b>Phone:</b> " . htmlspecialchars($booking->phone) . "\n" .
+            "🎫 <b>Tickets:</b> {$totalTickets} ({$booking->adult_count} Adult, {$booking->child_count} Child, {$booking->infant_count} Infant)\n" .
+            "💰 <b>Total Amount:</b> £" . number_format($booking->total_amount, 2);
+
+        $keyboard = [
+            [
+                ['text' => '✅ Confirm Approval', 'callback_data' => "confirm_approve_book:{$booking->id}"],
+                ['text' => '❌ Cancel', 'callback_data' => "cancel_book:{$booking->id}"]
+            ]
+        ];
+
+        TelegramService::editMessageText($chatId, $messageId, $confirmText, $keyboard);
+    }
+
+    /**
      * Process Booking Approval via Telegram
      */
     protected function processBookingApproval($id, string $callbackId, string $chatId, int $messageId, string $adminName)
@@ -356,7 +409,39 @@ class TelegramWebhookController extends Controller
             return;
         }
 
-        $booking->update(['booking_status' => 'approved', 'payment_status' => 'paid', 'check_in_status' => 'confirmed']);
+        // If already approved, return message already approved
+        if ($booking->booking_status === 'approved') {
+            TelegramService::answerCallbackQuery($callbackId, "Booking #{$id} is already APPROVED!", true);
+            $alreadyText = "✅ <b>BOOKING ALREADY APPROVED</b>\n\n" .
+                "🎟️ <b>Ticket Ref:</b> <code>" . ($booking->reference_no ?? "BOOK-{$booking->id}") . "</code>\n" .
+                "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name) . "\n" .
+                "📧 <b>Email:</b> " . htmlspecialchars($booking->email) . "\n" .
+                "⚡ <b>Status:</b> Approved";
+            TelegramService::editMessageText($chatId, $messageId, $alreadyText);
+            return;
+        }
+
+        $booking->update([
+            'booking_status' => 'approved',
+            'payment_status' => 'paid',
+            'check_in_status' => 'pending'
+        ]);
+
+        if ($booking->total_amount > 0) {
+            try {
+                FinancialTransaction::create([
+                    'type' => 'income',
+                    'category' => 'Event Ticket',
+                    'amount' => $booking->total_amount,
+                    'transaction_date' => now()->format('Y-m-d'),
+                    'description' => "Event Booking: {$booking->full_name} for " . ($booking->event->title ?? 'Event') . " (Ref: #{$booking->id})",
+                    'payment_method' => 'Telegram Quick Approve',
+                    'ref_no' => "EVT-{$booking->id}"
+                ]);
+            } catch (\Exception $e) {
+                Log::error("FinancialTransaction creation failed during Telegram booking approval: " . $e->getMessage());
+            }
+        }
 
         // Email ticket to attendee
         if (!empty($booking->email)) {
@@ -402,6 +487,47 @@ class TelegramWebhookController extends Controller
     }
 
     /**
+     * Cancel confirmation prompt for Booking Approval
+     */
+    protected function processBookingCancelPrompt($id, string $callbackId, string $chatId, int $messageId, string $adminName)
+    {
+        $booking = EventBooking::find($id);
+        if (!$booking) {
+            TelegramService::answerCallbackQuery($callbackId, "Booking #{$id} not found.", true);
+            return;
+        }
+
+        if ($booking->booking_status === 'approved') {
+            TelegramService::answerCallbackQuery($callbackId, "Booking #{$id} is already APPROVED!", true);
+            $alreadyText = "✅ <b>BOOKING ALREADY APPROVED</b>\n\n" .
+                "🎟️ <b>Ticket Ref:</b> <code>" . ($booking->reference_no ?? "BOOK-{$booking->id}") . "</code>\n" .
+                "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name);
+            TelegramService::editMessageText($chatId, $messageId, $alreadyText);
+            return;
+        }
+
+        TelegramService::answerCallbackQuery($callbackId, "Approval action cancelled.");
+
+        $totalTickets = $booking->adult_count + $booking->child_count + $booking->infant_count;
+        $originalText = "🎟️ <b>New Event Ticket Booking</b>\n\n" .
+            "📅 <b>Event:</b> " . htmlspecialchars($booking->event->title ?? 'PMCC Event') . "\n" .
+            "👤 <b>Booked By:</b> " . htmlspecialchars($booking->full_name) . "\n" .
+            "📧 <b>Email:</b> " . htmlspecialchars($booking->email) . "\n" .
+            "📱 <b>Phone:</b> " . htmlspecialchars($booking->phone) . "\n" .
+            "🎫 <b>Tickets:</b> {$totalTickets} ({$booking->adult_count} Adult, {$booking->child_count} Child, {$booking->infant_count} Infant)\n" .
+            "💰 <b>Total Paid:</b> £" . number_format($booking->total_amount, 2);
+
+        $keyboard = [
+            [
+                ['text' => '✅ Approve Booking', 'callback_data' => "approve_book:{$booking->id}"],
+                ['text' => '❌ Decline', 'callback_data' => "decline_book:{$booking->id}"]
+            ]
+        ];
+
+        TelegramService::editMessageText($chatId, $messageId, $originalText, $keyboard);
+    }
+
+    /**
      * Process Booking Decline via Telegram
      */
     protected function processBookingDecline($id, string $callbackId, string $chatId, int $messageId, string $adminName)
@@ -409,6 +535,20 @@ class TelegramWebhookController extends Controller
         $booking = EventBooking::find($id);
         if (!$booking) {
             TelegramService::answerCallbackQuery($callbackId, "Booking #{$id} not found.", true);
+            return;
+        }
+
+        if ($booking->booking_status === 'approved') {
+            TelegramService::answerCallbackQuery($callbackId, "Booking #{$id} is already APPROVED!", true);
+            $alreadyText = "✅ <b>BOOKING ALREADY APPROVED</b>\n\n" .
+                "🎟️ <b>Ticket Ref:</b> <code>" . ($booking->reference_no ?? "BOOK-{$booking->id}") . "</code>\n" .
+                "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name);
+            TelegramService::editMessageText($chatId, $messageId, $alreadyText);
+            return;
+        }
+
+        if ($booking->booking_status === 'cancelled') {
+            TelegramService::answerCallbackQuery($callbackId, "Booking #{$id} is already DECLINED!", true);
             return;
         }
 
