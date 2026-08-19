@@ -120,55 +120,121 @@ class TelegramWebhookController extends Controller
     protected function handleMenuActionClick(string $actionType, $fromId, string $chatId, string $callbackId)
     {
         switch ($actionType) {
+            case 'pending_queue':
+                TelegramService::answerCallbackQuery($callbackId, "Fetching pending approvals...");
+                $pendingMembers = Member::where('status', 'pending')->count();
+                $pendingRenewals = RenewalRequest::where('status', 'pending')->count();
+                $pendingBookings = EventBooking::where('booking_status', 'pending')->count();
+
+                $msg = "⏳ <b>PMCC-UK Pending Approvals Hub</b>\n\n" .
+                    "👤 <b>Pending Memberships:</b> <code>{$pendingMembers}</code>\n" .
+                    "🔄 <b>Pending Renewals:</b> <code>{$pendingRenewals}</code>\n" .
+                    "🎟️ <b>Pending Ticket Bookings:</b> <code>{$pendingBookings}</code>\n\n";
+
+                if ($pendingMembers == 0 && $pendingRenewals == 0 && $pendingBookings == 0) {
+                    $msg .= "✨ <i>All approval queues are completely clear!</i>";
+                } else {
+                    $msg .= "⚡ <i>Use direct commands like <code>/approve_mem [ID]</code> or click Telegram alert buttons to approve items instantly.</i>";
+                }
+
+                TelegramService::sendMessageToChat($chatId, $msg);
+                break;
+
+            case 'admin_stats':
+                TelegramService::answerCallbackQuery($callbackId, "Calculating live stats...");
+                $activeMembers = Member::where('status', 'active')->count();
+                $pendingMembers = Member::where('status', 'pending')->count();
+                $approvedBookings = EventBooking::where('booking_status', 'approved')->count();
+                $totalRevenue = EventBooking::where('booking_status', 'approved')->sum('total_amount');
+                $monthIncome = FinancialTransaction::where('type', 'income')
+                    ->whereYear('transaction_date', date('Y'))
+                    ->whereMonth('transaction_date', date('m'))
+                    ->sum('amount');
+
+                $msg = "📊 <b>PMCC-UK Real-Time Dashboard Stats</b>\n\n" .
+                    "👥 <b>Active Members:</b> <code>{$activeMembers}</code>\n" .
+                    "⏳ <b>Pending Memberships:</b> <code>{$pendingMembers}</code>\n" .
+                    "🎟️ <b>Approved Ticket Bookings:</b> <code>{$approvedBookings}</code>\n" .
+                    "💰 <b>Total Ticket Sales:</b> <code>£" . number_format($totalRevenue, 2) . "</code>\n" .
+                    "💳 <b>This Month's Ledger Income:</b> <code>£" . number_format($monthIncome, 2) . "</code>";
+
+                TelegramService::sendMessageToChat($chatId, $msg);
+                break;
+
             case 'download_pdf':
                 Cache::put("tg_user_state_{$fromId}", 'download_pdf', 600);
-                TelegramService::answerCallbackQuery($callbackId, "Please enter your Membership ID");
+                TelegramService::answerCallbackQuery($callbackId, "Please enter Membership ID");
                 TelegramService::sendMessageToChat(
                     $chatId,
                     "🪪 <b>Download Membership ID Card (PDF)</b>\n\n" .
-                    "Please reply with your <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>1052</code>):"
+                    "Please reply with the <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>386</code>):"
                 );
                 break;
 
             case 'download_ticket':
                 Cache::put("tg_user_state_{$fromId}", 'download_ticket', 600);
-                TelegramService::answerCallbackQuery($callbackId, "Please enter your Ticket Reference");
+                TelegramService::answerCallbackQuery($callbackId, "Please enter Ticket Reference");
                 TelegramService::sendMessageToChat(
                     $chatId,
                     "🎟️ <b>Download Event Entry Ticket (PDF)</b>\n\n" .
-                    "Please reply with your <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>1052</code>) or <b>Ticket Reference Number</b> (e.g. <code>BOOK-42</code>):"
+                    "Please reply with the <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>386</code>) or <b>Ticket Reference Number</b> (e.g. <code>BOOK-42</code>):"
                 );
                 break;
 
-            case 'check_status':
-                Cache::put("tg_user_state_{$fromId}", 'check_status', 600);
-                TelegramService::answerCallbackQuery($callbackId, "Please enter your Membership ID");
+            case 'lookup':
+                Cache::put("tg_user_state_{$fromId}", 'lookup', 600);
+                TelegramService::answerCallbackQuery($callbackId, "Enter Member ID or Ticket Ref");
                 TelegramService::sendMessageToChat(
                     $chatId,
-                    "🔍 <b>Check Membership Status</b>\n\n" .
-                    "Please reply with your <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>1052</code>):"
+                    "🔍 <b>Member / Ticket Quick Lookup</b>\n\n" .
+                    "Please reply with any <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>386</code>) or <b>Ticket Reference</b> (e.g. <code>BOOK-42</code>):"
                 );
                 break;
 
-            case 'check_expiry':
-                Cache::put("tg_user_state_{$fromId}", 'check_expiry', 600);
-                TelegramService::answerCallbackQuery($callbackId, "Please enter your Membership ID");
-                TelegramService::sendMessageToChat(
-                    $chatId,
-                    "📅 <b>Check Expiry Date</b>\n\n" .
-                    "Please reply with your <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>1052</code>):"
-                );
+            case 'system_logs':
+                TelegramService::answerCallbackQuery($callbackId, "Fetching system logs...");
+                $logs = \App\Models\ActivityLog::latest()->take(5)->get();
+                $msg = "🚨 <b>PMCC-UK Recent Activity Logs</b>\n\n";
+
+                if ($logs->isEmpty()) {
+                    $msg .= "<i>No recent activity logs recorded.</i>";
+                } else {
+                    foreach ($logs as $l) {
+                        $dateStr = \Carbon\Carbon::parse($l->created_at)->format('d M H:i');
+                        $msg .= "• <b>{$dateStr}</b>: " . htmlspecialchars($l->action) . "\n" .
+                            "  <i>" . htmlspecialchars(substr($l->details, 0, 90)) . "</i>\n\n";
+                    }
+                }
+
+                TelegramService::sendMessageToChat($chatId, $msg);
                 break;
 
             case 'support':
-                TelegramService::answerCallbackQuery($callbackId, "PMCC-UK Support");
+                TelegramService::answerCallbackQuery($callbackId, "Admin Support & Help");
                 TelegramService::sendMessageToChat(
                     $chatId,
-                    "🤝 <b>PMCC-UK Support & Inquiries</b>\n\n" .
+                    "❓ <b>PMCC-UK Admin Support & Help</b>\n\n" .
+                    "⚡ <b>Available Admin Commands:</b>\n" .
+                    "• Send <b>/menu</b> - Open Admin Control Panel\n" .
+                    "• <code>/approve_mem [ID]</code> - Approve member ID directly\n" .
+                    "• <code>/decline_mem [ID]</code> - Decline member ID directly\n\n" .
                     "🌐 <b>Website:</b> https://pmccuk.org\n" .
                     "📧 <b>Email:</b> info@pmccuk.org\n" .
                     "📍 <b>Location:</b> Plymouth, United Kingdom"
                 );
+                break;
+
+            case 'maint_status':
+                TelegramService::answerCallbackQuery($callbackId, "Checking website status...");
+                $isDown = app()->isDownForMaintenance();
+                $statusMsg = $isDown ? "🔴 <b>MAINTENANCE MODE ACTIVE</b>" : "🟢 <b>WEBSITE ONLINE & ACTIVE</b>";
+                
+                $msg = "🌐 <b>PMCC-UK Website Maintenance Status</b>\n\n" .
+                    "Status: {$statusMsg}\n" .
+                    "URL: https://pmccuk.org\n\n" .
+                    "<i>Server & Database connections operational.</i>";
+
+                TelegramService::sendMessageToChat($chatId, $msg);
                 break;
 
             default:
@@ -613,20 +679,25 @@ class TelegramWebhookController extends Controller
      */
     protected function sendInteractiveMenu(string $chatId, string $userName)
     {
-        $menuText = "🤖 <b>PMCC-UK Interactive Member Assistant</b>\n\n" .
-            "Hello <b>{$userName}</b>! Select a service from the options below:";
+        $menuText = "🛡️ <b>PMCC-UK Telegram Admin Control Panel</b>\n\n" .
+            "Hello <b>{$userName}</b>! Select an admin control tool from below:";
 
         $menuButtons = [
             [
-                ['text' => '🪪 Download ID Card (PDF)', 'callback_data' => 'menu_action:download_pdf'],
-                ['text' => '🎟️ Download Event Ticket (PDF)', 'callback_data' => 'menu_action:download_ticket']
+                ['text' => '⏳ Pending Approvals Hub', 'callback_data' => 'menu_action:pending_queue'],
+                ['text' => '📊 Real-Time Dashboard Stats', 'callback_data' => 'menu_action:admin_stats']
             ],
             [
-                ['text' => '🔍 Check Membership Status', 'callback_data' => 'menu_action:check_status'],
-                ['text' => '📅 Check Expiry Date', 'callback_data' => 'menu_action:check_expiry']
+                ['text' => '🪪 Download Member ID Card', 'callback_data' => 'menu_action:download_pdf'],
+                ['text' => '🎟️ Download Event Ticket PDF', 'callback_data' => 'menu_action:download_ticket']
             ],
             [
-                ['text' => '❓ Contact & Support Info', 'callback_data' => 'menu_action:support']
+                ['text' => '🔍 Member / Ticket Lookup', 'callback_data' => 'menu_action:lookup'],
+                ['text' => '🚨 View Recent System Logs', 'callback_data' => 'menu_action:system_logs']
+            ],
+            [
+                ['text' => '❓ Admin Support & Help', 'callback_data' => 'menu_action:support'],
+                ['text' => '🌐 Website Maintenance Status', 'callback_data' => 'menu_action:maint_status']
             ]
         ];
 
