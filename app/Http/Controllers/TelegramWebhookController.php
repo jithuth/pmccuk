@@ -224,6 +224,86 @@ class TelegramWebhookController extends Controller
                 );
                 break;
 
+            case 'export_members':
+                TelegramService::answerCallbackQuery($callbackId, "Generating Members CSV...");
+                try {
+                    $members = Member::where('status', 'active')->orderBy('id', 'asc')->get();
+                    $csvFileName = "PMCC_Active_Members_" . date('Y_m_d') . ".csv";
+                    $tempPath = storage_path("app/{$csvFileName}");
+
+                    $fp = fopen($tempPath, 'w');
+                    fprintf($fp, chr(0xEF).chr(0xBB).chr(0xBF));
+                    fputcsv($fp, ['ID', 'Reg No', 'Full Name', 'Email', 'Phone', 'Expiry Date', 'Status']);
+
+                    foreach ($members as $m) {
+                        $reg = $m->membership_id_assigned ?: ($m->prev_membership_no ?: "PMCC-{$m->id}");
+                        fputcsv($fp, [
+                            $m->id,
+                            $reg,
+                            $m->full_name,
+                            $m->email ?? 'N/A',
+                            $m->phone ?? 'N/A',
+                            $m->expiry_date ?? 'N/A',
+                            strtoupper($m->status)
+                        ]);
+                    }
+                    fclose($fp);
+
+                    TelegramService::sendDocument(
+                        $chatId,
+                        $tempPath,
+                        $csvFileName,
+                        "📄 <b>PMCC-UK Active Members Roster Export</b>\n\nTotal Active Members: <code>" . count($members) . "</code>"
+                    );
+
+                    if (file_exists($tempPath)) unlink($tempPath);
+                } catch (\Exception $e) {
+                    Log::error("Telegram Export Members Failed: " . $e->getMessage());
+                    TelegramService::sendMessageToChat($chatId, "❌ <b>Export Error:</b> " . htmlspecialchars($e->getMessage()));
+                }
+                break;
+
+            case 'check_in_summary':
+                TelegramService::answerCallbackQuery($callbackId, "Fetching event check-ins...");
+                $activeEvent = \App\Models\Event::orderBy('event_date', 'desc')->first();
+                if (!$activeEvent) {
+                    TelegramService::sendMessageToChat($chatId, "🎟️ <b>No active events found.</b>");
+                    break;
+                }
+
+                $approvedBookings = EventBooking::where('event_id', $activeEvent->id)
+                    ->where('booking_status', 'approved')
+                    ->get();
+
+                $totalApproved = $approvedBookings->count();
+                $totalHeads = $approvedBookings->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count);
+                $checkedInCount = $approvedBookings->whereNotNull('check_in_at')->count();
+                $checkedInHeads = $approvedBookings->whereNotNull('check_in_at')->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count);
+                $remainingCount = $totalApproved - $checkedInCount;
+
+                $rate = $totalApproved > 0 ? round(($checkedInCount / $totalApproved) * 100, 1) : 0;
+
+                $msg = "🎟️ <b>Live Event Check-In Summary</b>\n\n" .
+                    "📅 <b>Event:</b> " . htmlspecialchars($activeEvent->title) . "\n" .
+                    "📆 <b>Date:</b> " . htmlspecialchars($activeEvent->event_date) . "\n\n" .
+                    "🎫 <b>Approved Bookings:</b> <code>{$totalApproved}</code> ({$totalHeads} Total Heads)\n" .
+                    "✅ <b>Checked In (Scanned):</b> <code>{$checkedInCount}</code> ({$checkedInHeads} Heads)\n" .
+                    "⏳ <b>Pending Entry:</b> <code>{$remainingCount}</code>\n" .
+                    "📊 <b>Attendance Rate:</b> <code>{$rate}%</code>";
+
+                TelegramService::sendMessageToChat($chatId, $msg);
+                break;
+
+            case 'broadcast':
+                Cache::put("tg_user_state_{$fromId}", 'broadcast', 600);
+                TelegramService::answerCallbackQuery($callbackId, "Enter broadcast message");
+                TelegramService::sendMessageToChat(
+                    $chatId,
+                    "📢 <b>Send Telegram Broadcast Announcement</b>\n\n" .
+                    "Please reply with the <b>text message</b> you wish to broadcast to the PMCC Telegram Channel."
+                );
+                break;
+
             case 'maint_status':
                 TelegramService::answerCallbackQuery($callbackId, "Checking website status...");
                 $isDown = app()->isDownForMaintenance();
@@ -657,6 +737,17 @@ class TelegramWebhookController extends Controller
 
         // Check if user is in a state flow
         $userState = Cache::get("tg_user_state_{$fromId}");
+        if ($userState === 'broadcast') {
+            Cache::forget("tg_user_state_{$fromId}");
+            TelegramService::sendMessage(
+                "📢 <b>PMCC-UK ANNOUNCEMENT</b>\n\n" .
+                htmlspecialchars($text) . "\n\n" .
+                "<i>Sent via PMCC Admin Control Panel by {$userName}</i>"
+            );
+            TelegramService::sendMessageToChat($chatId, "✅ <b>Announcement Broadcasted Successfully!</b>");
+            return;
+        }
+
         if ($userState === 'download_ticket' || preg_match('/^BOOK-/i', $text)) {
             $this->processTicketInput($text, $fromId, $chatId);
             return;
@@ -693,11 +784,18 @@ class TelegramWebhookController extends Controller
             ],
             [
                 ['text' => '🔍 Member / Ticket Lookup', 'callback_data' => 'menu_action:lookup'],
-                ['text' => '🚨 View Recent System Logs', 'callback_data' => 'menu_action:system_logs']
+                ['text' => '📄 Export Members CSV', 'callback_data' => 'menu_action:export_members']
             ],
             [
-                ['text' => '❓ Admin Support & Help', 'callback_data' => 'menu_action:support'],
+                ['text' => '🎟️ Live Event Check-Ins', 'callback_data' => 'menu_action:check_in_summary'],
+                ['text' => '📢 Send Broadcast Alert', 'callback_data' => 'menu_action:broadcast']
+            ],
+            [
+                ['text' => '🚨 View Recent System Logs', 'callback_data' => 'menu_action:system_logs'],
                 ['text' => '🌐 Website Maintenance Status', 'callback_data' => 'menu_action:maint_status']
+            ],
+            [
+                ['text' => '❓ Admin Support & Commands', 'callback_data' => 'menu_action:support']
             ]
         ];
 
