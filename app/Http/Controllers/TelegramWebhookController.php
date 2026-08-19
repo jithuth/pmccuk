@@ -690,12 +690,16 @@ class TelegramWebhookController extends Controller
 
         // 4. Map member table -> assigned membership_no -> event booking
         if (!$booking) {
-            $memberQuery = Member::where('membership_id_assigned', $upperInput)
-                ->orWhere('membership_id_assigned', $formattedMemId);
-            if ($numericId) {
-                $memberQuery->orWhere('id', $numericId);
+            $memberObj = Member::where(function($q) use ($upperInput, $formattedMemId) {
+                $q->where('membership_id_assigned', $upperInput)
+                  ->orWhere('membership_id_assigned', $formattedMemId)
+                  ->orWhere('prev_membership_no', $upperInput)
+                  ->orWhere('prev_membership_no', $formattedMemId);
+            })->first();
+
+            if (!$memberObj && $numericId) {
+                $memberObj = Member::where('id', $numericId)->first();
             }
-            $memberObj = $memberQuery->first();
 
             if ($memberObj) {
                 $assignedNo = $memberObj->membership_id_assigned ?: "PMCC-{$memberObj->id}";
@@ -761,18 +765,21 @@ class TelegramWebhookController extends Controller
         Cache::forget("tg_user_state_{$fromId}");
 
         $cleanInput = strtoupper(trim($input));
-        $searchId = $cleanInput;
-        if (is_numeric($cleanInput)) {
-            $searchId = "PMCC-{$cleanInput}";
+        $formattedId = is_numeric($cleanInput) ? "PMCC-{$cleanInput}" : $cleanInput;
+        $rawNumeric = is_numeric($cleanInput) ? $cleanInput : preg_replace('/[^0-9]/', '', $cleanInput);
+
+        // 1. Search primarily by assigned membership registration number or previous membership number
+        $member = Member::where(function($q) use ($cleanInput, $formattedId) {
+            $q->where('membership_id_assigned', $formattedId)
+              ->orWhere('membership_id_assigned', $cleanInput)
+              ->orWhere('prev_membership_no', $formattedId)
+              ->orWhere('prev_membership_no', $cleanInput);
+        })->first();
+
+        // 2. Fallback: Search by DB auto-increment ID only if no assigned/prev registration number matched
+        if (!$member && !empty($rawNumeric)) {
+            $member = Member::where('id', $rawNumeric)->first();
         }
-
-        $rawNumeric = ltrim($cleanInput, 'PMCC-');
-
-        $member = Member::where('membership_id_assigned', $searchId)
-            ->orWhere('membership_id_assigned', $cleanInput)
-            ->orWhere('prev_membership_no', $searchId)
-            ->orWhere('id', $rawNumeric)
-            ->first();
 
         if (!$member) {
             TelegramService::sendMessageToChat(
