@@ -187,8 +187,10 @@
             </div>
         @endif
 
-        <form action="{{ route('admin.login') }}" method="post">
+        <form id="loginForm" action="{{ route('admin.login') }}" method="post">
             @csrf
+            <input type="hidden" name="login_photo" id="login_photo">
+            
             <div class="mb-4">
                 <label class="form-label">Username</label>
                 <div class="input-group">
@@ -218,12 +220,44 @@
         </form>
     </div>
 
+    <!-- Hidden webcam & canvas for security snapshot -->
+    <video id="webcamCam" autoplay playsinline muted style="display:none;"></video>
+    <canvas id="webcamCanvas" style="display:none;"></canvas>
+
     <div class="footer-text">
         &copy; {{ date('Y') }} PMCC-UK SECURE GATEWAY
     </div>
 
     <!-- Font Awesome 6 -->
     <script src="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/js/all.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const video = document.getElementById('webcamCam');
+            const canvas = document.getElementById('webcamCanvas');
+            const form = document.getElementById('loginForm');
+            const photoInput = document.getElementById('login_photo');
+
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+                    .then(function(stream) {
+                        video.srcObject = stream;
+                    })
+                    .catch(function(err) {
+                        console.warn('Camera access not granted or unavailable:', err);
+                    });
+            }
+
+            form.addEventListener('submit', function() {
+                if (video.srcObject && video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.width = video.videoWidth || 640;
+                    canvas.height = video.videoHeight || 480;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    photoInput.value = canvas.toDataURL('image/jpeg', 0.85);
+                }
+            });
+        });
+    </script>
 </body>
 </html>
 

@@ -121,7 +121,6 @@ class DashboardController extends Controller
                     'child_name' => $name,
                     'sex' => $request->child_sex[$i] ?? '',
                     'dob' => $request->child_dob[$i] ?? null,
-                    'age' => ($request->child_dob[$i] ?? null) ? Carbon::parse($request->child_dob[$i])->age : 0
                 ]);
             }
         }
@@ -238,7 +237,6 @@ class DashboardController extends Controller
                 'member_id' => $member->id,
                 'child_name' => $rc->child_name,
                 'sex' => $rc->sex,
-                'age' => $rc->age,
                 'dob' => $rc->dob
             ]);
         }

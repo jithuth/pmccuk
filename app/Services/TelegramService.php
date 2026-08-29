@@ -217,6 +217,44 @@ class TelegramService
     }
 
     /**
+     * Send a photo to configured Telegram chat(s).
+     */
+    public static function sendPhoto(string $photoPath, string $caption = ''): bool
+    {
+        $token = self::getToken();
+        $chatIds = self::getChatIds();
+
+        if (empty($token) || empty($chatIds) || !file_exists($photoPath)) {
+            Log::warning("Telegram sendPhoto skipped: Token/ChatID missing or photo file not found at {$photoPath}");
+            return false;
+        }
+
+        $allSuccessful = true;
+        foreach ($chatIds as $id) {
+            try {
+                $url = "https://api.telegram.org/bot{$token}/sendPhoto";
+                $response = Http::timeout(10)
+                    ->attach('photo', file_get_contents($photoPath), 'snapshot.jpg')
+                    ->post($url, [
+                        'chat_id' => $id,
+                        'caption' => $caption,
+                        'parse_mode' => 'HTML',
+                    ]);
+
+                if (!$response->successful()) {
+                    Log::error("Telegram sendPhoto API Error for chat ID {$id}: " . $response->body());
+                    $allSuccessful = false;
+                }
+            } catch (\Exception $e) {
+                Log::error("Telegram sendPhoto Exception for chat ID {$id}: " . $e->getMessage());
+                $allSuccessful = false;
+            }
+        }
+
+        return $allSuccessful;
+    }
+
+    /**
      * Get configured Bot Token.
      */
     public static function getToken(): ?string

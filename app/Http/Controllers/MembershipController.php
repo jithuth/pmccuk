@@ -206,13 +206,11 @@ class MembershipController extends Controller
                 foreach ($request->input('child_name') as $i => $name) {
                     if (!empty($name)) {
                         $dob = $request->input('child_dob')[$i] ?? null;
-                        $age = $dob ? now()->diff(\Illuminate\Support\Carbon::parse($dob))->y : 0;
                         \App\Models\RenewalChild::create([
                             'renewal_id' => $renewal->id,
                             'child_name' => $name,
                             'sex' => $request->input('child_sex')[$i] ?? 'Male',
                             'dob' => $dob,
-                            'age' => $age
                         ]);
                     }
                 }
@@ -249,13 +247,11 @@ class MembershipController extends Controller
                 foreach ($request->input('child_name') as $i => $name) {
                     if (!empty($name)) {
                         $dob = $request->input('child_dob')[$i] ?? null;
-                        $age = $dob ? now()->diff(\Illuminate\Support\Carbon::parse($dob))->y : 0;
                         MemberChild::create([
                             'member_id' => $member->id,
                             'child_name' => $name,
                             'sex' => $request->input('child_sex')[$i] ?? 'Male',
                             'dob' => $dob,
-                            'age' => $age
                         ]);
                     }
                 }
