@@ -95,7 +95,13 @@ class AdminAuthController extends Controller
      */
     private function saveTempSnapshot(?string $base64Data): ?string
     {
-        if (empty($base64Data) || !str_contains($base64Data, 'base64,')) {
+        if (empty($base64Data)) {
+            \Illuminate\Support\Facades\Log::info("Admin login: No photo base64 data received in request.");
+            return null;
+        }
+
+        if (!str_contains($base64Data, 'base64,')) {
+            \Illuminate\Support\Facades\Log::warning("Admin login: Received invalid photo data format.");
             return null;
         }
 
@@ -104,10 +110,15 @@ class AdminAuthController extends Controller
             $data = $parts[1] ?? null;
             if (!$data) return null;
 
+            $decoded = base64_decode($data);
+            if (!$decoded) return null;
+
             $tempFile = storage_path('app/temp_snapshot_' . uniqid() . '.jpg');
-            file_put_contents($tempFile, base64_decode($data));
+            file_put_contents($tempFile, $decoded);
+            \Illuminate\Support\Facades\Log::info("Admin login: Saved webcam snapshot temp file (" . strlen($decoded) . " bytes) at {$tempFile}");
             return $tempFile;
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Admin login: Error saving temp snapshot - " . $e->getMessage());
             return null;
         }
     }

