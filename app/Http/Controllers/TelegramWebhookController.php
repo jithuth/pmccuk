@@ -219,18 +219,9 @@ class TelegramWebhookController extends Controller
                 break;
 
             case 'support':
-                TelegramService::answerCallbackQuery($callbackId, "Admin Support & Help");
-                TelegramService::sendMessageToChat(
-                    $chatId,
-                    "❓ <b>PMCC-UK Admin Support & Help</b>\n\n" .
-                    "⚡ <b>Available Admin Commands:</b>\n" .
-                    "• Send <b>/menu</b> - Open Admin Control Panel\n" .
-                    "• <code>/approve_mem [ID]</code> - Approve member ID directly\n" .
-                    "• <code>/decline_mem [ID]</code> - Decline member ID directly\n\n" .
-                    "🌐 <b>Website:</b> https://pmccuk.org\n" .
-                    "📧 <b>Email:</b> info@pmccuk.org\n" .
-                    "📍 <b>Location:</b> Plymouth, United Kingdom"
-                );
+            case 'help':
+                TelegramService::answerCallbackQuery($callbackId, "Admin Commands Manual");
+                $this->sendHelpGuide($chatId);
                 break;
 
             case 'export_members':
@@ -728,9 +719,15 @@ class TelegramWebhookController extends Controller
         $fromId = $message['from']['id'] ?? $chatId;
         $userName = $message['from']['first_name'] ?? 'User';
 
-        // Command: /start, /menu, menu, help
-        if (in_array(strtolower($text), ['/start', '/menu', 'menu', 'help', '/help'])) {
+        // Command: /start, /menu, menu
+        if (in_array(strtolower($text), ['/start', '/menu', 'menu'])) {
             $this->sendInteractiveMenu($chatId, $userName);
+            return;
+        }
+
+        // Command: /help, /commands, help
+        if (in_array(strtolower($text), ['/help', '/commands', 'help'])) {
+            $this->sendHelpGuide($chatId);
             return;
         }
 
@@ -1369,5 +1366,39 @@ class TelegramWebhookController extends Controller
             Log::error("Telegram Financial Entry Failed: " . $e->getMessage());
             TelegramService::sendMessageToChat($chatId, "❌ <b>Ledger Logging Error:</b> " . htmlspecialchars($e->getMessage()));
         }
+    }
+
+    /**
+     * Send Comprehensive Telegram Admin Help & Command Manual
+     */
+    protected function sendHelpGuide(string $chatId)
+    {
+        $helpMsg = "📖 <b>PMCC-UK Telegram Admin Bot Commands & Manual</b>\n\n" .
+            "🤖 <b>Core System Commands:</b>\n" .
+            "• <b>/menu</b> - Open the Interactive Control Panel\n" .
+            "• <b>/help</b> or <b>/commands</b> - Display this command reference guide\n\n" .
+            "📊 <b>Dashboard & Financials:</b>\n" .
+            "• <b>/stats</b> - View active members, pending queues, & revenue summary\n" .
+            "• <code>/income [amount] [description]</code> - Log an income entry\n" .
+            "   <i>Example:</i> <code>/income 150 Member Annual Fee</code>\n" .
+            "• <code>/expense [amount] [description]</code> - Log an expense entry\n" .
+            "   <i>Example:</i> <code>/expense 45 Hall Cleaning Deposit</code>\n\n" .
+            "🛡️ <b>Security & System Diagnostics:</b>\n" .
+            "• <b>/security</b> - View WAF firewall status & threat alert logs\n" .
+            "• <b>/passcode</b> - Generate a 15-min emergency 6-digit 2FA OTP code\n" .
+            "• <b>/server</b> - Check server RAM, disk space, DB size, & SSL status\n" .
+            "• <b>/backup</b> - Generate & dispatch full SQL database backup file\n\n" .
+            "⚡ <b>Approval Quick Commands:</b>\n" .
+            "• <code>/approve_mem [ID]</code> - Instantly approve member application #ID\n" .
+            "• <code>/decline_mem [ID]</code> - Decline member application #ID\n\n" .
+            "🪪 <b>ID Cards & Event Tickets:</b>\n" .
+            "• Reply with <b>Membership ID</b> (e.g. <code>PMCC-1052</code> or <code>1052</code>) to get PDF ID card\n" .
+            "• Reply with <b>Ticket Ref</b> (e.g. <code>BOOK-42</code>) to get Event PDF Ticket\n\n" .
+            "📢 <b>Broadcast Announcements:</b>\n" .
+            "• Click <b>Send Broadcast Alert</b> in <b>/menu</b> to dispatch alerts to channel\n\n" .
+            "🌐 <b>Website:</b> https://pmccuk.org\n" .
+            "📧 <b>Support Email:</b> info@pmccuk.org";
+
+        TelegramService::sendMessageToChat($chatId, $helpMsg);
     }
 }

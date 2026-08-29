@@ -284,4 +284,33 @@ class TelegramService
             return [];
         }
     }
+
+    /**
+     * Register slash command autocompletion menu with Telegram API.
+     */
+    public static function setBotCommands(): bool
+    {
+        $token = self::getToken();
+        if (empty($token)) return false;
+
+        $url = "https://api.telegram.org/bot{$token}/setMyCommands";
+        $commands = [
+            ['command' => 'menu', 'description' => 'Open Interactive Admin Control Panel'],
+            ['command' => 'help', 'description' => 'Show all available commands & manual'],
+            ['command' => 'stats', 'description' => 'Live Dashboard & Revenue Summary'],
+            ['command' => 'security', 'description' => 'Web Application Firewall & Security Report'],
+            ['command' => 'passcode', 'description' => 'Generate Emergency 2FA Code'],
+            ['command' => 'server', 'description' => 'View Server Disk, RAM & System Health'],
+            ['command' => 'backup', 'description' => 'Download Full SQL Database Backup'],
+            ['command' => 'income', 'description' => 'Quick-Log Income (/income amount description)'],
+            ['command' => 'expense', 'description' => 'Quick-Log Expense (/expense amount description)'],
+        ];
+
+        try {
+            $response = Http::timeout(5)->post($url, ['commands' => json_encode($commands)]);
+            return $response->successful();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
 }
