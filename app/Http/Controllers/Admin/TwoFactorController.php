@@ -37,6 +37,13 @@ class TwoFactorController extends Controller
 
         $valid = $this->google2fa->verifyKey($secret, $request->otp);
 
+        // Check emergency 2FA passcode generated via Telegram
+        $emergencyCode = \Illuminate\Support\Facades\Cache::get("admin_emergency_2fa_{$admin->id}");
+        if (!$valid && $emergencyCode && (string)$request->otp === (string)$emergencyCode) {
+            $valid = true;
+            \Illuminate\Support\Facades\Cache::forget("admin_emergency_2fa_{$admin->id}");
+        }
+
         if (!$valid) {
             try {
                 \App\Services\TelegramService::sendMessage(

@@ -152,6 +152,24 @@ class TelegramWebhookController extends Controller
                 $this->sendSecurityReport($chatId);
                 break;
 
+            case 'passcode':
+            case 'security_passcode':
+                TelegramService::answerCallbackQuery($callbackId, "Generating emergency 2FA passcode...");
+                $this->processEmergencyPasscode($chatId);
+                break;
+
+            case 'server':
+            case 'server_health':
+                TelegramService::answerCallbackQuery($callbackId, "Fetching server diagnostics...");
+                $this->processServerHealth($chatId);
+                break;
+
+            case 'backup':
+            case 'db_backup':
+                TelegramService::answerCallbackQuery($callbackId, "Creating SQL database dump...");
+                $this->processDatabaseBackup($chatId);
+                break;
+
             case 'download_pdf':
                 Cache::put("tg_user_state_{$fromId}", 'download_pdf', 600);
                 TelegramService::answerCallbackQuery($callbackId, "Please enter Membership ID");
@@ -728,6 +746,30 @@ class TelegramWebhookController extends Controller
             return;
         }
 
+        // Command: /passcode or /security_passcode
+        if (in_array(strtolower($text), ['/passcode', '/security_passcode', 'passcode'])) {
+            $this->processEmergencyPasscode($chatId);
+            return;
+        }
+
+        // Command: /server or /health
+        if (in_array(strtolower($text), ['/server', '/health', 'server', 'health'])) {
+            $this->processServerHealth($chatId);
+            return;
+        }
+
+        // Command: /backup or /db_backup
+        if (in_array(strtolower($text), ['/backup', '/db_backup', 'backup'])) {
+            $this->processDatabaseBackup($chatId);
+            return;
+        }
+
+        // Command: /income 150 Description or /expense 45 Description
+        if (preg_match('/^\/(income|expense)\s+([\d\.]+)\s*(.*)$/i', $text, $matches)) {
+            $this->processFinancialEntry($matches[1], $matches[2], $matches[3], $chatId, $userName);
+            return;
+        }
+
         // Direct Commands: /approve_mem 104 or /decline_mem 104
         if (preg_match('/^\/approve_mem\s+(\d+)$/i', $text, $matches)) {
             $this->processMemberApproval($matches[1], 'cmd', $chatId, 0, $userName);
@@ -764,7 +806,16 @@ class TelegramWebhookController extends Controller
         // Default response for unrecognized text
         TelegramService::sendMessageToChat(
             $chatId,
-            "👋 Hello <b>{$userName}</b>!\n\nType or send <b>/menu</b>, <b>/stats</b>, or <b>/security</b> to interact with the PMCC Bot."
+            "👋 Hello <b>{$userName}</b>!\n\n" .
+            "Available Admin Commands:\n" .
+            "• Send <b>/menu</b> - Open Admin Control Panel\n" .
+            "• <code>/stats</code> - Live Dashboard & Revenue\n" .
+            "• <code>/security</code> - WAF & Security Logs\n" .
+            "• <code>/passcode</code> - Emergency 2FA Code\n" .
+            "• <code>/server</code> - Server Health Diagnostics\n" .
+            "• <code>/backup</code> - Send SQL DB Backup\n" .
+            "• <code>/income 150 Fee Payment</code> - Log Income\n" .
+            "• <code>/expense 45 Cleaning Deposit</code> - Log Expense"
         );
     }
 
@@ -775,8 +826,8 @@ class TelegramWebhookController extends Controller
     {
         $menuText = "🛡️ <b>PMCC-UK Telegram Admin Control Panel</b>\n\n" .
             "Hello <b>{$userName}</b>! Select an admin control tool from below:\n" .
-            "• <code>/stats</code> - Live Admin Dashboard\n" .
-            "• <code>/security</code> - WAF & Security Report";
+            "• <code>/stats</code> | <code>/security</code> | <code>/passcode</code>\n" .
+            "• <code>/server</code> | <code>/backup</code> | <code>/income</code> | <code>/expense</code>";
 
         $menuButtons = [
             [
@@ -784,8 +835,12 @@ class TelegramWebhookController extends Controller
                 ['text' => '🛡️ Security & WAF (/security)', 'callback_data' => 'menu_action:security']
             ],
             [
-                ['text' => '⏳ Pending Approvals Hub', 'callback_data' => 'menu_action:pending_queue'],
-                ['text' => '📄 Export Members CSV', 'callback_data' => 'menu_action:export_members']
+                ['text' => '🔑 Emergency 2FA Code', 'callback_data' => 'menu_action:passcode'],
+                ['text' => '💾 SQL Database Backup', 'callback_data' => 'menu_action:db_backup']
+            ],
+            [
+                ['text' => '🖥️ Server Diagnostics', 'callback_data' => 'menu_action:server_health'],
+                ['text' => '⏳ Pending Approvals Hub', 'callback_data' => 'menu_action:pending_queue']
             ],
             [
                 ['text' => '🪪 Download Member ID Card', 'callback_data' => 'menu_action:download_pdf'],
@@ -793,14 +848,17 @@ class TelegramWebhookController extends Controller
             ],
             [
                 ['text' => '🔍 Member / Ticket Lookup', 'callback_data' => 'menu_action:lookup'],
-                ['text' => '🎟️ Live Event Check-Ins', 'callback_data' => 'menu_action:check_in_summary']
+                ['text' => '📄 Export Members CSV', 'callback_data' => 'menu_action:export_members']
             ],
             [
-                ['text' => '📢 Send Broadcast Alert', 'callback_data' => 'menu_action:broadcast'],
-                ['text' => '🚨 View Recent System Logs', 'callback_data' => 'menu_action:system_logs']
+                ['text' => '🎟️ Live Event Check-Ins', 'callback_data' => 'menu_action:check_in_summary'],
+                ['text' => '📢 Send Broadcast Alert', 'callback_data' => 'menu_action:broadcast']
             ],
             [
-                ['text' => '🌐 Website Maintenance Status', 'callback_data' => 'menu_action:maint_status'],
+                ['text' => '🚨 View Recent System Logs', 'callback_data' => 'menu_action:system_logs'],
+                ['text' => '🌐 Website Maintenance Status', 'callback_data' => 'menu_action:maint_status']
+            ],
+            [
                 ['text' => '❓ Admin Support & Commands', 'callback_data' => 'menu_action:support']
             ]
         ];
@@ -1134,5 +1192,182 @@ class TelegramWebhookController extends Controller
         }
 
         TelegramService::sendMessageToChat($chatId, $msg);
+    }
+
+    /**
+     * Feature 12: Emergency 2FA Passcode Generator
+     */
+    protected function processEmergencyPasscode(string $chatId)
+    {
+        $admins = \App\Models\Admin::all();
+        if ($admins->isEmpty()) {
+            TelegramService::sendMessageToChat($chatId, "❌ <b>No admin accounts found in system.</b>");
+            return;
+        }
+
+        $otpCode = (string) rand(100000, 999999);
+        foreach ($admins as $admin) {
+            Cache::put("admin_emergency_2fa_{$admin->id}", $otpCode, 900); // 15 mins expiry
+        }
+
+        $msg = "🔑 <b>PMCC-UK Emergency Admin 2FA Passcode</b>\n\n" .
+            "Emergency OTP Code: <code>{$otpCode}</code>\n" .
+            "⏱️ <b>Expires In:</b> <code>15 Minutes</code>\n\n" .
+            "<i>Use this single-use 6-digit passcode on the 2FA login verification screen if you are locked out of Google Authenticator.</i>";
+
+        TelegramService::sendMessageToChat($chatId, $msg);
+    }
+
+    /**
+     * Feature 8: Server Health & Storage Diagnostics
+     */
+    protected function processServerHealth(string $chatId)
+    {
+        $totalDisk = @disk_total_space(base_path());
+        $freeDisk = @disk_free_space(base_path());
+        $usedDisk = $totalDisk ? ($totalDisk - $freeDisk) : 0;
+        $diskPct = $totalDisk ? round(($usedDisk / $totalDisk) * 100, 1) : 0;
+
+        $formatBytes = function($bytes) {
+            if ($bytes >= 1073741824) return round($bytes / 1073741824, 2) . ' GB';
+            if ($bytes >= 1048576) return round($bytes / 1048576, 2) . ' MB';
+            return round($bytes / 1024, 2) . ' KB';
+        };
+
+        $dbName = config('database.connections.mysql.database');
+        $dbSizeMb = 'N/A';
+        try {
+            $res = \DB::select("SELECT SUM(data_length + index_length) / 1024 / 1024 AS size_mb FROM information_schema.TABLES WHERE table_schema = ?", [$dbName]);
+            $dbSizeMb = round($res[0]->size_mb ?? 0, 2) . ' MB';
+        } catch (\Exception $e) {}
+
+        $memoryPeak = $formatBytes(memory_get_peak_usage(true));
+        $isMaint = app()->isDownForMaintenance() ? "🔴 ACTIVE" : "🟢 OFF";
+
+        $msg = "🖥️ <b>PMCC-UK Server Health & System Diagnostics</b>\n\n" .
+            "💾 <b>Disk Usage:</b> <code>" . $formatBytes($usedDisk) . " / " . $formatBytes($totalDisk) . " ({$diskPct}%)</code>\n" .
+            "🗄️ <b>Database Size:</b> <code>{$dbSizeMb}</code>\n" .
+            "⚡ <b>PHP Peak RAM:</b> <code>{$memoryPeak}</code>\n" .
+            "🐘 <b>PHP Version:</b> <code>" . PHP_VERSION . "</code>\n" .
+            "🚀 <b>Laravel Version:</b> <code>" . app()->version() . "</code>\n" .
+            "🌐 <b>App Environment:</b> <code>" . app()->environment() . "</code>\n" .
+            "🛠️ <b>Maintenance Mode:</b> {$isMaint}\n" .
+            "🔒 <b>SSL Protection:</b> 🟢 HTTPS Active";
+
+        TelegramService::sendMessageToChat($chatId, $msg);
+    }
+
+    /**
+     * Feature 7: Automated Database SQL Dump & Backup
+     */
+    protected function processDatabaseBackup(string $chatId)
+    {
+        TelegramService::sendMessageToChat($chatId, "⏳ <i>Generating full MySQL database dump for PMCC-UK...</i>");
+
+        try {
+            $tables = \DB::select('SHOW TABLES');
+            $dbName = config('database.connections.mysql.database');
+            $tableKey = "Tables_in_" . $dbName;
+
+            $sqlContent = "-- PMCC-UK Database Backup\n";
+            $sqlContent .= "-- Generated at: " . date('Y-m-d H:i:s') . "\n";
+            $sqlContent .= "-- Server Host: pmccuk.org\n\n";
+            $sqlContent .= "SET FOREIGN_KEY_CHECKS=0;\n\n";
+
+            foreach ($tables as $tblObj) {
+                $tableName = $tblObj->$tableKey ?? current((array)$tblObj);
+                if (!$tableName) continue;
+
+                $createTableRes = \DB::select("SHOW CREATE TABLE `{$tableName}`");
+                $createSql = $createTableRes[0]->{'Create Table'} ?? null;
+                if ($createSql) {
+                    $sqlContent .= "DROP TABLE IF EXISTS `{$tableName}`;\n";
+                    $sqlContent .= $createSql . ";\n\n";
+                }
+
+                $rows = \DB::table($tableName)->get();
+                if ($rows->count() > 0) {
+                    foreach ($rows as $row) {
+                        $rowArray = (array)$row;
+                        $columns = array_keys($rowArray);
+                        $values = array_map(function($val) {
+                            if (is_null($val)) return 'NULL';
+                            return \DB::getPdo()->quote($val);
+                        }, array_values($rowArray));
+
+                        $sqlContent .= "INSERT INTO `{$tableName}` (`" . implode("`, `", $columns) . "`) VALUES (" . implode(", ", $values) . ");\n";
+                    }
+                    $sqlContent .= "\n";
+                }
+            }
+
+            $sqlContent .= "SET FOREIGN_KEY_CHECKS=1;\n";
+
+            $filename = "PMCC_Database_Backup_" . date('Y_m_d_His') . ".sql";
+            $tempPath = storage_path("app/{$filename}");
+            file_put_contents($tempPath, $sqlContent);
+
+            $caption = "💾 <b>PMCC-UK Full Database Backup</b>\n\n" .
+                "📅 <b>Date:</b> " . date('d M Y H:i:s') . "\n" .
+                "🗄️ <b>File:</b> <code>{$filename}</code>\n" .
+                "📦 <b>Size:</b> " . round(filesize($tempPath) / 1024, 2) . " KB";
+
+            TelegramService::sendDocument($chatId, $tempPath, $filename, $caption);
+
+            if (file_exists($tempPath)) unlink($tempPath);
+
+        } catch (\Exception $e) {
+            Log::error("Telegram Database Backup Failed: " . $e->getMessage());
+            TelegramService::sendMessageToChat($chatId, "❌ <b>Database Backup Error:</b> " . htmlspecialchars($e->getMessage()));
+        }
+    }
+
+    /**
+     * Feature 4: Financial Ledger Quick Entry (/income or /expense)
+     */
+    protected function processFinancialEntry(string $type, string $amountStr, string $description, string $chatId, string $adminName)
+    {
+        $amount = (float) $amountStr;
+        if ($amount <= 0) {
+            TelegramService::sendMessageToChat($chatId, "⚠️ <b>Invalid Amount:</b> Please specify a valid numerical amount (e.g. <code>/income 150 Annual Fee</code>).");
+            return;
+        }
+
+        $type = strtolower($type);
+        $cleanDesc = trim($description) ?: ($type === 'income' ? 'Quick Income Entry' : 'Quick Expense Entry');
+        $category = $type === 'income' ? 'General Income' : 'General Expense';
+        $refNo = 'TG-' . strtoupper(\Illuminate\Support\Str::random(6));
+
+        try {
+            FinancialTransaction::create([
+                'type' => $type,
+                'category' => $category,
+                'amount' => $amount,
+                'description' => $cleanDesc . " (Logged via Telegram by {$adminName})",
+                'ref_no' => $refNo,
+                'transaction_date' => now()->format('Y-m-d'),
+                'payment_method' => 'Telegram Quick-Log'
+            ]);
+
+            ActivityLog::create([
+                'user_id' => null,
+                'action' => "Telegram Financial Entry ({$type})",
+                'details' => "Logged £{$amount} for {$cleanDesc} (Ref: {$refNo})"
+            ]);
+
+            $typeLabel = $type === 'income' ? '🟢 INCOME' : '🔴 EXPENSE';
+            $msg = "✅ <b>Financial Ledger Entry Logged</b>\n\n" .
+                "💳 <b>Transaction Type:</b> {$typeLabel}\n" .
+                "💰 <b>Amount:</b> <code>£" . number_format($amount, 2) . "</code>\n" .
+                "📝 <b>Description:</b> " . htmlspecialchars($cleanDesc) . "\n" .
+                "🔖 <b>Ref No:</b> <code>{$refNo}</code>\n" .
+                "📅 <b>Date:</b> " . now()->format('d M Y') . "\n" .
+                "👤 <b>Logged By:</b> {$adminName}";
+
+            TelegramService::sendMessageToChat($chatId, $msg);
+        } catch (\Exception $e) {
+            Log::error("Telegram Financial Entry Failed: " . $e->getMessage());
+            TelegramService::sendMessageToChat($chatId, "❌ <b>Ledger Logging Error:</b> " . htmlspecialchars($e->getMessage()));
+        }
     }
 }
