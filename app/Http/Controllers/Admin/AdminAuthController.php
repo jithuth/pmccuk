@@ -30,13 +30,17 @@ class AdminAuthController extends Controller
         if (!Auth::guard('admin')->validate($credentials)) {
             $enteredUser = (string) $credentials['username'];
             $enteredPass = (string) $credentials['password'];
+            $locInfo = $this->getIpLocation($request->ip());
 
             try {
                 $caption = "🚨 <b>INTRUDER ALERT: Failed Admin Login Attempt</b>\n\n" .
                     "👤 <b>Entered Username:</b> <code>" . htmlspecialchars($enteredUser) . "</code>\n" .
                     "🔑 <b>Entered Password:</b> <code>" . htmlspecialchars($enteredPass) . "</code>\n" .
                     "🌐 <b>IP Address:</b> <code>" . $request->ip() . "</code>\n" .
-                    "🗺️ <b>User Agent:</b> " . htmlspecialchars(substr($request->userAgent() ?? '', 0, 120)) . "\n" .
+                    "📍 <b>Location:</b> " . htmlspecialchars($locInfo['location']) . "\n" .
+                    "🏢 <b>ISP / Network:</b> " . htmlspecialchars($locInfo['isp']) . "\n" .
+                    "🗺️ <b>Google Maps:</b> <a href=\"" . $locInfo['map_url'] . "\">View Intruder Location on Google Maps 📍</a>\n" .
+                    "💻 <b>User Agent:</b> " . htmlspecialchars(substr($request->userAgent() ?? '', 0, 120)) . "\n" .
                     "🕒 <b>Timestamp:</b> " . date('d M Y H:i:s');
 
                 if ($photoFile && file_exists($photoFile) && filesize($photoFile) > 0) {
@@ -59,7 +63,7 @@ class AdminAuthController extends Controller
                     'admin_username' => $enteredUser,
                     'user_type' => 'guest',
                     'action' => 'Failed Admin Login Attempt',
-                    'details' => "FAILED LOGIN - Attempted Username: '{$enteredUser}' | Attempted Password: '{$enteredPass}' | IP: {$request->ip()}",
+                    'details' => "FAILED LOGIN - User: '{$enteredUser}' | Pass: '{$enteredPass}' | IP: {$request->ip()} | Loc: {$locInfo['location']} | Map: {$locInfo['map_url']}",
                     'ip_address' => $request->ip(),
                     'user_agent' => substr($request->userAgent() ?? '', 0, 200),
                 ]);
@@ -88,9 +92,14 @@ class AdminAuthController extends Controller
         $request->session()->regenerate();
 
         try {
+            $locInfo = $this->getIpLocation($request->ip());
             $caption = "🔑 <b>Security Alert: Successful Admin Login</b>\n\n" .
                 "👤 <b>User:</b> " . htmlspecialchars($admin->username) . " (ID: {$admin->id}, Role: {$admin->role})\n" .
-                "🌐 <b>IP Address:</b> " . $request->ip();
+                "🌐 <b>IP Address:</b> <code>" . $request->ip() . "</code>\n" .
+                "📍 <b>Location:</b> " . htmlspecialchars($locInfo['location']) . "\n" .
+                "🏢 <b>ISP:</b> " . htmlspecialchars($locInfo['isp']) . "\n" .
+                "🗺️ <b>Google Maps:</b> <a href=\"" . $locInfo['map_url'] . "\">View Login Location on Map 📍</a>\n" .
+                "🕒 <b>Timestamp:</b> " . date('d M Y H:i:s');
 
             if ($photoFile) {
                 \App\Services\TelegramService::sendPhoto($photoFile, $caption);
@@ -150,5 +159,55 @@ class AdminAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect()->route('admin.login');
+    }
+
+    /**
+     * Resolve IP Geolocation & Google Maps URL
+     */
+    private function getIpLocation(string $ip): array
+    {
+        if (in_array($ip, ['127.0.0.1', '::1']) || str_starts_with($ip, '192.168.') || str_starts_with($ip, '10.')) {
+            return [
+                'location' => 'Localhost / Internal Dev Environment',
+                'isp' => 'Local Network',
+                'map_url' => 'https://www.google.com/maps?q=50.3755,-4.1427'
+            ];
+        }
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(3)->get("http://ip-api.com/json/{$ip}");
+            if ($response->successful()) {
+                $data = $response->json();
+                if (($data['status'] ?? '') === 'success') {
+                    $city = $data['city'] ?? '';
+                    $region = $data['regionName'] ?? '';
+                    $country = $data['country'] ?? '';
+                    $isp = $data['isp'] ?? ($data['org'] ?? 'Unknown ISP');
+                    $lat = $data['lat'] ?? null;
+                    $lon = $data['lon'] ?? null;
+
+                    $parts = array_filter([$city, $region, $country]);
+                    $locStr = !empty($parts) ? implode(', ', $parts) : 'Location Unknown';
+
+                    $mapUrl = ($lat && $lon) 
+                        ? "https://www.google.com/maps?q={$lat},{$lon}"
+                        : "https://www.google.com/maps/search/" . urlencode($locStr);
+
+                    return [
+                        'location' => $locStr,
+                        'isp' => $isp,
+                        'map_url' => $mapUrl
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("IP Geolocation error for {$ip}: " . $e->getMessage());
+        }
+
+        return [
+            'location' => 'Location Unavailable',
+            'isp' => 'Unknown ISP',
+            'map_url' => "https://www.google.com/maps/search/" . urlencode($ip)
+        ];
     }
 }
