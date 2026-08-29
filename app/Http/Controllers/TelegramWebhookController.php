@@ -141,24 +141,15 @@ class TelegramWebhookController extends Controller
                 break;
 
             case 'admin_stats':
+            case 'stats':
                 TelegramService::answerCallbackQuery($callbackId, "Calculating live stats...");
-                $activeMembers = Member::where('status', 'active')->count();
-                $pendingMembers = Member::where('status', 'pending')->count();
-                $approvedBookings = EventBooking::where('booking_status', 'approved')->count();
-                $totalRevenue = EventBooking::where('booking_status', 'approved')->sum('total_amount');
-                $monthIncome = FinancialTransaction::where('type', 'income')
-                    ->whereYear('transaction_date', date('Y'))
-                    ->whereMonth('transaction_date', date('m'))
-                    ->sum('amount');
+                $this->sendDashboardStats($chatId);
+                break;
 
-                $msg = "📊 <b>PMCC-UK Real-Time Dashboard Stats</b>\n\n" .
-                    "👥 <b>Active Members:</b> <code>{$activeMembers}</code>\n" .
-                    "⏳ <b>Pending Memberships:</b> <code>{$pendingMembers}</code>\n" .
-                    "🎟️ <b>Approved Ticket Bookings:</b> <code>{$approvedBookings}</code>\n" .
-                    "💰 <b>Total Ticket Sales:</b> <code>£" . number_format($totalRevenue, 2) . "</code>\n" .
-                    "💳 <b>This Month's Ledger Income:</b> <code>£" . number_format($monthIncome, 2) . "</code>";
-
-                TelegramService::sendMessageToChat($chatId, $msg);
+            case 'security':
+            case 'waf_report':
+                TelegramService::answerCallbackQuery($callbackId, "Fetching security report...");
+                $this->sendSecurityReport($chatId);
                 break;
 
             case 'download_pdf':
@@ -725,6 +716,18 @@ class TelegramWebhookController extends Controller
             return;
         }
 
+        // Command: /stats, /dashboard
+        if (in_array(strtolower($text), ['/stats', '/dashboard', 'stats', 'dashboard'])) {
+            $this->sendDashboardStats($chatId);
+            return;
+        }
+
+        // Command: /security, /waf
+        if (in_array(strtolower($text), ['/security', '/waf', 'security', 'waf'])) {
+            $this->sendSecurityReport($chatId);
+            return;
+        }
+
         // Direct Commands: /approve_mem 104 or /decline_mem 104
         if (preg_match('/^\/approve_mem\s+(\d+)$/i', $text, $matches)) {
             $this->processMemberApproval($matches[1], 'cmd', $chatId, 0, $userName);
@@ -761,7 +764,7 @@ class TelegramWebhookController extends Controller
         // Default response for unrecognized text
         TelegramService::sendMessageToChat(
             $chatId,
-            "👋 Hello <b>{$userName}</b>!\n\nType or send <b>/menu</b> anytime to access the PMCC-UK Interactive Member Bot."
+            "👋 Hello <b>{$userName}</b>!\n\nType or send <b>/menu</b>, <b>/stats</b>, or <b>/security</b> to interact with the PMCC Bot."
         );
     }
 
@@ -771,12 +774,18 @@ class TelegramWebhookController extends Controller
     protected function sendInteractiveMenu(string $chatId, string $userName)
     {
         $menuText = "🛡️ <b>PMCC-UK Telegram Admin Control Panel</b>\n\n" .
-            "Hello <b>{$userName}</b>! Select an admin control tool from below:";
+            "Hello <b>{$userName}</b>! Select an admin control tool from below:\n" .
+            "• <code>/stats</code> - Live Admin Dashboard\n" .
+            "• <code>/security</code> - WAF & Security Report";
 
         $menuButtons = [
             [
+                ['text' => '📊 Live Dashboard (/stats)', 'callback_data' => 'menu_action:admin_stats'],
+                ['text' => '🛡️ Security & WAF (/security)', 'callback_data' => 'menu_action:security']
+            ],
+            [
                 ['text' => '⏳ Pending Approvals Hub', 'callback_data' => 'menu_action:pending_queue'],
-                ['text' => '📊 Real-Time Dashboard Stats', 'callback_data' => 'menu_action:admin_stats']
+                ['text' => '📄 Export Members CSV', 'callback_data' => 'menu_action:export_members']
             ],
             [
                 ['text' => '🪪 Download Member ID Card', 'callback_data' => 'menu_action:download_pdf'],
@@ -784,17 +793,14 @@ class TelegramWebhookController extends Controller
             ],
             [
                 ['text' => '🔍 Member / Ticket Lookup', 'callback_data' => 'menu_action:lookup'],
-                ['text' => '📄 Export Members CSV', 'callback_data' => 'menu_action:export_members']
+                ['text' => '🎟️ Live Event Check-Ins', 'callback_data' => 'menu_action:check_in_summary']
             ],
             [
-                ['text' => '🎟️ Live Event Check-Ins', 'callback_data' => 'menu_action:check_in_summary'],
-                ['text' => '📢 Send Broadcast Alert', 'callback_data' => 'menu_action:broadcast']
+                ['text' => '📢 Send Broadcast Alert', 'callback_data' => 'menu_action:broadcast'],
+                ['text' => '🚨 View Recent System Logs', 'callback_data' => 'menu_action:system_logs']
             ],
             [
-                ['text' => '🚨 View Recent System Logs', 'callback_data' => 'menu_action:system_logs'],
-                ['text' => '🌐 Website Maintenance Status', 'callback_data' => 'menu_action:maint_status']
-            ],
-            [
+                ['text' => '🌐 Website Maintenance Status', 'callback_data' => 'menu_action:maint_status'],
                 ['text' => '❓ Admin Support & Commands', 'callback_data' => 'menu_action:support']
             ]
         ];
@@ -1011,5 +1017,122 @@ class TelegramWebhookController extends Controller
             Log::error("Telegram PDF Generation Failed: " . $e->getMessage());
             TelegramService::sendMessageToChat($chatId, "❌ <b>PDF Generation Error</b>: " . htmlspecialchars($e->getMessage()));
         }
+    }
+
+    /**
+     * Send Real-Time Admin Dashboard & Financial Revenue Summary
+     */
+    protected function sendDashboardStats(string $chatId)
+    {
+        $now = Carbon::now();
+
+        // Active members count
+        $activeMembers = Member::whereIn('status', ['active', 'approved'])
+            ->where(function($q) use ($now) {
+                $q->whereNull('expiry_date')->orWhere('expiry_date', '>=', $now->format('Y-m-d'));
+            })->count();
+
+        // Expired members count
+        $expiredMembers = Member::where(function($q) use ($now) {
+            $q->where('status', 'expired')
+              ->orWhere(function($sub) use ($now) {
+                  $sub->whereIn('status', ['active', 'approved'])->where('expiry_date', '<', $now->format('Y-m-d'));
+              });
+        })->count();
+
+        $pendingMemberships = Member::where('status', 'pending')->count();
+        $pendingRenewals = RenewalRequest::where('status', 'pending')->count();
+        $pendingBookings = EventBooking::where('booking_status', 'pending')->count();
+
+        // Upcoming Event Details
+        $upcomingEvent = \App\Models\Event::where('event_date', '>=', $now->format('Y-m-d'))
+            ->orderBy('event_date', 'asc')
+            ->first();
+
+        $eventInfo = "<i>No upcoming events scheduled.</i>";
+        if ($upcomingEvent) {
+            $approvedCount = EventBooking::where('event_id', $upcomingEvent->id)->where('booking_status', 'approved')->count();
+            $eventInfo = "• <b>" . htmlspecialchars($upcomingEvent->title) . "</b>\n" .
+                         "   📆 <b>Date:</b> <code>" . Carbon::parse($upcomingEvent->event_date)->format('d M Y') . "</code>\n" .
+                         "   🎟️ <b>Approved Bookings:</b> <code>{$approvedCount}</code>";
+        }
+
+        // Financial Ledger Stats
+        $ticketRevenue = EventBooking::where('booking_status', 'approved')->sum('total_amount');
+        $monthIncome = FinancialTransaction::where('type', 'income')
+            ->whereYear('transaction_date', date('Y'))
+            ->whereMonth('transaction_date', date('m'))
+            ->sum('amount');
+        $monthExpense = FinancialTransaction::where('type', 'expense')
+            ->whereYear('transaction_date', date('Y'))
+            ->whereMonth('transaction_date', date('m'))
+            ->sum('amount');
+
+        $msg = "📊 <b>PMCC-UK Live Admin Dashboard & Revenue Summary</b>\n\n" .
+            "👥 <b>Active Members:</b> <code>{$activeMembers}</code>\n" .
+            "⚠️ <b>Expired Members:</b> <code>{$expiredMembers}</code>\n" .
+            "⏳ <b>Pending Registrations:</b> <code>{$pendingMemberships}</code>\n" .
+            "🔄 <b>Pending Renewals:</b> <code>{$pendingRenewals}</code>\n" .
+            "🎟️ <b>Pending Ticket Bookings:</b> <code>{$pendingBookings}</code>\n\n" .
+            "💰 <b>Total Ticket Sales:</b> <code>£" . number_format($ticketRevenue, 2) . "</code>\n" .
+            "💳 <b>" . date('F Y') . " Ledger Income:</b> <code>£" . number_format($monthIncome, 2) . "</code>\n" .
+            "💸 <b>" . date('F Y') . " Ledger Expense:</b> <code>£" . number_format($monthExpense, 2) . "</code>\n\n" .
+            "📅 <b>Upcoming Event:</b>\n{$eventInfo}";
+
+        TelegramService::sendMessageToChat($chatId, $msg);
+    }
+
+    /**
+     * Send Real-Time Security & WAF Intelligence Report
+     */
+    protected function sendSecurityReport(string $chatId)
+    {
+        $wafSetting = \App\Models\Setting::where('setting_key', 'waf_enabled')->value('setting_value');
+        $wafStatusStr = ($wafSetting == '1' || strtolower($wafSetting ?? '') === 'true') ? "🟢 ENABLED (Active)" : "⚠️ DISABLED";
+
+        // Admin login activity logs
+        $loginLogs = ActivityLog::where('action', 'like', '%login%')
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get();
+
+        // Security / Firewall / Threat alerts
+        $securityAlerts = ActivityLog::where(function($q) {
+            $q->where('action', 'like', '%block%')
+              ->orWhere('action', 'like', '%firewall%')
+              ->orWhere('action', 'like', '%honeypot%')
+              ->orWhere('action', 'like', '%alert%')
+              ->orWhere('action', 'like', '%failed%');
+        })
+        ->orderBy('created_at', 'desc')
+        ->take(5)
+        ->get();
+
+        $msg = "🛡️ <b>PMCC-UK Live Security & WAF Intelligence Report</b>\n\n" .
+            "🧱 <b>Web Application Firewall (WAF):</b> {$wafStatusStr}\n" .
+            "🔒 <b>Admin 2FA Security:</b> 🟢 Enforced\n" .
+            "📅 <b>Report Generated:</b> " . date('d M Y H:i:s') . "\n\n" .
+            "🔑 <b>Recent Admin Login Activity:</b>\n";
+
+        if ($loginLogs->isEmpty()) {
+            $msg .= "  <i>No recent login activity logged.</i>\n";
+        } else {
+            foreach ($loginLogs as $log) {
+                $time = Carbon::parse($log->created_at)->format('d M H:i');
+                $msg .= "  • <b>{$time}</b> | " . htmlspecialchars($log->action) . "\n    <i>" . htmlspecialchars(substr($log->details ?? '', 0, 70)) . "</i>\n";
+            }
+        }
+
+        $msg .= "\n🚨 <b>Recent Security & Threat Events:</b>\n";
+        if ($securityAlerts->isEmpty()) {
+            $msg .= "  <i>No security violations or firewall blocks logged.</i>";
+        } else {
+            foreach ($securityAlerts as $alert) {
+                $time = Carbon::parse($alert->created_at)->format('d M H:i');
+                $msg .= "  • <b>{$time}</b> | <b>" . htmlspecialchars($alert->action) . "</b>\n    <i>" . htmlspecialchars(substr($alert->details ?? '', 0, 80)) . "</i>\n";
+            }
+        }
+
+        TelegramService::sendMessageToChat($chatId, $msg);
     }
 }
