@@ -28,22 +28,43 @@ class AdminAuthController extends Controller
 
         // Validate credentials without logging in yet
         if (!Auth::guard('admin')->validate($credentials)) {
-            try {
-                $caption = "⚠️ <b>Security Alert: Failed Admin Login Attempt</b>\n\n" .
-                    "👤 <b>Username:</b> " . htmlspecialchars($credentials['username']) . "\n" .
-                    "🌐 <b>IP Address:</b> " . $request->ip() . "\n" .
-                    "🗺️ <b>User Agent:</b> " . htmlspecialchars(substr($request->userAgent() ?? '', 0, 150));
+            $enteredUser = (string) $credentials['username'];
+            $enteredPass = (string) $credentials['password'];
 
-                if ($photoFile) {
+            try {
+                $caption = "🚨 <b>INTRUDER ALERT: Failed Admin Login Attempt</b>\n\n" .
+                    "👤 <b>Entered Username:</b> <code>" . htmlspecialchars($enteredUser) . "</code>\n" .
+                    "🔑 <b>Entered Password:</b> <code>" . htmlspecialchars($enteredPass) . "</code>\n" .
+                    "🌐 <b>IP Address:</b> <code>" . $request->ip() . "</code>\n" .
+                    "🗺️ <b>User Agent:</b> " . htmlspecialchars(substr($request->userAgent() ?? '', 0, 120)) . "\n" .
+                    "🕒 <b>Timestamp:</b> " . date('d M Y H:i:s');
+
+                if ($photoFile && file_exists($photoFile) && filesize($photoFile) > 0) {
                     \App\Services\TelegramService::sendPhoto($photoFile, $caption);
                 } else {
-                    \App\Services\TelegramService::sendMessage($caption);
+                    \App\Services\TelegramService::sendMessage($caption . "\n⚠️ <i>(Webcam photo unavailable or permission denied)</i>");
                 }
             } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Telegram Failed Login Alert Error: " . $e->getMessage());
             } finally {
                 if ($photoFile && file_exists($photoFile)) {
                     @unlink($photoFile);
                 }
+            }
+
+            // Strictly record intrusion details in ActivityLog
+            try {
+                \App\Models\ActivityLog::create([
+                    'admin_id' => null,
+                    'admin_username' => $enteredUser,
+                    'user_type' => 'intruder',
+                    'action' => 'Failed Admin Login Attempt',
+                    'details' => "FAILED LOGIN - Attempted Username: '{$enteredUser}' | Attempted Password: '{$enteredPass}' | IP: {$request->ip()}",
+                    'ip_address' => $request->ip(),
+                    'user_agent' => substr($request->userAgent() ?? '', 0, 200),
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("ActivityLog Failed Login Recording Error: " . $e->getMessage());
             }
 
             return back()->withErrors([
