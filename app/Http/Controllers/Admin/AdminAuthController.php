@@ -57,7 +57,7 @@ class AdminAuthController extends Controller
                 \App\Models\ActivityLog::create([
                     'admin_id' => null,
                     'admin_username' => $enteredUser,
-                    'user_type' => 'intruder',
+                    'user_type' => 'guest',
                     'action' => 'Failed Admin Login Attempt',
                     'details' => "FAILED LOGIN - Attempted Username: '{$enteredUser}' | Attempted Password: '{$enteredPass}' | IP: {$request->ip()}",
                     'ip_address' => $request->ip(),

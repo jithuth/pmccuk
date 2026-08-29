@@ -371,7 +371,7 @@ class TelegramWebhookController extends Controller
 
         try {
             ActivityLog::create([
-                'user_type' => 'telegram_admin',
+                'user_type' => 'admin',
                 'action' => 'approve_member_telegram',
                 'details' => "Member {$member->full_name} (ID: {$id}) approved via Telegram by {$adminName}. Reg No: {$assignedNo}",
                 'ip_address' => 'Telegram Bot API'
@@ -413,7 +413,7 @@ class TelegramWebhookController extends Controller
 
         try {
             ActivityLog::create([
-                'user_type' => 'telegram_admin',
+                'user_type' => 'admin',
                 'action' => 'decline_member_telegram',
                 'details' => "Member {$member->full_name} (ID: {$id}) declined via Telegram by {$adminName}",
                 'ip_address' => 'Telegram Bot API'
