@@ -43,12 +43,42 @@
         @else
             <div class="fail-header">
                 <i class="fas fa-times-circle fa-4x mb-3"></i>
-                <h2 class="fw-bold">INVALID</h2>
-                <p class="mb-0">Credential Verification Failed</p>
+                <h2 class="fw-bold">
+                    @if(isset($isActive) && !$isActive && isset($tokenValid) && $tokenValid)
+                        {{ $member->getMembershipStatusLabel() }}
+                    @else
+                        INVALID
+                    @endif
+                </h2>
+                <p class="mb-0">
+                    @if(isset($isActive) && !$isActive && isset($tokenValid) && $tokenValid)
+                        Membership Status: {{ $member->getMembershipStatusLabel() }}
+                    @else
+                        Credential Verification Failed
+                    @endif
+                </p>
             </div>
-            <div class="card-body text-center p-5">
-                <p class="text-muted">The membership credentials provided are invalid or have been tampered with.</p>
-                <a href="/" class="btn btn-dark rounded-pill px-4 mt-3">Back to Home</a>
+            <div class="card-body text-center p-4">
+                @if(isset($isActive) && !$isActive && isset($tokenValid) && $tokenValid)
+                    <img src="{{ $member->photo_url }}" class="member-img mb-3" style="filter: grayscale(100%);">
+                    <h3 class="fw-bold text-dark">{{ $member->full_name }}</h3>
+                    <div class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 mb-3">
+                        STATUS: {{ $member->getMembershipStatusLabel() }}
+                    </div>
+                    
+                    <table class="table table-sm text-start mt-2">
+                        <tr><th class="text-muted small">Status</th><td class="fw-bold text-danger">{{ $member->getMembershipStatusLabel() }}</td></tr>
+                        <tr><th class="text-muted small">Expiry Date</th><td class="fw-bold text-danger">{{ $member->expiry_date ?: 'N/A' }}</td></tr>
+                        <tr><th class="text-muted small">Type</th><td class="fw-bold">{{ $member->membership_type }}</td></tr>
+                    </table>
+
+                    <p class="text-muted small mt-3">
+                        This membership is inactive or has expired. Please contact PMCC-UK administration to renew.
+                    </p>
+                @else
+                    <p class="text-muted py-3">The membership credentials provided are invalid or have been tampered with.</p>
+                @endif
+                <a href="/" class="btn btn-dark rounded-pill px-4 mt-2">Back to Home</a>
             </div>
         @endif
     </div>

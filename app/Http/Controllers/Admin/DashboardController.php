@@ -537,8 +537,11 @@ class DashboardController extends Controller
         $secret = 'pmcc_secret_key_2026';
         $expectedToken = substr(hash('sha256', $member->id . $secret), 0, 10);
 
-        $isValid = ($token === $expectedToken);
-        return view('admin.members.verify', compact('member', 'isValid'));
+        $tokenValid = ($token === $expectedToken);
+        $isActive = $member->isActive();
+        $isValid = $tokenValid && $isActive;
+
+        return view('admin.members.verify', compact('member', 'isValid', 'isActive', 'tokenValid'));
     }
 
     public function sendCardEmail($id)

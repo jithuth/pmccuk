@@ -156,6 +156,43 @@
             margin-top: 2px;
             display: block;
         }
+        .watermark-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            pointer-events: none;
+        }
+        .watermark-text {
+            font-size: 32px;
+            font-weight: 900;
+            color: rgba(211, 47, 47, 0.45);
+            border: 5px solid rgba(211, 47, 47, 0.45);
+            padding: 8px 20px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transform: rotate(-18deg);
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.15);
+        }
+        .qr-invalid-badge {
+            position: absolute;
+            left: 50%;
+            bottom: 52px;
+            transform: translateX(-50%);
+            background: #d32f2f;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 900;
+            padding: 2px 6px;
+            border-radius: 4px;
+            z-index: 20;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
         .print-btn {
             margin-top: 30px;
             padding: 12px 30px;
@@ -186,17 +223,32 @@
 </head>
 <body>
     @php
-        $reg_no = $member->membership_id_assigned ?: ($member->prev_membership_no ?: 'PMCC-' . $member->id);
+        $isActive = $member->isActive();
+        $statusLabel = $member->getMembershipStatusLabel();
+
+        // Original Membership ID ONLY for active members
+        if ($isActive) {
+            $reg_no = $member->membership_id_assigned ?: ($member->prev_membership_no ?: 'PMCC-' . $member->id);
+        } else {
+            $reg_no = $statusLabel;
+        }
+
         $valid_till = $member->expiry_date ? \Carbon\Carbon::parse($member->expiry_date)->format('d M Y') : \Carbon\Carbon::parse($member->created_at)->addYear()->format('d M Y');
         
-        // Verification QR Logic
+        // Verification QR Logic (Invalid token if member is not active)
         $secret = 'pmcc_secret_key_2026';
-        $v_token = substr(hash('sha256', $member->id . $secret), 0, 10);
+        $v_token = $isActive ? substr(hash('sha256', $member->id . $secret), 0, 10) : 'invalid_token';
         $verify_url = route('admin.members.verify', ['id' => $member->id, 'token' => $v_token]);
         $qr_api_url = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($verify_url);
     @endphp
 
     <div class="card">
+        @if(!$isActive)
+            <div class="watermark-overlay">
+                <div class="watermark-text">MEMBERSHIP {{ $statusLabel }}</div>
+            </div>
+        @endif
+
         <div class="card-header-stripe">
             <img src="{{ $site_logo }}" onerror="this.src='https://placehold.co/60x60?text=PMCC'" class="org-logo" alt="Logo">
             <div class="org-name">
@@ -215,7 +267,7 @@
 
             <div class="field-group">
                 <span class="label">Membership No</span>
-                <span class="value highlight">{{ $reg_no }}</span>
+                <span class="value highlight" style="{{ !$isActive ? 'color: #d32f2f;' : '' }}">{{ $reg_no }}</span>
             </div>
 
             <div class="field-group">
@@ -230,7 +282,10 @@
                 </div>
             </div>
 
-            <img src="{{ $qr_api_url }}" class="qr-code" alt="Verification QR">
+            <img src="{{ $qr_api_url }}" class="qr-code" style="{{ !$isActive ? 'border-color: #d32f2f; opacity: 0.55;' : '' }}" alt="Verification QR">
+            @if(!$isActive)
+                <div class="qr-invalid-badge">INVALID QR</div>
+            @endif
         </div>
 
         <div class="card-footer">

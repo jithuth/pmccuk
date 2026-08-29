@@ -35,11 +35,52 @@
         .footer-table { width: 100%; border-collapse: collapse; }
         .footer-label { color: #80cbc4; font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
         .footer-val { color: #ffffff; font-size: 12px; font-weight: bold; margin-top: 2px; }
+
+        /* Watermark & Invalid Status Styles */
+        .watermark-box {
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            width: 500px;
+            text-align: center;
+            z-index: 100;
+        }
+        .watermark-text {
+            font-size: 26px;
+            font-weight: 900;
+            color: rgba(211, 47, 47, 0.45);
+            border: 4px solid rgba(211, 47, 47, 0.45);
+            padding: 8px 16px;
+            display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 8px;
+            transform: rotate(-15deg);
+        }
+        .qr-invalid-banner {
+            font-size: 8px;
+            font-weight: bold;
+            color: #ffffff;
+            background: #d32f2f;
+            padding: 2px 0;
+            text-transform: uppercase;
+            margin-top: 2px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     @php
-        $reg_no = $member->membership_id_assigned ?: ($member->prev_membership_no ?: 'PMCC-' . $member->id);
+        $isActive = $member->isActive();
+        $statusLabel = $member->getMembershipStatusLabel();
+
+        // Original Membership ID ONLY for active members
+        if ($isActive) {
+            $reg_no = $member->membership_id_assigned ?: ($member->prev_membership_no ?: 'PMCC-' . $member->id);
+        } else {
+            $reg_no = $statusLabel;
+        }
+
         $valid_till = $member->expiry_date ? \Carbon\Carbon::parse($member->expiry_date)->format('d M Y') : \Carbon\Carbon::parse($member->created_at)->addYear()->format('d M Y');
         $issued_on = \Carbon\Carbon::parse($member->created_at)->format('d M Y');
 
@@ -93,9 +134,9 @@
                  ?: resolveDompdfImage('assets/img/logo.png')
                  ?: resolveDompdfImage('favicon.ico');
 
-        // Verification QR Code
+        // Verification QR Code (Token is invalid if member is not active)
         $secret = 'pmcc_secret_key_2026';
-        $v_token = substr(hash('sha256', $member->id . $secret), 0, 10);
+        $v_token = $isActive ? substr(hash('sha256', $member->id . $secret), 0, 10) : 'invalid_token';
         $verify_url = route('admin.members.verify', ['id' => $member->id, 'token' => $v_token]);
         $qr_api_url = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($verify_url);
         
@@ -114,6 +155,12 @@
     @endphp
 
     <div class="card">
+        @if(!$isActive)
+            <div class="watermark-box">
+                <div class="watermark-text">MEMBERSHIP {{ $statusLabel }}</div>
+            </div>
+        @endif
+
         <!-- Header -->
         <div class="card-header">
             <table class="header-table">
@@ -144,7 +191,7 @@
 
                         <div class="field-group">
                             <span class="label">Membership No</span>
-                            <div class="val-highlight">{{ $reg_no }}</div>
+                            <div class="val-highlight" style="{{ !$isActive ? 'color: #d32f2f;' : '' }}">{{ $reg_no }}</div>
                         </div>
 
                         <div class="field-group">
@@ -163,8 +210,11 @@
                     <!-- Center: Verification QR -->
                     <td style="vertical-align: middle; text-align: center; width: 95px;">
                         @if($qr_src)
-                            <div class="qr-box">
+                            <div class="qr-box" style="{{ !$isActive ? 'border-color: #d32f2f; opacity: 0.6;' : '' }}">
                                 <img src="{{ $qr_src }}" class="qr-img">
+                                @if(!$isActive)
+                                    <div class="qr-invalid-banner">INVALID</div>
+                                @endif
                             </div>
                         @endif
                     </td>

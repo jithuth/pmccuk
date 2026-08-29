@@ -74,4 +74,32 @@ class Member extends Model
         if (!str_contains($path, '/')) $path = 'photos/' . $path;
         return url('img?p=' . ltrim($path, '/'));
     }
+
+    public function isActive(): bool
+    {
+        $status = strtolower($this->status ?? '');
+        if (!in_array($status, ['active', 'approved'])) {
+            return false;
+        }
+        if (!empty($this->expiry_date)) {
+            try {
+                return \Carbon\Carbon::parse($this->expiry_date)->endOfDay()->isFuture();
+            } catch (\Throwable $e) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public function getMembershipStatusLabel(): string
+    {
+        if (!empty($this->expiry_date) && \Carbon\Carbon::parse($this->expiry_date)->endOfDay()->isPast()) {
+            return 'EXPIRED';
+        }
+        $status = strtolower($this->status ?? '');
+        if ($status === 'active' || $status === 'approved') {
+            return 'ACTIVE';
+        }
+        return strtoupper($status ?: 'INACTIVE');
+    }
 }
