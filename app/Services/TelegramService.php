@@ -297,6 +297,8 @@ class TelegramService
         $commands = [
             ['command' => 'menu', 'description' => 'Open Interactive Admin Control Panel'],
             ['command' => 'help', 'description' => 'Show all available commands & manual'],
+            ['command' => 'logins', 'description' => 'View Recent Logins (15 Records)'],
+            ['command' => 'logs', 'description' => 'View Recent Activity Logs (10 Records)'],
             ['command' => 'stats', 'description' => 'Live Dashboard & Revenue Summary'],
             ['command' => 'security', 'description' => 'Web Application Firewall & Security Report'],
             ['command' => 'passcode', 'description' => 'Generate Emergency 2FA Code'],

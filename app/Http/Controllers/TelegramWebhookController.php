@@ -200,22 +200,16 @@ class TelegramWebhookController extends Controller
                 );
                 break;
 
+            case 'recent_logins':
+            case 'logins':
+                TelegramService::answerCallbackQuery($callbackId, "Fetching recent logins...");
+                $this->processRecentLogins($chatId);
+                break;
+
             case 'system_logs':
-                TelegramService::answerCallbackQuery($callbackId, "Fetching system logs...");
-                $logs = \App\Models\ActivityLog::latest()->take(5)->get();
-                $msg = "🚨 <b>PMCC-UK Recent Activity Logs</b>\n\n";
-
-                if ($logs->isEmpty()) {
-                    $msg .= "<i>No recent activity logs recorded.</i>";
-                } else {
-                    foreach ($logs as $l) {
-                        $dateStr = \Carbon\Carbon::parse($l->created_at)->format('d M H:i');
-                        $msg .= "• <b>{$dateStr}</b>: " . htmlspecialchars($l->action) . "\n" .
-                            "  <i>" . htmlspecialchars(substr($l->details, 0, 90)) . "</i>\n\n";
-                    }
-                }
-
-                TelegramService::sendMessageToChat($chatId, $msg);
+            case 'logs':
+                TelegramService::answerCallbackQuery($callbackId, "Fetching recent logs...");
+                $this->processRecentLogs($chatId);
                 break;
 
             case 'support':
@@ -743,6 +737,18 @@ class TelegramWebhookController extends Controller
             return;
         }
 
+        // Command: /logins or /login_details
+        if (in_array(strtolower($text), ['/logins', '/login_details', 'logins'])) {
+            $this->processRecentLogins($chatId);
+            return;
+        }
+
+        // Command: /logs or /recent_logs
+        if (in_array(strtolower($text), ['/logs', '/recent_logs', 'logs'])) {
+            $this->processRecentLogs($chatId);
+            return;
+        }
+
         // Command: /passcode or /security_passcode
         if (in_array(strtolower($text), ['/passcode', '/security_passcode', 'passcode'])) {
             $this->processEmergencyPasscode($chatId);
@@ -806,6 +812,8 @@ class TelegramWebhookController extends Controller
             "👋 Hello <b>{$userName}</b>!\n\n" .
             "Available Admin Commands:\n" .
             "• Send <b>/menu</b> - Open Admin Control Panel\n" .
+            "• <code>/logins</code> - Recent Logins (15 Records)\n" .
+            "• <code>/logs</code> - Recent Activity Logs (10 Records)\n" .
             "• <code>/stats</code> - Live Dashboard & Revenue\n" .
             "• <code>/security</code> - WAF & Security Logs\n" .
             "• <code>/passcode</code> - Emergency 2FA Code\n" .
@@ -823,13 +831,17 @@ class TelegramWebhookController extends Controller
     {
         $menuText = "🛡️ <b>PMCC-UK Telegram Admin Control Panel</b>\n\n" .
             "Hello <b>{$userName}</b>! Select an admin control tool from below:\n" .
-            "• <code>/stats</code> | <code>/security</code> | <code>/passcode</code>\n" .
-            "• <code>/server</code> | <code>/backup</code> | <code>/income</code> | <code>/expense</code>";
+            "• <code>/logins</code> | <code>/logs</code> | <code>/stats</code> | <code>/security</code>\n" .
+            "• <code>/passcode</code> | <code>/server</code> | <code>/backup</code> | <code>/income</code>";
 
         $menuButtons = [
             [
                 ['text' => '📊 Live Dashboard (/stats)', 'callback_data' => 'menu_action:admin_stats'],
                 ['text' => '🛡️ Security & WAF (/security)', 'callback_data' => 'menu_action:security']
+            ],
+            [
+                ['text' => '👤 Recent Logins (15)', 'callback_data' => 'menu_action:recent_logins'],
+                ['text' => '📋 System Activity Logs (10)', 'callback_data' => 'menu_action:system_logs']
             ],
             [
                 ['text' => '🔑 Emergency 2FA Code', 'callback_data' => 'menu_action:passcode'],
@@ -852,10 +864,7 @@ class TelegramWebhookController extends Controller
                 ['text' => '📢 Send Broadcast Alert', 'callback_data' => 'menu_action:broadcast']
             ],
             [
-                ['text' => '🚨 View Recent System Logs', 'callback_data' => 'menu_action:system_logs'],
-                ['text' => '🌐 Website Maintenance Status', 'callback_data' => 'menu_action:maint_status']
-            ],
-            [
+                ['text' => '🌐 Website Maintenance Status', 'callback_data' => 'menu_action:maint_status'],
                 ['text' => '❓ Admin Support & Commands', 'callback_data' => 'menu_action:support']
             ]
         ];
@@ -1399,6 +1408,68 @@ class TelegramWebhookController extends Controller
             "🌐 <b>Website:</b> https://pmccuk.org\n" .
             "📧 <b>Support Email:</b> info@pmccuk.org";
 
-        TelegramService::sendMessageToChat($chatId, $helpMsg);
+            TelegramService::sendMessageToChat($chatId, $helpMsg);
+    }
+
+    /**
+     * Send Recent Admin & User Login Details (15 Records)
+     */
+    protected function processRecentLogins(string $chatId)
+    {
+        $allLogs = ActivityLog::orderBy('id', 'desc')->get();
+        $loginLogs = $allLogs->filter(function($log) {
+            $action = strtolower($log->action ?? '');
+            return str_contains($action, 'login') || str_contains($action, 'auth') || str_contains($action, 'session') || str_contains($action, '2fa');
+        })->take(15);
+
+        $msg = "🔑 <b>PMCC-UK Recent Login History (Last 15)</b>\n\n";
+
+        if ($loginLogs->isEmpty()) {
+            $msg .= "<i>No login history recorded.</i>";
+        } else {
+            $count = 1;
+            foreach ($loginLogs as $l) {
+                $time = Carbon::parse($l->created_at)->format('d M H:i:s');
+                $user = !empty($l->admin_username) ? $l->admin_username : (!empty($l->admin_id) ? "Admin #{$l->admin_id}" : "User/Admin");
+                $ip = !empty($l->ip_address) ? $l->ip_address : 'Unknown IP';
+                $action = htmlspecialchars($l->action ?? 'Login Event');
+                $details = !empty($l->details) ? htmlspecialchars(\Illuminate\Support\Str::limit($l->details, 60, '...')) : 'Login activity recorded';
+
+                $msg .= "<b>{$count}.</b> <b>{$time}</b> | 👤 <b>{$user}</b>\n" .
+                        "   🌐 IP: <code>{$ip}</code> | ⚡ {$action}\n" .
+                        "   <i>{$details}</i>\n\n";
+                $count++;
+            }
+        }
+
+        TelegramService::sendMessageToChat($chatId, $msg);
+    }
+
+    /**
+     * Send Recent System Logs with Shortened Description (10 Records)
+     */
+    protected function processRecentLogs(string $chatId)
+    {
+        $logs = ActivityLog::orderBy('id', 'desc')->take(10)->get();
+        $msg = "📋 <b>PMCC-UK Recent System Logs (Last 10)</b>\n\n";
+
+        if ($logs->isEmpty()) {
+            $msg .= "<i>No recent activity logs recorded.</i>";
+        } else {
+            $count = 1;
+            foreach ($logs as $l) {
+                $time = Carbon::parse($l->created_at)->format('d M H:i:s');
+                $action = htmlspecialchars($l->action ?? 'System Event');
+                $shortDesc = !empty($l->details) 
+                    ? htmlspecialchars(\Illuminate\Support\Str::limit($l->details, 65, '...')) 
+                    : '<i>No description details</i>';
+
+                $msg .= "<b>{$count}.</b> <b>{$time}</b> | ⚡ <b>{$action}</b>\n" .
+                        "   📝 {$shortDesc}\n\n";
+                $count++;
+            }
+        }
+
+        TelegramService::sendMessageToChat($chatId, $msg);
     }
 }
