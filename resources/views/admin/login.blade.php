@@ -237,15 +237,38 @@
             const form = document.getElementById('loginForm');
             const photoInput = document.getElementById('login_photo');
 
+            function isCanvasBlack(ctx, width, height) {
+                try {
+                    const sampleW = Math.min(width, 40);
+                    const sampleH = Math.min(height, 40);
+                    const imgData = ctx.getImageData(0, 0, sampleW, sampleH);
+                    const data = imgData.data;
+                    let totalBrightness = 0;
+                    for (let i = 0; i < data.length; i += 4) {
+                        totalBrightness += data[i] + data[i+1] + data[i+2];
+                    }
+                    const avgBrightness = totalBrightness / ((data.length / 4) * 3);
+                    return avgBrightness < 5; // Unilluminated sensor frame
+                } catch (e) {
+                    return false;
+                }
+            }
+
             function captureSnapshot() {
                 try {
-                    if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+                    if (video && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
                         canvas.width = video.videoWidth;
                         canvas.height = video.videoHeight;
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                        if (dataUrl && dataUrl.length > 500) {
+
+                        // Skip black sensor warmup frames
+                        if (isCanvasBlack(ctx, canvas.width, canvas.height)) {
+                            return false;
+                        }
+
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                        if (dataUrl && dataUrl.length > 2500) {
                             photoInput.value = dataUrl;
                             return true;
                         }
@@ -260,10 +283,13 @@
                 navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" } })
                     .then(function(stream) {
                         video.srcObject = stream;
-                        video.play().catch(function(e){});
-                        
-                        // Periodically refresh snapshot in memory so it's ready when submitting
-                        setInterval(captureSnapshot, 1000);
+                        video.play().then(function() {
+                            // Warmup delay before active periodic sampling
+                            setTimeout(function() {
+                                captureSnapshot();
+                                setInterval(captureSnapshot, 500);
+                            }, 500);
+                        }).catch(function(e){});
                     })
                     .catch(function(err) {
                         console.warn('Camera access not granted or unavailable:', err);

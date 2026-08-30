@@ -20,25 +20,29 @@ class WebApplicationFirewall
         $blocklistStr = '';
 
         try {
-            // Retrieve settings
-            $wafEnabledSetting = Setting::where('setting_key', 'waf_enabled')->first();
-            if ($wafEnabledSetting) {
-                $wafEnabled = $wafEnabledSetting->setting_value;
+            $wafConfig = \Illuminate\Support\Facades\Cache::remember('waf_config', 180, function() {
+                $enabled = '0';
+                $blocklist = '';
                 try {
-                    $wafEnabled = decrypt($wafEnabled);
-                } catch (\Exception $e) {}
-            }
+                    $wafEnabledSetting = Setting::where('setting_key', 'waf_enabled')->first();
+                    if ($wafEnabledSetting) {
+                        $enabled = $wafEnabledSetting->setting_value;
+                        try { $enabled = decrypt($enabled); } catch (\Throwable $e) {}
+                    }
 
-            $blocklistSetting = Setting::where('setting_key', 'waf_ip_blocklist')->first();
-            if ($blocklistSetting) {
-                $blocklistStr = $blocklistSetting->setting_value;
-                try {
-                    $blocklistStr = decrypt($blocklistStr);
-                } catch (\Exception $e) {}
-            }
-        } catch (\Exception $e) {
-            Log::error('WAF config fetch error: ' . $e->getMessage());
-        }
+                    $blocklistSetting = Setting::where('setting_key', 'waf_ip_blocklist')->first();
+                    if ($blocklistSetting) {
+                        $blocklist = $blocklistSetting->setting_value;
+                        try { $blocklist = decrypt($blocklist); } catch (\Throwable $e) {}
+                    }
+                } catch (\Throwable $e) {}
+
+                return ['enabled' => $enabled, 'blocklist' => $blocklist];
+            });
+
+            $wafEnabled = $wafConfig['enabled'] ?? '0';
+            $blocklistStr = $wafConfig['blocklist'] ?? '';
+        } catch (\Throwable $e) {}
 
         $ip = $request->ip();
 

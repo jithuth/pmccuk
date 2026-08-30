@@ -255,34 +255,39 @@ class TelegramService
     }
 
     /**
-     * Get configured Bot Token.
+     * Get configured Bot Token with fallback.
      */
     public static function getToken(): ?string
     {
         try {
             $tokenSetting = Setting::where('setting_key', 'telegram_bot_token')->first();
-            return $tokenSetting ? $tokenSetting->setting_value : null;
-        } catch (\Exception $e) {
-            return null;
-        }
+            $token = $tokenSetting ? trim($tokenSetting->setting_value) : null;
+            if (!empty($token)) return $token;
+        } catch (\Exception $e) {}
+
+        return config('services.telegram.bot_token') ?: env('TELEGRAM_BOT_TOKEN');
     }
 
     /**
-     * Get configured Chat IDs as array.
+     * Get configured Chat IDs as array with fallback.
      */
     public static function getChatIds(): array
     {
         try {
             $chatIdSetting = Setting::where('setting_key', 'telegram_chat_id')->first();
-            if (!$chatIdSetting || empty($chatIdSetting->setting_value)) {
-                return [];
+            if ($chatIdSetting && !empty($chatIdSetting->setting_value)) {
+                $chatIds = preg_split('/[\s,;]+/', trim($chatIdSetting->setting_value));
+                return array_filter(array_map('trim', $chatIds));
             }
+        } catch (\Exception $e) {}
 
-            $chatIds = preg_split('/[\s,;]+/', trim($chatIdSetting->setting_value));
+        $envChatId = config('services.telegram.chat_id') ?: env('TELEGRAM_CHAT_ID');
+        if (!empty($envChatId)) {
+            $chatIds = preg_split('/[\s,;]+/', trim($envChatId));
             return array_filter(array_map('trim', $chatIds));
-        } catch (\Exception $e) {
-            return [];
         }
+
+        return [];
     }
 
     /**
