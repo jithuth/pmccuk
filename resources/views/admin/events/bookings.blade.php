@@ -138,6 +138,9 @@
                                                 {{ $booking->email }}</small><br>
                                             <small
                                                 class="badge bg-secondary rounded-pill px-2">{{ $booking->membership_no }}</small>
+                                            @if($booking->student_doc_path)
+                                                <br><a href="{{ asset('storage/' . $booking->student_doc_path) }}" target="_blank" class="badge bg-info text-decoration-none mt-1 shadow-sm"><i class="fas fa-id-card me-1"></i> View Student ID</a>
+                                            @endif
                                         </td>
                                         <td>
                                             @if($booking->booking_status == 'pending')

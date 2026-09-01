@@ -32,6 +32,15 @@
                         </div>
                     </div>
 
+                    @if($booking->student_doc_path)
+                    <div class="alert alert-info py-2 my-3 d-flex align-items-center justify-content-between">
+                        <div>
+                            <i class="fas fa-id-card me-2"></i><strong>Student Proof Document Attached</strong>
+                        </div>
+                        <a href="{{ asset('storage/' . $booking->student_doc_path) }}" target="_blank" class="btn btn-sm btn-dark"><i class="fas fa-external-link-alt me-1"></i> View Document</a>
+                    </div>
+                    @endif
+
                     <hr>
                     <label class="d-block mb-3 font-weight-bold">Group Composition</label>
                     <div class="row">

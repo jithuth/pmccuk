@@ -36,6 +36,32 @@ class BookingController extends Controller
             }
         }
 
+        // Ensure Student category is always included in $pricing
+        $hasStudentInPricing = false;
+        foreach ($pricing as $p) {
+            if (str_contains(strtolower($p['name']), 'student')) {
+                $hasStudentInPricing = true;
+                break;
+            }
+        }
+
+        if (!$hasStudentInPricing) {
+            $studentCat = \App\Models\FareCategory::firstOrCreate(['name' => 'Student Pass']);
+            $defaultPrice = 15.00;
+            foreach ($pricing as $p) {
+                if (str_contains(strtolower($p['name']), 'child') || str_contains(strtolower($p['name']), 'kid')) {
+                    $defaultPrice = floatval($p['member_price']);
+                    break;
+                }
+            }
+            $pricing[] = [
+                'category_id' => $studentCat->id,
+                'name' => 'Student Pass',
+                'member_price' => $defaultPrice,
+                'guest_price' => $defaultPrice,
+            ];
+        }
+
         return view('events.booking_form', compact('event', 'pricing'));
     }
 
@@ -147,8 +173,25 @@ class BookingController extends Controller
             'full_name' => 'required|string',
             'email' => 'required|email',
             'counts' => 'required|array',
-            'otp' => 'required'
+            'otp' => 'required',
+            'student_doc' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:5120'
         ]);
+
+        // Check if any student ticket count > 0
+        $hasStudentTicket = false;
+        foreach ($request->counts as $cat_id => $count) {
+            if (intval($count) > 0) {
+                $cat_name = strtolower(\App\Models\FareCategory::find($cat_id)->name ?? '');
+                if (str_contains($cat_name, 'student')) {
+                    $hasStudentTicket = true;
+                    break;
+                }
+            }
+        }
+
+        if ($hasStudentTicket && !$request->hasFile('student_doc')) {
+            return back()->with('error', 'Please upload your Student ID Card or proof of student status.')->withInput();
+        }
 
         // OTP Validation
         if ($request->otp != Session::get('booking_otp') || $request->email != Session::get('booking_otp_email')) {
@@ -157,6 +200,12 @@ class BookingController extends Controller
 
         // Clear OTP
         Session::forget(['booking_otp', 'booking_otp_email']);
+
+        // Handle Student Document Upload
+        $studentDocPath = null;
+        if ($request->hasFile('student_doc')) {
+            $studentDocPath = $request->file('student_doc')->store('event_student_docs', 'public');
+        }
 
         $event = Event::findOrFail($request->event_id);
         $total_amount = 0;
@@ -168,14 +217,8 @@ class BookingController extends Controller
         foreach ($request->counts as $cat_id => $count) {
             $count = intval($count);
             if ($count > 0) {
-                // Determine price based on member status
-                $is_member = $request->is_member == '1';
-                
-                // Fetch price from rubric items or event prices
-                // For simplicity, we'll re-fetch or use helper (in production, validate against DB prices)
-                // Here we fetch the category name for the breakdown
                 $cat_title = \App\Models\FareCategory::find($cat_id)->name ?? 'Item';
-                $price = $request->prices[$cat_id] ?? 0; // In a real app, calculate this server-side
+                $price = floatval($request->prices[$cat_id] ?? 0);
 
                 $total_amount += ($count * $price);
                 
@@ -209,11 +252,13 @@ class BookingController extends Controller
             'infant_count' => $infants,
             'attendee_breakdown' => $breakdown,
             'total_amount' => $total_amount,
+            'student_doc_path' => $studentDocPath,
             'booking_status' => 'pending',
         ]);
 
         // Send Telegram Notification
         try {
+            $docText = $studentDocPath ? "\n🎓 <b>Student Proof:</b> Uploaded (Attached)" : "";
             \App\Services\TelegramService::sendMessage(
                 "🎟️ <b>New Event Ticket Booking</b>\n\n" .
                 "📅 <b>Event:</b> " . htmlspecialchars($event->title) . "\n" .
@@ -221,7 +266,7 @@ class BookingController extends Controller
                 "📧 <b>Email:</b> " . htmlspecialchars($request->email) . "\n" .
                 "📱 <b>Phone:</b> " . htmlspecialchars($request->phone) . "\n" .
                 "🎫 <b>Tickets:</b> " . ($adults + $children + $infants) . " (" . $adults . " Adult, " . $children . " Child, " . $infants . " Infant)\n" .
-                "💰 <b>Total Paid:</b> £" . number_format($total_amount, 2),
+                "💰 <b>Total Paid:</b> £" . number_format($total_amount, 2) . $docText,
                 [
                     [
                         ['text' => '✅ Approve Booking', 'callback_data' => "approve_book:{$booking->id}"],

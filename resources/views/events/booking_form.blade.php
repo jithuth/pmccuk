@@ -47,7 +47,7 @@
 
                 <!-- Right Side: Booking Form -->
                 <div class="md:col-span-3 p-12">
-                    <form action="{{ route('event.book.process') }}" method="POST" id="bookingForm">
+                    <form action="{{ route('event.book.process') }}" method="POST" enctype="multipart/form-data" id="bookingForm">
                         @csrf
                         <input type="hidden" name="event_id" value="{{ $event->id }}">
 
@@ -58,21 +58,30 @@
                                 Attendee Details
                             </h3>
                             
-                            <div class="grid grid-cols-2 gap-4 mb-8">
+                            <input type="hidden" name="is_member" id="is_member_input" value="1">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                                 <label class="relative cursor-pointer">
-                                    <input type="radio" name="is_member" value="1" class="peer sr-only" checked onclick="toggleMember(true)">
-                                    <div class="p-6 bg-slate-50 rounded-2xl border-2 border-transparent peer-checked:border-primary peer-checked:bg-white transition-all">
-                                        <i class="fas fa-id-card text-2xl mb-3 text-slate-400 peer-checked:text-primary"></i>
-                                        <p class="font-bold text-slate-900">PMCC Member</p>
-                                        <p class="text-[10px] text-slate-500 uppercase tracking-wider">Discounted Rates</p>
+                                    <input type="radio" name="attendee_type" value="member" class="peer sr-only" checked onclick="toggleMember('member')">
+                                    <div class="p-5 bg-slate-50 rounded-2xl border-2 border-transparent peer-checked:border-primary peer-checked:bg-white transition-all text-center">
+                                        <i class="fas fa-id-card text-2xl mb-2 text-slate-400 peer-checked:text-primary"></i>
+                                        <p class="font-bold text-sm text-slate-900">PMCC Member</p>
+                                        <p class="text-[10px] text-slate-500 uppercase tracking-wider">Member Rates</p>
                                     </div>
                                 </label>
                                 <label class="relative cursor-pointer">
-                                    <input type="radio" name="is_member" value="0" class="peer sr-only" onclick="toggleMember(false)">
-                                    <div class="p-6 bg-slate-50 rounded-2xl border-2 border-transparent peer-checked:border-primary peer-checked:bg-white transition-all">
-                                        <i class="fas fa-user-friends text-2xl mb-3 text-slate-400 peer-checked:text-primary"></i>
-                                        <p class="font-bold text-slate-900">Guest / Public</p>
+                                    <input type="radio" name="attendee_type" value="guest" class="peer sr-only" onclick="toggleMember('guest')">
+                                    <div class="p-5 bg-slate-50 rounded-2xl border-2 border-transparent peer-checked:border-primary peer-checked:bg-white transition-all text-center">
+                                        <i class="fas fa-user-friends text-2xl mb-2 text-slate-400 peer-checked:text-primary"></i>
+                                        <p class="font-bold text-sm text-slate-900">Guest / Public</p>
                                         <p class="text-[10px] text-slate-500 uppercase tracking-wider">Standard Rates</p>
+                                    </div>
+                                </label>
+                                <label class="relative cursor-pointer">
+                                    <input type="radio" name="attendee_type" value="student" class="peer sr-only" onclick="toggleMember('student')">
+                                    <div class="p-5 bg-amber-50/80 rounded-2xl border-2 border-transparent peer-checked:border-amber-500 peer-checked:bg-white transition-all text-center">
+                                        <i class="fas fa-graduation-cap text-2xl mb-2 text-amber-500"></i>
+                                        <p class="font-bold text-sm text-slate-900">Student Pass</p>
+                                        <p class="text-[10px] text-amber-600 font-bold uppercase tracking-wider">Discounted Rate</p>
                                     </div>
                                 </label>
                             </div>
@@ -155,6 +164,25 @@
                                     </div>
                                 </div>
                                 @endforeach
+                        </div>
+
+                        <!-- Step 3: Student Verification Document (Conditional) -->
+                        <div class="mb-12 hidden transition-all" id="studentDocSection">
+                            <h3 class="text-xl font-bold text-slate-900 mb-2 flex items-center">
+                                <span class="w-8 h-8 bg-amber-500 text-white rounded-full flex items-center justify-center text-sm mr-4 shadow-lg shadow-amber-500/20">3</span>
+                                Student Proof Verification
+                            </h3>
+                            <p class="text-xs text-slate-500 mb-4 ml-12">
+                                Since you have selected Student ticket(s), please upload a valid Student ID Card or proof of student status.
+                            </p>
+
+                            <div class="ml-12 p-6 bg-amber-50/60 rounded-2xl border border-amber-200/80">
+                                <label class="block text-xs font-black uppercase tracking-widest text-slate-700 mb-3">
+                                    Upload Student ID Card / Document <span class="text-red-500">*</span>
+                                </label>
+                                <input type="file" name="student_doc" id="student_doc" accept=".jpg,.jpeg,.png,.webp,.pdf"
+                                    class="w-full text-xs text-slate-600 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-xs file:font-black file:uppercase file:tracking-wider file:bg-slate-900 file:text-white hover:file:bg-primary file:transition-colors file:cursor-pointer">
+                                <p class="text-[10px] font-medium text-slate-400 mt-2">Accepted formats: JPG, PNG, WEBP, PDF (Max 5MB)</p>
                             </div>
                         </div>
 
@@ -177,11 +205,24 @@
 </div>
 
 <script>
-    function toggleMember(isM) {
+    function toggleMember(mode) {
+        // Normalize boolean calls if any legacy call exists
+        if (mode === true) mode = 'member';
+        if (mode === false) mode = 'guest';
+
+        const isM = (mode === 'member');
+        const isStudentMode = (mode === 'student');
+        const isGuestMode = (mode === 'guest');
+
         const field = document.getElementById('memberField');
         const prices = document.querySelectorAll('.price-val');
         const priceInputs = document.querySelectorAll('.actual-price-input');
         const rows = document.querySelectorAll('.ticket-row');
+        const isMemberInput = document.getElementById('is_member_input');
+
+        if (isMemberInput) {
+            isMemberInput.value = isM ? '1' : '0';
+        }
         
         // Locking Section
         const submitBtn = document.querySelector('button[type="submit"]');
@@ -205,26 +246,41 @@
         rows.forEach((row, idx) => {
             const name = row.getAttribute('data-name').toLowerCase();
             const p = prices[idx];
+            const isStudentRow = name.includes('student');
             
-            // 1. Update Price
-            const val = isM ? p.dataset.member : p.dataset.guest;
+            // 1. Update Price: Students receive equal pricing (member rate) for both members and non-members
+            const val = (isM || isStudentRow) ? p.dataset.member : p.dataset.guest;
             p.innerText = val;
             priceInputs[idx].value = val;
 
-            // 2. Filter for Guests: Adults + Kids + Infants (EXCLUDE FAMILY)
-            if (!isM) {
+            // 2. Filter per mode
+            if (isStudentMode) {
+                // Dedicated Student Pass View: Show only Student tickets
+                if (isStudentRow) {
+                    row.classList.remove('hidden');
+                    const qtyInput = row.querySelector('.qty-input');
+                    if (parseInt(qtyInput.value) === 0) {
+                        qtyInput.value = 1;
+                    }
+                } else {
+                    row.classList.add('hidden');
+                    row.querySelector('.qty-input').value = 0;
+                }
+            } else if (isGuestMode) {
+                // Standard Guest View: Show Adults, Children, Infants. Hide Student & Family/Sponsor
                 const isAdult = name.includes('adult');
                 const isChild = name.includes('child') || name.includes('kids') || name.includes('kid');
                 const isInfant = name.includes('infant');
                 const isFamilyOrSponsor = name.includes('family') || name.includes('sponsor');
                 
-                if ((isAdult || isChild || isInfant) && !isFamilyOrSponsor) {
+                if ((isAdult || isChild || isInfant) && !isFamilyOrSponsor && !isStudentRow) {
                     row.classList.remove('hidden');
                 } else {
                     row.classList.add('hidden');
                     row.querySelector('.qty-input').value = 0; 
                 }
             } else {
+                // Member View: Show all rows
                 row.classList.remove('hidden');
             }
         });
@@ -242,12 +298,35 @@
 
     function calculateTotal() {
         let total = 0;
+        let hasStudentTicket = false;
+
         document.querySelectorAll('.ticket-row').forEach(row => {
-            const price = parseFloat(row.querySelector('.price-val').innerText);
-            const qty = parseInt(row.querySelector('.qty-input').value);
-            total += (price * qty);
+            if (!row.classList.contains('hidden')) {
+                const price = parseFloat(row.querySelector('.price-val').innerText);
+                const qty = parseInt(row.querySelector('.qty-input').value);
+                const name = row.getAttribute('data-name').toLowerCase();
+
+                total += (price * qty);
+
+                if (qty > 0 && name.includes('student')) {
+                    hasStudentTicket = true;
+                }
+            }
         });
         document.getElementById('totalDisplay').innerText = total.toFixed(2);
+
+        // Toggle student proof upload requirement dynamically
+        const studentSec = document.getElementById('studentDocSection');
+        const studentDocInput = document.getElementById('student_doc');
+        if (studentSec && studentDocInput) {
+            if (hasStudentTicket) {
+                studentSec.classList.remove('hidden');
+                studentDocInput.required = true;
+            } else {
+                studentSec.classList.add('hidden');
+                studentDocInput.required = false;
+            }
+        }
     }
 
     let searchTimer;
@@ -457,7 +536,7 @@
     }
 
     // Initial load
-    toggleMember(true);
+    toggleMember('member');
 </script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

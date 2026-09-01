@@ -13,7 +13,7 @@ class EventBooking extends Model
     protected $fillable = [
         'event_id', 'membership_no', 'adult_count', 'child_count', 
         'infant_count', 'attendee_breakdown', 'email', 'phone', 
-        'full_name', 'booking_status', 'total_amount', 
+        'full_name', 'booking_status', 'total_amount', 'student_doc_path',
         'qr_code_sent', 'qr_code_data', 'check_in_status', 'check_in_at', 'check_in_by'
     ];
 
