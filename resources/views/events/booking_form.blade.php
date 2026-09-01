@@ -102,12 +102,12 @@
 
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Email Address</label>
+                                    <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2" id="emailLabel">Email Address</label>
                                     <input type="email" name="email" id="email" onkeyup="checkGuestEmail()" required
                                         class="w-full bg-slate-50 border-0 rounded-xl px-6 py-4 focus:ring-2 focus:ring-primary transition-all text-slate-900 font-bold placeholder:text-slate-300">
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Phone Number</label>
+                                    <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2" id="phoneLabel">Phone Number</label>
                                     <input type="text" name="phone" id="phone"
                                         class="w-full bg-slate-50 border-0 rounded-xl px-6 py-4 focus:ring-2 focus:ring-primary transition-all text-slate-900 font-bold placeholder:text-slate-300">
                                 </div>
@@ -126,7 +126,7 @@
                                 </div>
 
                                 <div class="md:col-span-2">
-                                    <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Full Name</label>
+                                    <label class="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2" id="nameLabel">Full Name</label>
                                     <input type="text" name="full_name" id="full_name" required
                                         class="w-full bg-slate-50 border-0 rounded-xl px-6 py-4 focus:ring-2 focus:ring-primary transition-all text-slate-900 font-bold placeholder:text-slate-300">
                                 </div>
@@ -231,6 +231,20 @@
         submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
         ticketSection.classList.add('opacity-40', 'pointer-events-none');
         
+        const emailLabel = document.getElementById('emailLabel');
+        const phoneLabel = document.getElementById('phoneLabel');
+        const nameLabel = document.getElementById('nameLabel');
+
+        if (isStudentMode) {
+            if (emailLabel) emailLabel.innerText = "Student Email Address";
+            if (phoneLabel) phoneLabel.innerText = "Student Phone Number";
+            if (nameLabel) nameLabel.innerText = "Student Full Name";
+        } else {
+            if (emailLabel) emailLabel.innerText = "Email Address";
+            if (phoneLabel) phoneLabel.innerText = "Phone Number";
+            if (nameLabel) nameLabel.innerText = "Full Name";
+        }
+
         if (isM) {
             field.classList.remove('hidden');
         } else {
