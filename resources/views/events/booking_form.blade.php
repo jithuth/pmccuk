@@ -342,7 +342,8 @@
 
     let emailTimer;
     function checkGuestEmail() {
-        const isMember = document.querySelector('input[name="is_member"]:checked').value == '1';
+        const isMemberInput = document.getElementById('is_member_input');
+        const isMember = isMemberInput ? (isMemberInput.value == '1') : false;
         if (isMember) return; // Only for guests
         
         const email = document.getElementById('email').value.trim();
@@ -419,7 +420,8 @@
         const shortNo = document.getElementById('membership_short_no').value.trim();
         const fullNo = 'PMCC-' + shortNo;
         const email = document.getElementById('email').value;
-        const isMember = document.querySelector('input[name="is_member"]:checked').value == '1';
+        const isMemberInput = document.getElementById('is_member_input');
+        const isMember = isMemberInput ? (isMemberInput.value == '1') : false;
         
         const btn = document.getElementById('otpBtn');
         const msg = document.getElementById('otpMsg');
