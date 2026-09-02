@@ -76,6 +76,24 @@
 
             <div class="mb-12">
                 <h3 class="text-xs font-black uppercase tracking-[0.3em] text-slate-400 mb-8 pb-4 border-b border-slate-50">Booking Summary</h3>
+
+                <div class="mb-8 p-6 bg-slate-50 rounded-2xl border border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                    <div>
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Event Title</p>
+                        <p class="font-bold text-slate-900 text-sm mt-0.5">{{ $event->title }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Event Date & Time</p>
+                        <p class="font-bold text-primary text-sm mt-0.5"><i class="fas fa-calendar-alt me-1"></i> {{ date('l, F d, Y', strtotime($event->event_date)) }}</p>
+                    </div>
+                    @if($event->location)
+                    <div class="sm:col-span-2 border-t border-slate-200/60 pt-3 mt-1">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Event Location</p>
+                        <p class="font-bold text-slate-900 text-xs mt-0.5"><i class="fas fa-map-marker-alt text-red-500 me-1"></i> {{ $event->location }}</p>
+                    </div>
+                    @endif
+                </div>
+
                 <div class="space-y-4">
                     @foreach($booking->attendee_breakdown as $item)
                         <div class="flex justify-between items-center bg-slate-50 p-6 rounded-2xl border border-slate-100">

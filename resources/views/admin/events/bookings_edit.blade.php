@@ -12,6 +12,24 @@
             <form action="{{ route('admin.events.bookings.update', $booking->id) }}" method="POST">
                 @csrf
                 <div class="card-body">
+                    <div class="alert alert-light border shadow-sm p-3 mb-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="text-uppercase text-muted font-weight-bold d-block">Event Title</small>
+                                <span class="h6 mb-0 font-weight-bold text-dark">{{ $booking->event->title ?? 'N/A' }}</span>
+                            </div>
+                            <div class="text-right">
+                                <small class="text-uppercase text-muted font-weight-bold d-block">Date & Time</small>
+                                <span class="text-primary font-weight-bold"><i class="fas fa-calendar-alt mr-1"></i> {{ date('l, F d, Y', strtotime($booking->event->event_date ?? 'now')) }}</span>
+                            </div>
+                        </div>
+                        @if(!empty($booking->event->location))
+                        <div class="mt-2 pt-2 border-top small text-secondary">
+                            <i class="fas fa-map-marker-alt text-danger mr-1"></i> <strong>Location:</strong> {{ $booking->event->location }}
+                        </div>
+                        @endif
+                    </div>
+
                     <div class="form-group mb-3">
                         <label>Attendee Full Name</label>
                         <input type="text" name="full_name" class="form-control" value="{{ $booking->full_name }}" required>
