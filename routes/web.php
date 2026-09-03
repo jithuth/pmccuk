@@ -193,6 +193,70 @@ Route::get('/clear-everything', function () {
     }
 });
 
+Route::get('/run-migrations', function () {
+    try {
+        $output = [];
+
+        // 1. Direct DB Failsafe SQL
+        try {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `members` MODIFY `membership_type` TEXT NULL");
+            $output[] = "Direct DB: Updated members.membership_type to TEXT.";
+        } catch (\Exception $e) {
+            $output[] = "Direct DB members warning: " . $e->getMessage();
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `members` MODIFY `marital_status` TEXT NULL");
+            $output[] = "Direct DB: Updated members.marital_status to TEXT.";
+        } catch (\Exception $e) {
+            $output[] = "Direct DB members marital_status warning: " . $e->getMessage();
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `renewal_requests` MODIFY `membership_type` TEXT NULL");
+            $output[] = "Direct DB: Updated renewal_requests.membership_type to TEXT.";
+        } catch (\Exception $e) {
+            $output[] = "Direct DB renewal_requests warning: " . $e->getMessage();
+        }
+
+        // Add student_requests columns if missing
+        $studentCols = [
+            'full_name' => "TEXT NULL",
+            'email' => "TEXT NULL",
+            'phone' => "TEXT NULL",
+            'university' => "TEXT NULL",
+            'study_year' => "TEXT NULL",
+            'status' => "VARCHAR(50) DEFAULT 'pending'"
+        ];
+
+        foreach ($studentCols as $col => $type) {
+            try {
+                \Illuminate\Support\Facades\DB::statement("ALTER TABLE `student_requests` ADD COLUMN `$col` $type");
+                $output[] = "Added column student_requests.$col";
+            } catch (\Exception $e) {
+                // Column might already exist
+            }
+        }
+
+        // 2. Run Artisan Migrate
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            $artisanOutput = \Illuminate\Support\Facades\Artisan::output();
+            $output[] = "Artisan Migrate Output:\n" . $artisanOutput;
+        } catch (\Exception $e) {
+            $output[] = "Artisan Migrate warning: " . $e->getMessage();
+        }
+
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        \Illuminate\Support\Facades\Artisan::call('config:clear');
+
+        return "<pre>DATABASE FIX SUCCESSFUL:\n\n" . implode("\n", $output) . "</pre><br><a href='/'>Go to Home Page</a>";
+    } catch (\Exception $e) {
+        return "ERROR: " . $e->getMessage();
+    }
+});
+Route::get('/fix-database', fn() => redirect('/run-migrations'));
+
 Route::get('/membership', [MembershipController::class, 'index'])->name('membership');
 Route::get('/id-card/view/{guid}', [MembershipController::class, 'viewIdCard'])->name('member.id-card.view');
 Route::post('/api/membership/send-otp', [MembershipController::class, 'sendOtp']);

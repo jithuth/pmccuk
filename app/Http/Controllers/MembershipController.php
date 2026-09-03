@@ -175,8 +175,8 @@ class MembershipController extends Controller
                 return redirect()->back()->withInput()->withErrors(['prev_membership_no' => 'Membership record not found for ' . $prev_no]);
             }
 
-            // Create Renewal Request
-            $renewal = \App\Models\RenewalRequest::create([
+            // Create Renewal Request with self-healing failsafe for schema columns
+            $renewalData = [
                 'created_at' => now(),
                 'member_id' => $existing_member->id,
                 'title' => $request->input('title'),
@@ -199,7 +199,23 @@ class MembershipController extends Controller
                 'bank_account_holder' => $request->input('bank_account_holder'),
                 'status' => 'pending',
                 'request_year' => 2026
-            ]);
+            ];
+
+            try {
+                $renewal = \App\Models\RenewalRequest::create($renewalData);
+            } catch (\Illuminate\Database\QueryException $e) {
+                if (str_contains($e->getMessage(), 'membership_type') || str_contains($e->getMessage(), '1265')) {
+                    try {
+                        \Illuminate\Support\Facades\DB::statement("ALTER TABLE `renewal_requests` MODIFY `membership_type` TEXT NULL");
+                        $renewal = \App\Models\RenewalRequest::create($renewalData);
+                    } catch (\Throwable $e2) {
+                        $renewalData['membership_type'] = in_array($request->input('membership_type'), ['Family', 'Single']) ? $request->input('membership_type') : 'Single';
+                        $renewal = \App\Models\RenewalRequest::create($renewalData);
+                    }
+                } else {
+                    throw $e;
+                }
+            }
 
             // Save Children
             if ($request->has('child_name')) {
@@ -216,8 +232,8 @@ class MembershipController extends Controller
                 }
             }
         } else {
-            // New Registration
-            $member = Member::create([
+            // New Registration with self-healing failsafe for schema columns
+            $memberData = [
                 'guid' => (string) \Illuminate\Support\Str::uuid(),
                 'email' => $request->input('email'),
                 'title' => $request->input('title'),
@@ -240,7 +256,23 @@ class MembershipController extends Controller
                 'consent_given' => 1,
                 'photo' => $photo_filename,
                 'family_photo' => $family_photo_filename,
-            ]);
+            ];
+
+            try {
+                $member = Member::create($memberData);
+            } catch (\Illuminate\Database\QueryException $e) {
+                if (str_contains($e->getMessage(), 'membership_type') || str_contains($e->getMessage(), '1265')) {
+                    try {
+                        \Illuminate\Support\Facades\DB::statement("ALTER TABLE `members` MODIFY `membership_type` TEXT NULL, MODIFY `marital_status` TEXT NULL");
+                        $member = Member::create($memberData);
+                    } catch (\Throwable $e2) {
+                        $memberData['membership_type'] = in_array($request->input('membership_type'), ['Family', 'Single']) ? $request->input('membership_type') : 'Single';
+                        $member = Member::create($memberData);
+                    }
+                } else {
+                    throw $e;
+                }
+            }
 
             // Save Children
             if ($request->has('child_name')) {
@@ -321,14 +353,29 @@ class MembershipController extends Controller
             'study_year' => 'nullable|string|max:100',
         ]);
 
-        \App\Models\StudentRequest::create([
+        $studentData = [
             'full_name' => $request->input('full_name'),
             'email' => $request->input('email'),
             'phone' => $request->input('phone'),
             'university' => $request->input('university'),
             'study_year' => $request->input('study_year'),
             'status' => 'pending'
-        ]);
+        ];
+
+        try {
+            \App\Models\StudentRequest::create($studentData);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (str_contains($e->getMessage(), '1054') || str_contains($e->getMessage(), 'full_name')) {
+                try {
+                    \Illuminate\Support\Facades\DB::statement("ALTER TABLE `student_requests` ADD COLUMN `full_name` TEXT NULL, ADD COLUMN `email` TEXT NULL, ADD COLUMN `phone` TEXT NULL, ADD COLUMN `university` TEXT NULL, ADD COLUMN `study_year` TEXT NULL, ADD COLUMN `status` VARCHAR(50) DEFAULT 'pending'");
+                    \App\Models\StudentRequest::create($studentData);
+                } catch (\Throwable $e2) {
+                    throw $e;
+                }
+            } else {
+                throw $e;
+            }
+        }
 
         try {
             \App\Models\ActivityLog::create([

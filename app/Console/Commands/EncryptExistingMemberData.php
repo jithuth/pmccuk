@@ -40,7 +40,7 @@ class EncryptExistingMemberData extends Command
             'news' => ['title', 'content'],
             'activity_logs' => ['action', 'details'],
             'messages' => ['name', 'email', 'subject', 'message'],
-            'student_requests' => ['parent_name', 'student_name', 'dob', 'school', 'grade'],
+            'student_requests' => ['full_name', 'email', 'phone', 'university', 'study_year'],
         ];
 
         foreach ($config as $table => $fields) {
