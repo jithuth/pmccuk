@@ -17,9 +17,11 @@ class EventBookingController extends Controller
             $query->where('event_id', $request->event_id);
         }
 
-        // Only export approved by default unless status specified
-        $status = $request->input('status', 'approved');
-        if ($status != 'all') {
+        // Filter status (default to pending & approved combined if not explicitly 'all')
+        $status = $request->input('status');
+        if ($status === 'pending_and_approved' || $status === 'pending_approved' || empty($status)) {
+            $query->whereIn('booking_status', ['pending', 'approved']);
+        } elseif ($status !== 'all') {
             $query->where('booking_status', $status);
         }
 
@@ -39,7 +41,11 @@ class EventBookingController extends Controller
         }
 
         if ($request->status) {
-            $query->where('booking_status', $request->status);
+            if ($request->status === 'pending_and_approved' || $request->status === 'pending_approved') {
+                $query->whereIn('booking_status', ['pending', 'approved']);
+            } else {
+                $query->where('booking_status', $request->status);
+            }
         }
 
         // Filter by check-in status

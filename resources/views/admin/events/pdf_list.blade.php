@@ -45,18 +45,27 @@
     <table>
         <thead>
             <tr>
-                <th width="5%">#</th>
-                <th width="35%">Attendee Name</th>
-                <th width="20%">Membership No</th>
-                <th width="25%">Contact Details</th>
-                <th width="15%">Breakdown</th>
+                <th width="4%">#</th>
+                <th width="25%">Attendee Name</th>
+                <th width="20%">Event Name</th>
+                <th width="15%">Membership No</th>
+                <th width="22%">Contact Details</th>
+                <th width="14%">Breakdown</th>
             </tr>
         </thead>
         <tbody>
             @foreach($bookings as $index => $b)
                 <tr>
                     <td>{{ $index + 1 }}</td>
-                    <td style="font-weight: bold;">{{ $b->full_name }}</td>
+                    <td style="font-weight: bold;">
+                        {{ $b->full_name }}
+                        @if($b->booking_status == 'pending')
+                            <br><span style="font-size: 8px; color: #b45309; background: #fef3c7; padding: 1px 4px; border-radius: 3px; font-weight: bold;">PENDING</span>
+                        @endif
+                    </td>
+                    <td style="font-weight: bold; color: #1a2845;">
+                        {{ $b->event->title ?? 'N/A' }}
+                    </td>
                     <td>
                         @if($b->membership_no && $b->membership_no != 'NON-MEMBER')
                             <span class="badge badge-member">{{ $b->membership_no }}</span>

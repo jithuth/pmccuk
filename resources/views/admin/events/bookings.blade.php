@@ -67,13 +67,11 @@
                         <div class="col-md-3">
                             <label class="form-label small fw-bold">Booking Status</label>
                             <select name="status" class="form-select form-select-sm">
-                                <option value="">All Statuses</option>
-                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending
-                                </option>
-                                <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved
-                                </option>
-                                <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected
-                                </option>
+                                <option value="pending_and_approved" {{ (request('status') == 'pending_and_approved' || !request()->has('status')) ? 'selected' : '' }}>Pending & Approved</option>
+                                <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Approved Only</option>
+                                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending Only</option>
+                                <option value="all" {{ request('status') == 'all' ? 'selected' : '' }}>All Statuses (inc. Rejected)</option>
+                                <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected Only</option>
                             </select>
                         </div>
                         <div class="col-md-3">
