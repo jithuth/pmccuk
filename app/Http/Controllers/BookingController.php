@@ -213,6 +213,7 @@ class BookingController extends Controller
         $adults = 0;
         $children = 0;
         $infants = 0;
+        $students = 0;
 
         foreach ($request->counts as $cat_id => $count) {
             $count = intval($count);
@@ -231,10 +232,18 @@ class BookingController extends Controller
 
                 // Legacy counting logic
                 $name_l = strtolower($cat_title);
-                if (strpos($name_l, 'adult') !== false) $adults += $count;
+                if (strpos($name_l, 'student') !== false) {
+                    $students += $count;
+                } elseif (strpos($name_l, 'adult') !== false) {
+                    $adults += $count;
+                }
                 if (strpos($name_l, 'child') !== false || strpos($name_l, 'kid') !== false) $children += $count;
                 if (strpos($name_l, 'infant') !== false) $infants += $count;
             }
+        }
+
+        if ($students == 0 && !empty($studentDocPath)) {
+            $students = 1;
         }
 
         if ($total_amount <= 0) {
@@ -250,6 +259,7 @@ class BookingController extends Controller
             'adult_count' => $adults,
             'child_count' => $children,
             'infant_count' => $infants,
+            'student_count' => $students,
             'attendee_breakdown' => $breakdown,
             'total_amount' => $total_amount,
             'student_doc_path' => $studentDocPath,

@@ -12,7 +12,7 @@ class EventBooking extends Model
 
     protected $fillable = [
         'event_id', 'membership_no', 'adult_count', 'child_count', 
-        'infant_count', 'attendee_breakdown', 'email', 'phone', 
+        'infant_count', 'student_count', 'attendee_breakdown', 'email', 'phone', 
         'full_name', 'booking_status', 'total_amount', 'student_doc_path',
         'qr_code_sent', 'qr_code_data', 'check_in_status', 'check_in_at', 'check_in_by'
     ];
@@ -31,6 +31,29 @@ class EventBooking extends Model
     public function checker()
     {
         return $this->belongsTo(Admin::class, 'check_in_by');
+    }
+
+    public function getStudentCountAttribute()
+    {
+        if (isset($this->attributes['student_count']) && !is_null($this->attributes['student_count']) && (int)$this->attributes['student_count'] > 0) {
+            return (int) $this->attributes['student_count'];
+        }
+
+        $count = 0;
+        if (is_array($this->attendee_breakdown)) {
+            foreach ($this->attendee_breakdown as $item) {
+                $cat = strtolower($item['category'] ?? '');
+                if (str_contains($cat, 'student')) {
+                    $count += intval($item['count'] ?? 0);
+                }
+            }
+        }
+
+        if ($count === 0 && !empty($this->student_doc_path)) {
+            $count = 1;
+        }
+
+        return $count;
     }
 
     public function getReferenceNoAttribute()

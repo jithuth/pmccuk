@@ -62,22 +62,28 @@
                     <hr>
                     <label class="d-block mb-3 font-weight-bold">Group Composition</label>
                     <div class="row">
-                        <div class="col-4">
+                        <div class="col-3">
                             <div class="form-group">
                                 <label class="small">Adults</label>
                                 <input type="number" name="adult_count" class="form-control" value="{{ $booking->adult_count }}" min="0">
                             </div>
                         </div>
-                        <div class="col-4">
+                        <div class="col-3">
                             <div class="form-group">
                                 <label class="small">Children</label>
                                 <input type="number" name="child_count" class="form-control" value="{{ $booking->child_count }}" min="0">
                             </div>
                         </div>
-                        <div class="col-4">
+                        <div class="col-3">
                             <div class="form-group">
                                 <label class="small">Infants</label>
                                 <input type="number" name="infant_count" class="form-control" value="{{ $booking->infant_count }}" min="0">
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="form-group">
+                                <label class="small">Students</label>
+                                <input type="number" name="student_count" class="form-control" value="{{ $booking->student_count }}" min="0">
                             </div>
                         </div>
                     </div>

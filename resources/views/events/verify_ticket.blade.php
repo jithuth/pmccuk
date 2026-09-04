@@ -7,7 +7,7 @@
     <div class="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl overflow-hidden">
         @php
             $isValid = in_array($booking->booking_status, ['confirmed', 'approved']);
-            $totalGuests = ($booking->adult_count ?? 0) + ($booking->child_count ?? 0) + ($booking->infant_count ?? 0);
+            $totalGuests = ($booking->adult_count ?? 0) + ($booking->child_count ?? 0) + ($booking->infant_count ?? 0) + ($booking->student_count ?? 0);
             $alreadyScanned = $alreadyScanned ?? false;
         @endphp
 
@@ -71,7 +71,7 @@
                         {{ $totalGuests }}
                         <span class="text-xs font-bold text-slate-400">{{ Str::plural('Person', $totalGuests) }}</span>
                     </p>
-                    <p class="text-[10px] text-slate-400 mt-1">{{ $booking->adult_count }}A · {{ $booking->child_count }}C · {{ $booking->infant_count }}I</p>
+                    <p class="text-[10px] text-slate-400 mt-1">{{ $booking->adult_count }}A · {{ $booking->child_count }}C · {{ $booking->infant_count }}I · {{ $booking->student_count }}S</p>
                 </div>
             </div>
 

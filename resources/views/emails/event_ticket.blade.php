@@ -38,7 +38,7 @@
                     </tr>
                     <tr>
                         <td style="font-weight: bold; padding-top: 5px;">{{ $booking->full_name }}</td>
-                        <td style="font-weight: bold; padding-top: 5px; text-align: right;">{{ $booking->adult_count + $booking->child_count + $booking->infant_count }} Total</td>
+                        <td style="font-weight: bold; padding-top: 5px; text-align: right;">{{ $booking->adult_count + $booking->child_count + $booking->infant_count + $booking->student_count }} Total</td>
                     </tr>
                 </table>
             </div>

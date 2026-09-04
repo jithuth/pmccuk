@@ -270,9 +270,9 @@ class TelegramWebhookController extends Controller
                     ->get();
 
                 $totalApproved = $approvedBookings->count();
-                $totalHeads = $approvedBookings->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count);
+                $totalHeads = $approvedBookings->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count + $b->student_count);
                 $checkedInCount = $approvedBookings->whereNotNull('check_in_at')->count();
-                $checkedInHeads = $approvedBookings->whereNotNull('check_in_at')->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count);
+                $checkedInHeads = $approvedBookings->whereNotNull('check_in_at')->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count + $b->student_count);
                 $remainingCount = $totalApproved - $checkedInCount;
 
                 $rate = $totalApproved > 0 ? round(($checkedInCount / $totalApproved) * 100, 1) : 0;
@@ -518,14 +518,14 @@ class TelegramWebhookController extends Controller
 
         TelegramService::answerCallbackQuery($callbackId, "Confirmation required.");
 
-        $totalTickets = $booking->adult_count + $booking->child_count + $booking->infant_count;
+        $totalTickets = $booking->adult_count + $booking->child_count + $booking->infant_count + $booking->student_count;
         $confirmText = "⚠️ <b>CONFIRM BOOKING APPROVAL</b>\n\n" .
             "Are you sure you want to approve this event ticket booking?\n\n" .
             "📅 <b>Event:</b> " . htmlspecialchars($booking->event->title ?? 'PMCC Event') . "\n" .
             "👤 <b>Booked By:</b> " . htmlspecialchars($booking->full_name) . "\n" .
             "📧 <b>Email:</b> " . htmlspecialchars($booking->email) . "\n" .
             "📱 <b>Phone:</b> " . htmlspecialchars($booking->phone) . "\n" .
-            "🎫 <b>Tickets:</b> {$totalTickets} ({$booking->adult_count} Adult, {$booking->child_count} Child, {$booking->infant_count} Infant)\n" .
+            "🎫 <b>Tickets:</b> {$totalTickets} (A:{$booking->adult_count}, C:{$booking->child_count}, I:{$booking->infant_count}, S:{$booking->student_count})\n" .
             "💰 <b>Total Amount:</b> £" . number_format($booking->total_amount, 2);
 
         $keyboard = [
@@ -648,13 +648,13 @@ class TelegramWebhookController extends Controller
 
         TelegramService::answerCallbackQuery($callbackId, "Approval action cancelled.");
 
-        $totalTickets = $booking->adult_count + $booking->child_count + $booking->infant_count;
+        $totalTickets = $booking->adult_count + $booking->child_count + $booking->infant_count + $booking->student_count;
         $originalText = "🎟️ <b>New Event Ticket Booking</b>\n\n" .
             "📅 <b>Event:</b> " . htmlspecialchars($booking->event->title ?? 'PMCC Event') . "\n" .
             "👤 <b>Booked By:</b> " . htmlspecialchars($booking->full_name) . "\n" .
             "📧 <b>Email:</b> " . htmlspecialchars($booking->email) . "\n" .
             "📱 <b>Phone:</b> " . htmlspecialchars($booking->phone) . "\n" .
-            "🎫 <b>Tickets:</b> {$totalTickets} ({$booking->adult_count} Adult, {$booking->child_count} Child, {$booking->infant_count} Infant)\n" .
+            "🎫 <b>Tickets:</b> {$totalTickets} (A:{$booking->adult_count}, C:{$booking->child_count}, I:{$booking->infant_count}, S:{$booking->student_count})\n" .
             "💰 <b>Total Paid:</b> £" . number_format($booking->total_amount, 2);
 
         $keyboard = [

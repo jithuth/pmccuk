@@ -153,8 +153,7 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <small class="fw-bold text-dark">A: {{ $booking->adult_count }} | C:
-                                                {{ $booking->child_count }} | I: {{ $booking->infant_count }}</small>
+                                            <small class="fw-bold text-dark">A: {{ $booking->adult_count }} | C: {{ $booking->child_count }} | I: {{ $booking->infant_count }} | S: {{ $booking->student_count }}</small>
                                         </td>
                                         <td><span
                                                 class="fw-bold text-primary">£{{ number_format($booking->total_amount, 2) }}</span>

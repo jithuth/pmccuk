@@ -119,7 +119,7 @@ class EventBookingController extends Controller
     public function update(Request $request, $id)
     {
         $booking = EventBooking::findOrFail($id);
-        $booking->update($request->only(['full_name', 'email', 'phone', 'adult_count', 'child_count', 'infant_count']));
+        $booking->update($request->only(['full_name', 'email', 'phone', 'adult_count', 'child_count', 'infant_count', 'student_count']));
 
         return redirect()->route('admin.events.bookings')->with('success', 'Booking details updated successfully.');
     }
@@ -147,7 +147,8 @@ class EventBookingController extends Controller
                 'adults' => $bookings->where('booking_status', 'approved')->sum('adult_count'),
                 'children' => $bookings->where('booking_status', 'approved')->sum('child_count'),
                 'infants' => $bookings->where('booking_status', 'approved')->sum('infant_count'),
-                'total_heads' => $bookings->where('booking_status', 'approved')->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count)
+                'students' => $bookings->where('booking_status', 'approved')->sum(fn($b) => $b->student_count),
+                'total_heads' => $bookings->where('booking_status', 'approved')->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count + $b->student_count)
             ];
         }
 

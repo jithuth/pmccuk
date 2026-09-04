@@ -54,7 +54,7 @@
 <body>
     @php
         $refNo = $booking->reference_no ?: ("BOOK-" . ($booking->membership_no != 'NON-MEMBER' ? $booking->membership_no : 'NM') . "-" . $booking->id);
-        $totalTickets = $booking->adult_count + $booking->child_count + $booking->infant_count;
+        $totalTickets = $booking->adult_count + $booking->child_count + $booking->infant_count + $booking->student_count;
         $eventTitle = $booking->event ? $booking->event->title : 'PMCC Event';
         $eventDate = $booking->event ? \Carbon\Carbon::parse($booking->event->event_date)->format('l, F j, Y') : 'N/A';
         $eventLocation = $booking->event ? $booking->event->location : 'Plymouth, UK';
@@ -111,7 +111,7 @@
                     </td>
                     <td style="padding: 6px 0; text-align: right;">
                         <div class="label">Ticket Breakdown</div>
-                        <div class="val">{{ $booking->adult_count }} Adult, {{ $booking->child_count }} Child, {{ $booking->infant_count }} Infant</div>
+                        <div class="val">A:{{ $booking->adult_count }}, C:{{ $booking->child_count }}, I:{{ $booking->infant_count }}@if($booking->student_count > 0), S:{{ $booking->student_count }}@endif</div>
                     </td>
                 </tr>
             </table>

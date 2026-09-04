@@ -10,7 +10,7 @@
         
         .stats-box { background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0; }
         .stats-grid { width: 100%; }
-        .stats-grid td { width: 25%; font-weight: bold; }
+        .stats-grid td { width: 20%; font-weight: bold; font-size: 11px; }
         .stats-grid span { font-weight: normal; color: #64748b; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -34,10 +34,11 @@
     <div class="stats-box">
         <table class="stats-grid">
             <tr>
-                <td>Total Bookings: <span>{{ $bookings->count() }}</span></td>
+                <td>Bookings: <span>{{ $bookings->count() }}</span></td>
                 <td>Adults: <span>{{ $bookings->sum('adult_count') }}</span></td>
                 <td>Children: <span>{{ $bookings->sum('child_count') }}</span></td>
                 <td>Infants: <span>{{ $bookings->sum('infant_count') }}</span></td>
+                <td>Students: <span>{{ $bookings->sum(fn($b) => $b->student_count) }}</span></td>
             </tr>
         </table>
     </div>
@@ -46,11 +47,11 @@
         <thead>
             <tr>
                 <th width="4%">#</th>
-                <th width="25%">Attendee Name</th>
-                <th width="20%">Event Name</th>
+                <th width="24%">Attendee Name</th>
+                <th width="19%">Event Name</th>
                 <th width="15%">Membership No</th>
-                <th width="22%">Contact Details</th>
-                <th width="14%">Breakdown</th>
+                <th width="20%">Contact Details</th>
+                <th width="18%">Breakdown</th>
             </tr>
         </thead>
         <tbody>
@@ -78,7 +79,7 @@
                         <div style="font-size: 10px; color: #666;">{{ $b->phone }}</div>
                     </td>
                     <td>
-                        <span style="font-size: 11px;">A:{{ $b->adult_count }} | C:{{ $b->child_count }} | I:{{ $b->infant_count }}</span>
+                        <span style="font-size: 10px; font-weight: bold;">A:{{ $b->adult_count }} | C:{{ $b->child_count }} | I:{{ $b->infant_count }} | S:{{ $b->student_count }}</span>
                     </td>
                 </tr>
             @endforeach
