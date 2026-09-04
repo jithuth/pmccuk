@@ -9,9 +9,9 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class EventBookingController extends Controller
 {
-    public function exportPdf(Request $request)
+    private function buildQuery(Request $request)
     {
-        $query = EventBooking::with(['event', 'checker'])->orderBy('full_name', 'asc');
+        $query = EventBooking::with(['event', 'checker']);
 
         if ($request->event_id) {
             $query->where('event_id', $request->event_id);
@@ -25,29 +25,6 @@ class EventBookingController extends Controller
             $query->where('booking_status', $status);
         }
 
-        $bookings = $query->get();
-        $event = $request->event_id ? Event::find($request->event_id) : null;
-
-        $pdf = Pdf::loadView('admin.events.pdf_list', compact('bookings', 'event'));
-        return $pdf->download('Attendee_List_' . ($event ? str_replace(' ', '_', $event->title) : 'All_Events') . '_' . date('Y-m-d') . '.pdf');
-    }
-
-    public function index(Request $request)
-    {
-        $query = EventBooking::with(['event', 'checker'])->orderBy('id', 'desc');
-
-        if ($request->event_id) {
-            $query->where('event_id', $request->event_id);
-        }
-
-        if ($request->status) {
-            if ($request->status === 'pending_and_approved' || $request->status === 'pending_approved') {
-                $query->whereIn('booking_status', ['pending', 'approved']);
-            } else {
-                $query->where('booking_status', $request->status);
-            }
-        }
-
         // Filter by check-in status
         if ($request->check_in === 'checked_in') {
             $query->whereNotNull('check_in_at');
@@ -55,10 +32,102 @@ class EventBookingController extends Controller
             $query->whereNull('check_in_at');
         }
 
-        $bookings = $query->paginate(20);
+        // Filter by ticket type
+        if ($request->ticket_type === 'student') {
+            $query->where(function($q) {
+                $q->where('student_count', '>', 0)
+                  ->orWhereNotNull('student_doc_path');
+            });
+        } elseif ($request->ticket_type === 'adult') {
+            $query->where('adult_count', '>', 0);
+        } elseif ($request->ticket_type === 'child') {
+            $query->where('child_count', '>', 0);
+        } elseif ($request->ticket_type === 'infant') {
+            $query->where('infant_count', '>', 0);
+        }
+
+        return $query;
+    }
+
+    public function exportPdf(Request $request)
+    {
+        $bookings = $this->buildQuery($request)->orderBy('full_name', 'asc')->get();
+        $event = $request->event_id ? Event::find($request->event_id) : null;
+
+        $pdf = Pdf::loadView('admin.events.pdf_list', compact('bookings', 'event'));
+        return $pdf->download('Attendee_List_' . ($event ? preg_replace('/[^A-Za-z0-9_\-]/', '_', $event->title) : 'All_Events') . '_' . date('Y-m-d') . '.pdf');
+    }
+
+    public function exportCsv(Request $request)
+    {
+        $bookings = $this->buildQuery($request)->orderBy('full_name', 'asc')->get();
+        $event = $request->event_id ? Event::find($request->event_id) : null;
+        $fileName = 'Attendee_List_' . ($event ? preg_replace('/[^A-Za-z0-9_\-]/', '_', $event->title) : 'All_Events') . '_' . date('Y-m-d') . '.csv';
+
+        $headers = [
+            "Content-type" => "text/csv; charset=UTF-8",
+            "Content-Disposition" => "attachment; filename={$fileName}",
+            "Pragma" => "no-cache",
+            "Cache-Control" => "must-revalidate, post-check=0, pre-check=0",
+            "Expires" => "0"
+        ];
+
+        $callback = function() use ($bookings) {
+            $file = fopen('php://output', 'w');
+            fputs($file, "\xEF\xBB\xBF"); // UTF-8 BOM
+            fputcsv($file, [
+                'Booking ID', 'Event Name', 'Event Date', 'Attendee Full Name', 
+                'Email', 'Phone', 'Membership No', 'Booking Status', 
+                'Adults (A)', 'Children (C)', 'Infants (I)', 'Students (S)', 
+                'Total Heads', 'Total Amount (£)', 'Check-In Status', 'Check-In Time'
+            ]);
+
+            foreach ($bookings as $b) {
+                fputcsv($file, [
+                    '#' . $b->id,
+                    $b->event->title ?? 'N/A',
+                    $b->event->event_date ?? 'N/A',
+                    $b->full_name,
+                    $b->email,
+                    $b->phone,
+                    $b->membership_no ?: 'NON-MEMBER',
+                    ucfirst($b->booking_status),
+                    $b->adult_count,
+                    $b->child_count,
+                    $b->infant_count,
+                    $b->student_count,
+                    ($b->adult_count + $b->child_count + $b->infant_count + $b->student_count),
+                    number_format($b->total_amount, 2),
+                    $b->check_in_at ? 'Checked In' : 'Not Checked In',
+                    $b->check_in_at ? \Carbon\Carbon::parse($b->check_in_at)->format('Y-m-d H:i:s') : 'N/A'
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    public function index(Request $request)
+    {
+        $allMatchingBookings = $this->buildQuery($request)->get();
+        
+        $summary = [
+            'total_bookings' => $allMatchingBookings->count(),
+            'total_heads' => $allMatchingBookings->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count + $b->student_count),
+            'adults' => $allMatchingBookings->sum('adult_count'),
+            'children' => $allMatchingBookings->sum('child_count'),
+            'infants' => $allMatchingBookings->sum('infant_count'),
+            'students' => $allMatchingBookings->sum(fn($b) => $b->student_count),
+            'checked_in_heads' => $allMatchingBookings->whereNotNull('check_in_at')->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count + $b->student_count),
+            'pending_heads' => $allMatchingBookings->whereNull('check_in_at')->sum(fn($b) => $b->adult_count + $b->child_count + $b->infant_count + $b->student_count),
+        ];
+
+        $bookings = $this->buildQuery($request)->orderBy('id', 'desc')->paginate(20)->withQueryString();
         $events = Event::orderBy('event_date', 'desc')->get();
 
-        return view('admin.events.bookings', compact('bookings', 'events'));
+        return view('admin.events.bookings', compact('bookings', 'events', 'summary'));
     }
 
     public function updateStatus($id, $status)

@@ -403,6 +403,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::delete('/{id}', [DashboardController::class, 'deleteEvent'])->name('delete');
                 Route::get('/bookings', [EventBookingController::class, 'index'])->name('bookings');
                 Route::get('/bookings/export', [EventBookingController::class, 'exportPdf'])->name('bookings.export');
+                Route::get('/bookings/export-csv', [EventBookingController::class, 'exportCsv'])->name('bookings.export_csv');
                 Route::get('/bookings/stats', [EventBookingController::class, 'stats'])->name('bookings.stats');
                 Route::get('/bookings/{id}/status/{status}', [EventBookingController::class, 'updateStatus'])->name('bookings.status');
                 Route::get('/bookings/{id}/resend', [EventBookingController::class, 'resendTicket'])->name('bookings.resend');

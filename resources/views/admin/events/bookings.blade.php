@@ -46,6 +46,54 @@
                 </div>
             </div>
 
+            {{-- Catering & Headcount Breakdown Analytics --}}
+            <div class="card card-outline card-info mb-4 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h3 class="card-title text-info fw-bold mb-0"><i class="fas fa-utensils me-2"></i> Headcount & Catering Analytics</h3>
+                    <span class="badge bg-info text-white font-weight-bold">Active Filter Summary</span>
+                </div>
+                <div class="card-body py-3">
+                    <div class="row text-center g-2">
+                        <div class="col-md-2 col-4">
+                            <div class="p-2 border rounded bg-light">
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Total Heads</small>
+                                <span class="h5 mb-0 fw-bold text-dark">{{ $summary['total_heads'] ?? 0 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <div class="p-2 border rounded bg-light border-dark">
+                                <small class="text-uppercase text-muted d-block fw-bold" style="font-size: 10px;">Adults (A)</small>
+                                <span class="h5 mb-0 fw-bold text-dark">{{ $summary['adults'] ?? 0 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <div class="p-2 border rounded bg-light border-primary">
+                                <small class="text-uppercase text-primary d-block fw-bold" style="font-size: 10px;">Children (C)</small>
+                                <span class="h5 mb-0 fw-bold text-primary">{{ $summary['children'] ?? 0 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <div class="p-2 border rounded bg-warning bg-opacity-10 border-warning">
+                                <small class="text-uppercase text-warning d-block fw-bold" style="font-size: 10px;">Students (S)</small>
+                                <span class="h5 mb-0 fw-bold text-dark">{{ $summary['students'] ?? 0 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <div class="p-2 border rounded bg-light border-info">
+                                <small class="text-uppercase text-info d-block fw-bold" style="font-size: 10px;">Infants (I)</small>
+                                <span class="h5 mb-0 fw-bold text-info">{{ $summary['infants'] ?? 0 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2 col-4">
+                            <div class="p-2 border rounded bg-success bg-opacity-10 border-success">
+                                <small class="text-uppercase text-success d-block fw-bold" style="font-size: 10px;">Scanned Entry</small>
+                                <span class="h5 mb-0 fw-bold text-success">{{ $summary['checked_in_heads'] ?? 0 }} / {{ $summary['total_heads'] ?? 0 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Filter Card -->
             <div class="card card-outline card-primary mb-4 shadow-sm">
                 <div class="card-header">
@@ -64,7 +112,7 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold">Booking Status</label>
                             <select name="status" class="form-select form-select-sm">
                                 <option value="pending_and_approved" {{ (request('status') == 'pending_and_approved' || !request()->has('status')) ? 'selected' : '' }}>Pending & Approved</option>
@@ -74,7 +122,7 @@
                                 <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected Only</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label small fw-bold">Check-In</label>
                             <select name="check_in" class="form-select form-select-sm">
                                 <option value="">All</option>
@@ -82,6 +130,16 @@
                                     Attended</option>
                                 <option value="not_checked" {{ request('check_in') == 'not_checked' ? 'selected' : '' }}>Not
                                     Arrived</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-bold">Ticket Category</label>
+                            <select name="ticket_type" class="form-select form-select-sm">
+                                <option value="">All Ticket Types</option>
+                                <option value="student" {{ request('ticket_type') == 'student' ? 'selected' : '' }}>🎓 Student Pass Only</option>
+                                <option value="adult" {{ request('ticket_type') == 'adult' ? 'selected' : '' }}>Adult Tickets</option>
+                                <option value="child" {{ request('ticket_type') == 'child' ? 'selected' : '' }}>Child Tickets</option>
+                                <option value="infant" {{ request('ticket_type') == 'infant' ? 'selected' : '' }}>Infant Tickets</option>
                             </select>
                         </div>
                         <div class="col-md-3 align-self-end">
@@ -99,10 +157,14 @@
             <div class="card shadow-sm">
                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                     <h3 class="card-title text-dark fw-bold">Attendance Listing</h3>
-                    <div class="card-tools">
+                    <div class="card-tools d-flex gap-2">
+                        <a href="{{ route('admin.events.bookings.export_csv', request()->query()) }}"
+                            class="btn btn-sm btn-outline-success px-3 rounded-pill fw-bold shadow-sm">
+                            <i class="fas fa-file-csv me-1"></i> EXPORT CSV
+                        </a>
                         <a href="{{ route('admin.events.bookings.export', request()->query()) }}"
                             class="btn btn-sm btn-success px-3 rounded-pill fw-bold shadow-sm">
-                            <i class="fas fa-file-pdf me-1"></i> EXPORT ATTENDEE LIST (PDF)
+                            <i class="fas fa-file-pdf me-1"></i> EXPORT PDF
                         </a>
                     </div>
                 </div>
@@ -153,7 +215,24 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <small class="fw-bold text-dark">A: {{ $booking->adult_count }} | C: {{ $booking->child_count }} | I: {{ $booking->infant_count }} | S: {{ $booking->student_count }}</small>
+                                            <div class="d-flex flex-wrap gap-1 align-items-center">
+                                                <span class="badge bg-dark" title="Adults">A: {{ $booking->adult_count }}</span>
+                                                @if($booking->child_count > 0)
+                                                    <span class="badge bg-primary" title="Children">C: {{ $booking->child_count }}</span>
+                                                @else
+                                                    <span class="badge bg-light text-muted border">C: 0</span>
+                                                @endif
+                                                @if($booking->student_count > 0)
+                                                    <span class="badge bg-warning text-dark fw-bold" title="Students"><i class="fas fa-graduation-cap me-1"></i>S: {{ $booking->student_count }}</span>
+                                                @else
+                                                    <span class="badge bg-light text-muted border">S: 0</span>
+                                                @endif
+                                                @if($booking->infant_count > 0)
+                                                    <span class="badge bg-info text-white" title="Infants">I: {{ $booking->infant_count }}</span>
+                                                @else
+                                                    <span class="badge bg-light text-muted border">I: 0</span>
+                                                @endif
+                                            </div>
                                         </td>
                                         <td><span
                                                 class="fw-bold text-primary">£{{ number_format($booking->total_amount, 2) }}</span>

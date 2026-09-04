@@ -41,6 +41,9 @@
                 <td>Students: <span>{{ $bookings->sum(fn($b) => $b->student_count) }}</span></td>
             </tr>
         </table>
+        <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed #cbd5e1; font-size: 9px; color: #64748b; text-align: center;">
+            <strong>Legend:</strong> <b>A</b> = Adult &nbsp;|&nbsp; <b>C</b> = Child &nbsp;|&nbsp; <b>I</b> = Infant &nbsp;|&nbsp; <b>S</b> = Student
+        </div>
     </div>
 
     <table>
