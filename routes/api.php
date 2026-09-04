@@ -9,7 +9,13 @@ use App\Http\Controllers\Api\MemberApiController;
 |--------------------------------------------------------------------------
 */
 
+// Top-level health check endpoint
+Route::get('/health', [MemberApiController::class, 'health']);
+
 Route::prefix('v1')->group(function () {
+    // System Health & Diagnostics
+    Route::get('/health', [MemberApiController::class, 'health']);
+
     // Auth
     Route::post('/auth/login', [MemberApiController::class, 'login']);
 

@@ -15,6 +15,72 @@ use Illuminate\Support\Facades\Str;
 class MemberApiController extends Controller
 {
     /**
+     * API Health Check Endpoint
+     */
+    public function health(Request $request)
+    {
+        $startTime = microtime(true);
+        $dbStatus = 'up';
+        $dbLatency = 0;
+
+        try {
+            $dbStart = microtime(true);
+            \Illuminate\Support\Facades\DB::select('SELECT 1');
+            $dbLatency = round((microtime(true) - $dbStart) * 1000, 2);
+        } catch (\Exception $e) {
+            $dbStatus = 'down: ' . $e->getMessage();
+        }
+
+        $storageStatus = 'up';
+        try {
+            $storageWritable = is_writable(storage_path('framework/cache'));
+            if (!$storageWritable) {
+                $storageStatus = 'read-only';
+            }
+        } catch (\Exception $e) {
+            $storageStatus = 'down: ' . $e->getMessage();
+        }
+
+        $cacheStatus = 'up';
+        try {
+            \Illuminate\Support\Facades\Cache::put('health_check', 'ok', 10);
+            if (\Illuminate\Support\Facades\Cache::get('health_check') !== 'ok') {
+                $cacheStatus = 'degraded';
+            }
+        } catch (\Exception $e) {
+            $cacheStatus = 'down: ' . $e->getMessage();
+        }
+
+        $totalLatency = round((microtime(true) - $startTime) * 1000, 2);
+        $isHealthy = str_starts_with($dbStatus, 'up') && str_starts_with($storageStatus, 'up');
+
+        return response()->json([
+            'status' => $isHealthy ? 'healthy' : 'unhealthy',
+            'timestamp' => now()->toIso8601String(),
+            'environment' => config('app.env'),
+            'response_time_ms' => $totalLatency,
+            'checks' => [
+                'database' => [
+                    'status' => $dbStatus,
+                    'connection' => config('database.default'),
+                    'latency_ms' => $dbLatency
+                ],
+                'storage' => [
+                    'status' => $storageStatus,
+                ],
+                'cache' => [
+                    'status' => $cacheStatus,
+                ]
+            ],
+            'app' => [
+                'name' => config('app.name', 'PMCC-UK'),
+                'laravel_version' => app()->version(),
+                'php_version' => PHP_VERSION,
+            ]
+        ], $isHealthy ? 200 : 500);
+    }
+
+    /**
      * Authenticate Member via Member ID / Email / Phone and Password / DOB
      */
     public function login(Request $request)
