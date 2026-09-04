@@ -13,6 +13,23 @@ class EventBookingController extends Controller
     {
         $query = EventBooking::with(['event', 'checker']);
 
+        // Random search filter (full_name, email, phone, membership_no, or booking ID)
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $cleanId = ltrim(preg_replace('/[^0-9]/', '', $search), '0');
+
+            $query->where(function($q) use ($search, $cleanId) {
+                $q->where('full_name', 'LIKE', "%{$search}%")
+                  ->orWhere('email', 'LIKE', "%{$search}%")
+                  ->orWhere('phone', 'LIKE', "%{$search}%")
+                  ->orWhere('membership_no', 'LIKE', "%{$search}%");
+
+                if (!empty($cleanId) && is_numeric($cleanId)) {
+                    $q->orWhere('id', (int) $cleanId);
+                }
+            });
+        }
+
         if ($request->event_id) {
             $query->where('event_id', $request->event_id);
         }

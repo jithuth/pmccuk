@@ -96,11 +96,27 @@
 
             <!-- Filter Card -->
             <div class="card card-outline card-primary mb-4 shadow-sm">
-                <div class="card-header">
-                    <h3 class="card-title text-primary fw-bold"><i class="fas fa-filter mr-2"></i> Filter Attendance</h3>
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h3 class="card-title text-primary fw-bold mb-0"><i class="fas fa-search me-1"></i> Search & Filter Attendance</h3>
+                    @if(request('search') || request('event_id') || (request('status') && request('status') !== 'pending_and_approved') || request('check_in') || request('ticket_type'))
+                        <span class="badge bg-warning text-dark font-weight-bold"><i class="fas fa-filter me-1"></i> Active Filters</span>
+                    @endif
                 </div>
                 <div class="card-body">
                     <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label small fw-bold text-dark"><i class="fas fa-user-search text-primary me-1"></i> Search Attendee</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="search" id="attendee-search-input" class="form-control form-control-sm"
+                                       placeholder="Name, email, phone, membership #, ID..."
+                                       value="{{ request('search') }}">
+                                @if(request('search'))
+                                    <a href="{{ request()->fullUrlWithQuery(['search' => null]) }}" class="btn btn-outline-secondary btn-sm" title="Clear Search">
+                                        <i class="fas fa-times"></i>
+                                    </a>
+                                @endif
+                            </div>
+                        </div>
                         <div class="col-md-3">
                             <label class="form-label small fw-bold">Event</label>
                             <select name="event_id" class="form-select form-select-sm">
@@ -142,11 +158,14 @@
                                 <option value="infant" {{ request('ticket_type') == 'infant' ? 'selected' : '' }}>Infant Tickets</option>
                             </select>
                         </div>
-                        <div class="col-md-3 align-self-end">
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Apply Filters</button>
-                                <a href="{{ route('admin.events.bookings') }}"
-                                    class="btn btn-outline-secondary btn-sm">Clear</a>
+                        <div class="col-12 text-end pt-1">
+                            <div class="d-flex gap-2 justify-content-end">
+                                <button type="submit" class="btn btn-primary btn-sm px-4 font-weight-bold">
+                                    <i class="fas fa-search me-1"></i> Search & Apply Filters
+                                </button>
+                                <a href="{{ route('admin.events.bookings') }}" class="btn btn-outline-secondary btn-sm px-3">
+                                    <i class="fas fa-undo me-1"></i> Clear
+                                </a>
                             </div>
                         </div>
                     </form>
@@ -306,5 +325,22 @@
                 document.getElementById('delete-form-' + id).submit();
             }
         }
+
+        // Live client-side instant filter on keypress
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('attendee-search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const query = this.value.toLowerCase().trim();
+                    const tableRows = document.querySelectorAll('table tbody tr');
+
+                    tableRows.forEach(row => {
+                        if (row.cells.length <= 1) return;
+                        const text = row.innerText.toLowerCase();
+                        row.style.display = text.includes(query) ? '' : 'none';
+                    });
+                });
+            }
+        });
     </script>
 @endsection
