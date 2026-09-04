@@ -433,8 +433,15 @@
 
         const menuBtn = document.getElementById('mobile-menu-btn');
         const mobileMenu = document.getElementById('mobile-menu');
-        menuBtn?.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
+        menuBtn?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mobileMenu?.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (mobileMenu && !mobileMenu.classList.contains('hidden') && !mobileMenu.contains(e.target) && e.target !== menuBtn) {
+                mobileMenu.classList.add('hidden');
+            }
         });
 
         // Legal Policy Dropup Toggle

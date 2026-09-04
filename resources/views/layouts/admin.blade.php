@@ -25,9 +25,106 @@
             font-family: 'Inter', sans-serif;
         }
 
-        /* ── Sidebar ── */
+        /* ── Sidebar Base Styles ── */
         .main-sidebar,
-        .main-sidebar::before { background: #1a2845 !important; width: 260px !important; }
+        .main-sidebar::before {
+            background: #1a2845 !important;
+            transition: width 0.3s ease-in-out, margin-left 0.3s ease-in-out, left 0.3s ease-in-out !important;
+        }
+
+        /* ── Desktop Layout (>= 992px) ── */
+        @media (min-width: 992px) {
+            body:not(.sidebar-collapse) .main-sidebar,
+            body:not(.sidebar-collapse) .main-sidebar::before {
+                width: 260px !important;
+            }
+            body:not(.sidebar-collapse) .main-header,
+            body:not(.sidebar-collapse) .content-wrapper,
+            body:not(.sidebar-collapse) .main-footer {
+                margin-left: 260px !important;
+                transition: margin-left 0.3s ease-in-out;
+            }
+
+            body.sidebar-collapse .main-sidebar,
+            body.sidebar-collapse .main-sidebar::before {
+                width: 73px !important;
+            }
+            body.sidebar-collapse .main-header,
+            body.sidebar-collapse .content-wrapper,
+            body.sidebar-collapse .main-footer {
+                margin-left: 73px !important;
+                transition: margin-left 0.3s ease-in-out;
+            }
+
+            body.sidebar-collapse .brand-text,
+            body.sidebar-collapse .nav-sidebar .nav-link p,
+            body.sidebar-collapse .nav-sidebar .nav-header,
+            body.sidebar-collapse .nav-sidebar .right {
+                display: none !important;
+                opacity: 0;
+            }
+            body.sidebar-collapse .brand-link {
+                padding-left: 0.8rem !important;
+                padding-right: 0.8rem !important;
+                justify-content: center !important;
+            }
+            body.sidebar-collapse .brand-logo-icon {
+                margin-right: 0 !important;
+            }
+            body.sidebar-collapse .nav-sidebar .nav-link {
+                text-align: center !important;
+                padding: 9px 0 !important;
+                margin: 2px 8px !important;
+            }
+            body.sidebar-collapse .nav-sidebar .nav-link .nav-icon {
+                margin-right: 0 !important;
+                float: none !important;
+                width: 100% !important;
+            }
+            body.sidebar-collapse .nav-sidebar .nav-treeview {
+                display: none !important;
+            }
+        }
+
+        /* ── Mobile Layout (< 992px) ── */
+        @media (max-width: 991.98px) {
+            .main-sidebar,
+            .main-sidebar::before {
+                width: 260px !important;
+                position: fixed !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                left: -260px !important;
+                z-index: 1045 !important;
+            }
+            .main-header,
+            .content-wrapper,
+            .main-footer {
+                margin-left: 0 !important;
+            }
+
+            body.sidebar-open .main-sidebar,
+            body.sidebar-open .main-sidebar::before {
+                left: 0 !important;
+                box-shadow: 0 0 20px rgba(0,0,0,0.5) !important;
+            }
+
+            .admin-sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(15, 23, 42, 0.6);
+                backdrop-filter: blur(2px);
+                z-index: 1040;
+                display: none;
+                transition: opacity 0.3s ease-in-out;
+            }
+            body.sidebar-open .admin-sidebar-overlay {
+                display: block;
+            }
+        }
         .sidebar-dark-primary .brand-link { background: #111e35 !important; border-bottom: 1px solid rgba(255,255,255,0.07) !important; }
         .brand-text { font-weight: 900 !important; font-size: 13px !important; letter-spacing: 2px !important; color: #f59e0b !important; }
         .brand-logo-icon {
@@ -195,7 +292,7 @@
                     <li class="nav-header">Membership</li>
 
                     <li class="nav-item {{ Route::is('admin.members.*') ? 'menu-open' : '' }}">
-                        <a href="#" class="nav-link {{ Route::is('admin.members.*') ? 'active' : '' }}" data-bs-toggle="dropdown">
+                        <a href="#" class="nav-link {{ Route::is('admin.members.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-users ic-blue"></i>
                             <p>Membership Hub <i class="right fas fa-angle-left"></i></p>
                         </a>
@@ -340,6 +437,32 @@
             customClass: { popup: 'rounded' }
         });
     @endif
+    $(document).ready(function() {
+        if ($('.admin-sidebar-overlay').length === 0) {
+            $('body').append('<div class="admin-sidebar-overlay"></div>');
+        }
+
+        $(document).on('click', '[data-widget="pushmenu"]', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            if ($(window).width() < 992) {
+                $('body').toggleClass('sidebar-open');
+            } else {
+                $('body').toggleClass('sidebar-collapse');
+            }
+        });
+
+        $(document).on('click', '.admin-sidebar-overlay', function() {
+            $('body').removeClass('sidebar-open');
+        });
+
+        $(window).on('resize', function() {
+            if ($(window).width() >= 992) {
+                $('body').removeClass('sidebar-open');
+            }
+        });
+    });
 </script>
 
 @yield('scripts')
