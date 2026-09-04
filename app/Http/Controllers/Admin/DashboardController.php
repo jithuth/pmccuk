@@ -1502,7 +1502,7 @@ class DashboardController extends Controller
 
         $request->validate([
             'username' => 'required|max:60|unique:admins,username,' . $id,
-            'email' => 'nullable|email|max:120|unique:admins,email,' . $id,
+            'email' => 'nullable|email|max:120',
             'role' => 'required|in:admin,superadmin,staff',
         ]);
 

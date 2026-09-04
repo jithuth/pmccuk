@@ -57,14 +57,14 @@
                                     <td class="text-end pe-4">
                                         <div class="btn-group">
                                             {{-- Edit Trigger --}}
-                                            <button class="btn btn-sm btn-outline-primary" data-toggle="modal"
-                                                data-target="#editAdmin{{ $admin->id }}" title="Edit Details">
+                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                                data-bs-target="#editAdmin{{ $admin->id }}" title="Edit Details">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             
                                             {{-- Reset Password Trigger --}}
-                                            <button class="btn btn-sm btn-outline-info" data-toggle="modal"
-                                                data-target="#resetPass{{ $admin->id }}" title="Change Password">
+                                            <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
+                                                data-bs-target="#resetPass{{ $admin->id }}" title="Change Password">
                                                 <i class="fas fa-key"></i>
                                             </button>
 
@@ -89,8 +89,8 @@
                                                         <h5 class="modal-title font-weight-bold"><i
                                                                 class="fas fa-user-edit mr-2"></i>Edit Admin:
                                                             {{ $admin->username }}</h5>
-                                                        <button type="button" class="close text-white"
-                                                            data-dismiss="modal">&times;</button>
+                                                        <button type="button" class="btn-close btn-close-white"
+                                                            data-bs-dismiss="modal" aria-label="Close"></button>
                                                     </div>
                                                     <form action="{{ route('admin.access-control.update', $admin->id) }}"
                                                         method="POST">
@@ -117,7 +117,7 @@
                                                         </div>
                                                         <div class="modal-footer bg-light">
                                                             <button type="button" class="btn btn-link text-muted"
-                                                                data-dismiss="modal">Cancel</button>
+                                                                data-bs-dismiss="modal">Cancel</button>
                                                             <button type="submit"
                                                                 class="btn btn-primary px-4 fw-bold shadow-sm">Save
                                                                 Changes</button>
@@ -134,8 +134,8 @@
                                                     <div class="modal-header bg-dark text-white">
                                                         <h5 class="modal-title font-weight-bold"><i
                                                                 class="fas fa-lock mr-2"></i>Change Password</h5>
-                                                        <button type="button" class="close text-white"
-                                                            data-dismiss="modal">&times;</button>
+                                                        <button type="button" class="btn-close btn-close-white"
+                                                            data-bs-dismiss="modal" aria-label="Close"></button>
                                                     </div>
                                                     <form
                                                         action="{{ route('admin.access-control.update-password', $admin->id) }}"
@@ -165,7 +165,7 @@
                                                         </div>
                                                         <div class="modal-footer bg-light">
                                                             <button type="button" class="btn btn-link text-muted"
-                                                                data-dismiss="modal">Cancel</button>
+                                                                data-bs-dismiss="modal">Cancel</button>
                                                             <button type="submit" class="btn btn-dark px-4 fw-bold">Update
                                                                 Password</button>
                                                         </div>
