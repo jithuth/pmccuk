@@ -361,6 +361,10 @@
             </div>
 
             <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-light text-dark rounded-pill px-3.5 py-2 text-xs fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAdminTestMessage">
+                    <i class="fas fa-paper-plane text-success"></i>
+                    <span>Send Test Message</span>
+                </button>
                 <button id="btnRefreshStatus" class="btn btn-sm btn-outline-light rounded-pill px-3 py-2 text-xs fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm">
                     <i class="fas fa-sync-alt" id="refreshIcon"></i>
                     <span>Check Status</span>
@@ -998,6 +1002,59 @@ This is a test notification confirming that our WhatsApp automation service is a
 
 </div>
 
+<!-- ── 4. ADMIN TEST MESSAGE MODAL ── -->
+<div class="modal fade" id="modalAdminTestMessage" tabindex="-1" aria-labelledby="modalAdminTestMessageLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-dark text-white p-3.5 border-0">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="rounded-circle bg-success text-white p-2" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+                        <i class="fab fa-whatsapp fs-5"></i>
+                    </div>
+                    <div>
+                        <h6 class="modal-title fw-black text-white mb-0" id="modalAdminTestMessageLabel">Send WhatsApp Admin Test Message</h6>
+                        <span class="text-white-50" style="font-size:11px;">Verify gateway dispatch, device ratchet &amp; delivery latency</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="formAdminTestMessage">
+                @csrf
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-1">Target Phone Number</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0 text-muted"><i class="fas fa-phone"></i></span>
+                            <input type="text" id="testPhoneInput" name="phone" class="form-control bg-light border-0 text-xs font-monospace fw-bold" placeholder="e.g. 07901296858, +447901296858, or 918921569980" value="07901296858" required>
+                        </div>
+                        <span class="text-muted mt-1 d-block" style="font-size:11px;">Accepts UK local (07...), international (+44...), or without country code.</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-1">Test Message Content</label>
+                        <textarea id="testMessageInput" name="message" rows="4" class="form-control bg-light border-0 rounded-3 text-xs p-3 font-monospace" required style="resize:none;">🔔 *PMCC-UK Admin Test Message* 🇬🇧
+
+Hello Admin,
+
+This is a live test notification confirming that the PMCC-UK WhatsApp Automation microservice is connected, online, and delivering messages properly.
+
+🌐 https://pmccuk.org</textarea>
+                    </div>
+
+                    <div id="testMessageAlert" class="alert d-none text-xs rounded-3 p-3 mb-0"></div>
+                </div>
+                <div class="modal-footer bg-light p-3 border-top d-flex justify-content-between">
+                    <button type="button" class="btn btn-light btn-sm text-xs rounded-pill px-3" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="btnSubmitAdminTest" class="btn btn-success btn-sm rounded-pill text-xs fw-bold px-4 shadow-sm d-inline-flex align-items-center gap-1.5">
+                        <i class="fas fa-paper-plane"></i>
+                        <span>Dispatch Test Message</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- ── 5. REVOKE & SESSION SECURITY MODAL ── -->
 <div class="modal fade" id="modalRevokeSession" tabindex="-1" aria-labelledby="modalRevokeSessionLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1632,6 +1689,52 @@ document.addEventListener('DOMContentLoaded', function() {
             btnSubmitBroadcast.innerHTML = '<i class="fas fa-paper-plane text-success"></i> <span>Launch Safe Community Broadcast</span>';
             broadcastAlert.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
             broadcastAlert.innerHTML = `<i class="fas fa-wifi fs-5"></i> <div><strong>Network Error:</strong> ${err}</div>`;
+        });
+    });
+
+    // ── Admin Test Message Dispatch Logic ──
+    const formAdminTest = document.getElementById('formAdminTestMessage');
+    const testAlert = document.getElementById('testMessageAlert');
+    const btnSubmitTest = document.getElementById('btnSubmitAdminTest');
+
+    formAdminTest?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const phone = document.getElementById('testPhoneInput')?.value.trim();
+        const message = document.getElementById('testMessageInput')?.value.trim();
+
+        if (!phone || !message) return;
+
+        btnSubmitTest.disabled = true;
+        btnSubmitTest.innerHTML = '<span class="spinner-border spinner-border-sm me-1.5"></span> Dispatching...';
+        testAlert.className = 'alert d-none text-xs';
+
+        fetch('{{ route('admin.whatsapp.send-test') }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ phone, message })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btnSubmitTest.disabled = false;
+            btnSubmitTest.innerHTML = '<i class="fas fa-paper-plane"></i> <span>Dispatch Test Message</span>';
+
+            if (data.success) {
+                testAlert.className = 'alert alert-success text-xs border-0 bg-success-subtle text-success p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm mt-3';
+                testAlert.innerHTML = `<i class="fas fa-check-circle fs-5"></i> <div><strong>Delivered!</strong> ${data.message}</div>`;
+                if (typeof fetchLogs === 'function') fetchLogs();
+            } else {
+                testAlert.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm mt-3';
+                testAlert.innerHTML = `<i class="fas fa-exclamation-circle fs-5"></i> <div><strong>Failed:</strong> ${data.message || 'Could not send test message.'}</div>`;
+            }
+        })
+        .catch(err => {
+            btnSubmitTest.disabled = false;
+            btnSubmitTest.innerHTML = '<i class="fas fa-paper-plane"></i> <span>Dispatch Test Message</span>';
+            testAlert.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm mt-3';
+            testAlert.innerHTML = `<i class="fas fa-wifi fs-5"></i> <div><strong>Network Error:</strong> ${err}</div>`;
         });
     });
 });
