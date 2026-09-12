@@ -39,8 +39,9 @@ class WhatsAppWebhookController extends Controller
             $phone = preg_replace('/[^0-9]/', '', explode('@', $fromJid)[0]);
         }
 
-        $upperText = strtoupper($messageText);
-        Log::info("[WhatsApp Inbound] Received '{$upperText}' from {$fromJid} (Phone: {$phone}, PushName: {$pushName})");
+        $rawUpper = strtoupper(trim($messageText));
+        $upperText = ltrim($rawUpper, '/#!.');
+        Log::info("[WhatsApp Inbound] Received '{$upperText}' (raw: '{$messageText}') from {$fromJid} (Phone: {$phone}, PushName: {$pushName})");
 
         // Check for explicit membership ID or phone number inside the text (e.g. "CARD PMCC-104" or "CARD 07901296858")
         $explicitRef = null;
