@@ -30,6 +30,19 @@ let currentQrImage = null;
 let currentUser = null;
 let isLoggingOut = false;
 
+// ── In-Memory Retry Message Store (Fixes "Waiting for this message. This may take a while") ──
+const msgRetryStore = new Map();
+const lidToPhone = new Map();
+
+function storeMessage(keyId, message) {
+    if (!keyId || !message) return;
+    msgRetryStore.set(keyId, message);
+    if (msgRetryStore.size > 2000) {
+        const oldestKey = msgRetryStore.keys().next().value;
+        msgRetryStore.delete(oldestKey);
+    }
+}
+
 // ── Authentication Middleware ──
 function authenticate(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -49,6 +62,33 @@ function authenticate(req, res, next) {
         });
     }
     next();
+}
+
+// ── Format recipient phone number or preserve JID / LID ──
+function formatJid(target) {
+    if (!target) return '';
+    target = String(target).trim();
+
+    // Preserve full WhatsApp JIDs (e.g. 275767166550158@lid or 447901296858@s.whatsapp.net or group@g.us)
+    if (target.includes('@lid') || target.includes('@g.us') || target.includes('@s.whatsapp.net')) {
+        return target;
+    }
+
+    let clean = target.replace(/[^0-9]/g, '');
+
+    // Format UK numbers starting with 07 to 447
+    if (clean.startsWith('0') && clean.length === 11) {
+        clean = '44' + clean.substring(1);
+    } else if (clean.startsWith('440')) {
+        clean = '44' + clean.substring(3);
+    }
+
+    // Format Indian numbers 10 digits to 91xxx
+    if (clean.length === 10 && ['6', '7', '8', '9'].includes(clean[0])) {
+        clean = '91' + clean;
+    }
+
+    return `${clean}@s.whatsapp.net`;
 }
 
 // ── Initialize WhatsApp Socket ──
@@ -73,10 +113,50 @@ async function initWhatsApp() {
             defaultQueryTimeoutMs: 60000,
             keepAliveIntervalMs: 25000,
             emitOwnEvents: false,
-            markOnlineOnConnect: true
+            markOnlineOnConnect: true,
+            syncFullHistory: false,
+            // 🛡️ CRUCIAL: Handler for answering WhatsApp peer retry requests
+            // Solves the "Waiting for this message. This may take a while" error
+            getMessage: async (key) => {
+                if (key && key.id && msgRetryStore.has(key.id)) {
+                    const stored = msgRetryStore.get(key.id);
+                    return stored?.message || stored || undefined;
+                }
+                return undefined;
+            }
         });
 
         sock.ev.on('creds.update', saveCreds);
+
+        // ── Contact & Phone Number Sharing (LID to Phone mapping) ──
+        sock.ev.on('chats.phoneNumberShare', ({ lid, jid }) => {
+            if (lid && jid) {
+                const rawLid = lid.split('@')[0].split(':')[0];
+                const rawPn = jid.split('@')[0].split(':')[0];
+                lidToPhone.set(rawLid, rawPn);
+                console.log(`[WhatsApp Daemon] Linked LID ${rawLid} -> Phone ${rawPn}`);
+            }
+        });
+
+        sock.ev.on('contacts.upsert', (contacts) => {
+            for (const c of contacts) {
+                if (c.lid && c.id) {
+                    const rawLid = c.lid.split('@')[0].split(':')[0];
+                    const rawPn = c.id.split('@')[0].split(':')[0];
+                    lidToPhone.set(rawLid, rawPn);
+                }
+            }
+        });
+
+        sock.ev.on('contacts.update', (updates) => {
+            for (const c of updates) {
+                if (c.lid && c.id) {
+                    const rawLid = c.lid.split('@')[0].split(':')[0];
+                    const rawPn = c.id.split('@')[0].split(':')[0];
+                    lidToPhone.set(rawLid, rawPn);
+                }
+            }
+        });
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect, qr } = update;
@@ -136,6 +216,11 @@ async function initWhatsApp() {
                 if (m.type !== 'notify' || !m.messages) return;
 
                 for (const msg of m.messages) {
+                    // Cache all received messages for E2EE retry resolution
+                    if (msg.key?.id && msg.message) {
+                        storeMessage(msg.key.id, msg.message);
+                    }
+
                     if (msg.key.fromMe) continue;
                     if (!msg.message) continue;
 
@@ -144,11 +229,22 @@ async function initWhatsApp() {
 
                     const text = msg.message.conversation ||
                                  msg.message.extendedTextMessage?.text ||
+                                 msg.message.imageMessage?.caption ||
+                                 msg.message.documentMessage?.caption ||
                                  '';
 
                     if (!text || !text.trim()) continue;
 
-                    console.log(`[WhatsApp Inbound] Message from ${remoteJid}: "${text.trim()}"`);
+                    // Extract actual phone number if sender is using LID
+                    let senderPn = null;
+                    if (remoteJid.includes('@s.whatsapp.net')) {
+                        senderPn = remoteJid.split('@')[0].split(':')[0];
+                    } else if (remoteJid.includes('@lid')) {
+                        const rawLid = remoteJid.split('@')[0].split(':')[0];
+                        senderPn = msg.key.senderPn || msg.key.participantPn || lidToPhone.get(rawLid) || null;
+                    }
+
+                    console.log(`[WhatsApp Inbound] Received from ${remoteJid} (Phone: ${senderPn || 'LID'}, PushName: ${msg.pushName}): "${text.trim()}"`);
 
                     const webhookUrl = process.env.WEBHOOK_URL || 'https://pmccuk.org/api/whatsapp/webhook';
                     try {
@@ -159,7 +255,8 @@ async function initWhatsApp() {
                                 'Authorization': `Bearer ${API_KEY}`
                             },
                             body: JSON.stringify({
-                                from: remoteJid,
+                                from: remoteJid,          // The exact JID to reply to (preserves @lid or @s.whatsapp.net)
+                                phone: senderPn,          // The detected real phone number
                                 message: text.trim(),
                                 pushName: msg.pushName || 'Member'
                             })
@@ -179,23 +276,6 @@ async function initWhatsApp() {
     }
 }
 
-// ── Format recipient phone number to JID ──
-function formatJid(phone) {
-    let clean = String(phone).replace(/[^0-9]/g, '');
-
-    // Format UK numbers starting with 07 to 447
-    if (clean.startsWith('0') && clean.length === 11) {
-        clean = '44' + clean.substring(1);
-    } else if (clean.startsWith('440')) {
-        clean = '44' + clean.substring(3);
-    }
-
-    if (!clean.includes('@s.whatsapp.net')) {
-        clean = `${clean}@s.whatsapp.net`;
-    }
-    return clean;
-}
-
 // ── REST Routes ──
 
 // Health check
@@ -204,6 +284,7 @@ app.get('/', (req, res) => {
         service: 'pmcc-whatsapp-daemon',
         status: 'running',
         whatsapp_state: connectionState,
+        cached_messages: msgRetryStore.size,
         timestamp: new Date().toISOString()
     });
 });
@@ -285,6 +366,12 @@ app.post('/send/text', authenticate, async (req, res) => {
     try {
         const jid = formatJid(to);
         const result = await sock.sendMessage(jid, { text: message });
+
+        // Store outbound message for E2EE retry answering
+        if (result?.key?.id && result.message) {
+            storeMessage(result.key.id, result.message);
+        }
+
         res.json({
             success: true,
             messageId: result?.key?.id,
@@ -329,6 +416,11 @@ app.post('/send/file', authenticate, async (req, res) => {
             : { document: buffer, mimetype: resolvedMime, fileName: docName, caption: caption || '' };
 
         const result = await sock.sendMessage(jid, messagePayload);
+
+        // Store outbound file message for retry answering
+        if (result?.key?.id && result.message) {
+            storeMessage(result.key.id, result.message);
+        }
 
         res.json({
             success: true,

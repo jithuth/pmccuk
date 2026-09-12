@@ -69,8 +69,15 @@ class OpenWaService
             return null;
         }
 
+        $trimmed = trim($phone);
+
+        // If it's already a full WhatsApp JID (e.g. 275767166550158@lid or 447901296858@s.whatsapp.net), preserve it untouched!
+        if (str_contains($trimmed, '@')) {
+            return $trimmed;
+        }
+
         // Strip non-digit characters
-        $clean = preg_replace('/[^0-9]/', '', $phone);
+        $clean = preg_replace('/[^0-9]/', '', $trimmed);
         if (empty($clean)) {
             return null;
         }
@@ -248,13 +255,13 @@ class OpenWaService
     /**
      * 1. Member ID Card Delivery Notification (Automated PDF)
      */
-    public static function notifyMemberIdCard(Member $member, ?string $pdfPath = null): bool
+    public static function notifyMemberIdCard(Member $member, ?string $pdfPath = null, ?string $targetRecipient = null): bool
     {
         if ((string) self::getSetting('whatsapp_notify_id_card', '1') !== '1') {
             return false;
         }
 
-        $phone = $member->mobile_number;
+        $phone = $targetRecipient ?: $member->mobile_number;
         if (empty($phone)) {
             return false;
         }
@@ -299,13 +306,13 @@ class OpenWaService
     /**
      * 2. Event Ticket PDF & Confirmation Notification (Automated PDF)
      */
-    public static function notifyEventTicket(EventBooking $booking, ?string $ticketPdfPath = null): bool
+    public static function notifyEventTicket(EventBooking $booking, ?string $ticketPdfPath = null, ?string $targetRecipient = null): bool
     {
         if ((string) self::getSetting('whatsapp_notify_event_ticket', '1') !== '1') {
             return false;
         }
 
-        $phone = $booking->phone;
+        $phone = $targetRecipient ?: $booking->phone;
         if (empty($phone)) {
             return false;
         }

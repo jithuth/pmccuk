@@ -24,61 +24,126 @@ class WhatsAppWebhookController extends Controller
             return response()->json(['error' => 'Unauthorized: Invalid token'], 401);
         }
 
-        $fromJid = $request->input('from'); // e.g. 447901296858@s.whatsapp.net
+        $fromJid = trim((string) $request->input('from')); // e.g. 275767166550158@lid or 447901296858@s.whatsapp.net
         $messageText = trim((string) $request->input('message'));
-        $pushName = $request->input('pushName', 'Member');
+        $pushName = trim((string) $request->input('pushName', 'Member'));
+        $detectedPhone = $request->input('phone');
 
         if (empty($fromJid) || empty($messageText)) {
             return response()->json(['status' => 'ignored']);
         }
 
-        // Clean phone number from JID
-        $phone = preg_replace('/[^0-9]/', '', explode('@', $fromJid)[0]);
-        $keyword = strtoupper($messageText);
+        // Clean phone number if from standard @s.whatsapp.net
+        $phone = $detectedPhone;
+        if (empty($phone) && !str_contains($fromJid, '@lid')) {
+            $phone = preg_replace('/[^0-9]/', '', explode('@', $fromJid)[0]);
+        }
 
-        Log::info("[WhatsApp Inbound] Received '{$keyword}' from {$phone} ({$pushName})");
+        $upperText = strtoupper($messageText);
+        Log::info("[WhatsApp Inbound] Received '{$upperText}' from {$fromJid} (Phone: {$phone}, PushName: {$pushName})");
+
+        // Check for explicit membership ID or phone number inside the text (e.g. "CARD PMCC-104" or "CARD 07901296858")
+        $explicitRef = null;
+        if (preg_match('/(PMCC-?\d+|\b\d{6,13}\b)/i', $messageText, $matches)) {
+            $explicitRef = trim($matches[0]);
+        }
 
         // ── Command Routing ──
 
         // 1. CARD / ID -> Deliver Digital Membership Card
-        if (in_array($keyword, ['CARD', 'ID', 'MY CARD', 'MEMBERSHIP', 'MEMBERSHIP CARD'])) {
-            $member = Member::where(function ($q) use ($phone) {
-                $q->where('mobile_number', 'LIKE', "%{$phone}%")
-                  ->orWhere('mobile_number', 'LIKE', '%' . substr($phone, -10) . '%');
-            })->where('status', 'active')->first();
+        if (str_starts_with($upperText, 'CARD') || str_starts_with($upperText, 'ID') || in_array($upperText, ['MY CARD', 'MEMBERSHIP', 'MEMBERSHIP CARD'])) {
+            $member = null;
+
+            // Tier 1: Search by explicit reference in message
+            if ($explicitRef) {
+                $cleanRef = preg_replace('/[^0-9]/', '', $explicitRef);
+                $member = Member::where(function ($q) use ($explicitRef, $cleanRef) {
+                    $q->where('membership_id_assigned', 'LIKE', "%{$explicitRef}%")
+                      ->orWhere('id', $explicitRef)
+                      ->orWhere('mobile_number', 'LIKE', "%{$cleanRef}%");
+                })->where('status', 'active')->first();
+            }
+
+            // Tier 2: Search by detected phone number
+            if (!$member && !empty($phone)) {
+                $cleanPn = preg_replace('/[^0-9]/', '', $phone);
+                $last10 = substr($cleanPn, -10);
+                $member = Member::where(function ($q) use ($cleanPn, $last10) {
+                    $q->where('mobile_number', 'LIKE', "%{$cleanPn}%")
+                      ->orWhere('mobile_number', 'LIKE', "%{$last10}%");
+                })->where('status', 'active')->first();
+            }
+
+            // Tier 3: Search by WhatsApp display name (pushName)
+            if (!$member && !empty($pushName) && strtolower($pushName) !== 'member') {
+                $cleanPush = trim(preg_replace('/[^a-zA-Z0-9\s]/', '', $pushName));
+                if (strlen($cleanPush) >= 3) {
+                    $words = array_filter(explode(' ', $cleanPush), fn($w) => strlen($w) >= 3);
+                    $member = Member::where(function ($q) use ($cleanPush, $words) {
+                        $q->where('full_name', 'LIKE', "%{$cleanPush}%");
+                        foreach ($words as $w) {
+                            $q->orWhere('full_name', 'LIKE', "%{$w}%");
+                        }
+                    })->where('status', 'active')->first();
+                }
+            }
 
             if ($member) {
-                OpenWaService::sendText($phone, "🔍 Looking up your active membership profile... Sending your official digital card now!");
-                OpenWaService::notifyMemberIdCard($member);
+                OpenWaService::sendText($fromJid, "🔍 Looking up your active membership profile... Sending your official digital ID card now!");
+                OpenWaService::notifyMemberIdCard($member, null, $fromJid);
                 return response()->json(['status' => 'card_dispatched']);
             } else {
-                OpenWaService::sendText($phone, "⚠️ We could not locate an active PMCC-UK membership associated with this phone number (*{$phone}*).\n\nIf you recently registered, your application might be pending committee review.\n👉 Apply or Renew: https://pmccuk.org/membership");
+                OpenWaService::sendText($fromJid, "⚠️ We could not automatically match this chat with an active PMCC-UK membership.\n\n👉 Please reply with your Membership ID or registered mobile:\n*CARD <your ID or phone>*\n_(Example: *CARD PMCC-104* or *CARD 07901296858*)_\n\nOr register online: https://pmccuk.org/membership");
                 return response()->json(['status' => 'member_not_found']);
             }
         }
 
         // 2. TICKET / PASS -> Deliver Upcoming Event Pass
-        if (in_array($keyword, ['TICKET', 'TICKETS', 'PASS', 'BOOKING', 'MY TICKET'])) {
-            $booking = EventBooking::where(function ($q) use ($phone) {
-                $q->where('phone', 'LIKE', "%{$phone}%")
-                  ->orWhere('phone', 'LIKE', '%' . substr($phone, -10) . '%');
-            })
-            ->where('booking_status', 'approved')
-            ->orderBy('id', 'desc')
-            ->first();
+        if (str_starts_with($upperText, 'TICKET') || str_starts_with($upperText, 'PASS') || in_array($upperText, ['TICKETS', 'BOOKING', 'MY TICKET'])) {
+            $booking = null;
+
+            // Tier 1: Search by explicit reference
+            if ($explicitRef) {
+                $booking = EventBooking::where(function ($q) use ($explicitRef) {
+                    $q->where('reference', 'LIKE', "%{$explicitRef}%")
+                      ->orWhere('id', $explicitRef)
+                      ->orWhere('phone', 'LIKE', "%{$explicitRef}%");
+                })->where('booking_status', 'approved')->orderBy('id', 'desc')->first();
+            }
+
+            // Tier 2: Search by detected phone
+            if (!$booking && !empty($phone)) {
+                $cleanPn = preg_replace('/[^0-9]/', '', $phone);
+                $last10 = substr($cleanPn, -10);
+                $booking = EventBooking::where(function ($q) use ($cleanPn, $last10) {
+                    $q->where('phone', 'LIKE', "%{$cleanPn}%")
+                      ->orWhere('phone', 'LIKE', "%{$last10}%");
+                })->where('booking_status', 'approved')->orderBy('id', 'desc')->first();
+            }
+
+            // Tier 3: Search by pushName
+            if (!$booking && !empty($pushName) && strtolower($pushName) !== 'member') {
+                $cleanPush = trim(preg_replace('/[^a-zA-Z0-9\s]/', '', $pushName));
+                if (strlen($cleanPush) >= 3) {
+                    $booking = EventBooking::where('full_name', 'LIKE', "%{$cleanPush}%")
+                        ->where('booking_status', 'approved')
+                        ->orderBy('id', 'desc')
+                        ->first();
+                }
+            }
 
             if ($booking) {
-                OpenWaService::sendText($phone, "🎟️ Fetching your confirmed booking pass... Generating ticket with QR code!");
-                OpenWaService::notifyEventTicket($booking);
+                OpenWaService::sendText($fromJid, "🎟️ Fetching your confirmed booking pass... Generating ticket with QR code!");
+                OpenWaService::notifyEventTicket($booking, null, $fromJid);
                 return response()->json(['status' => 'ticket_dispatched']);
             } else {
-                OpenWaService::sendText($phone, "⚠️ No approved event bookings were found for this number (*{$phone}*).\n\nExplore upcoming PMCC events and secure your tickets here:\n👉 https://pmccuk.org/events");
+                OpenWaService::sendText($fromJid, "⚠️ No approved event bookings were found.\n\n👉 Please reply with your Booking Reference:\n*TICKET <booking ref or phone>*\n_(Example: *TICKET BOOK-1052* or *TICKET 07901296858*)_\n\nOr book tickets here: https://pmccuk.org/events");
                 return response()->json(['status' => 'booking_not_found']);
             }
         }
 
         // 3. EVENTS -> Show Upcoming Events Schedule
-        if (in_array($keyword, ['EVENTS', 'EVENT', 'PROGRAMS', 'PROGRAM'])) {
+        if (in_array($upperText, ['EVENTS', 'EVENT', 'PROGRAMS', 'PROGRAM'])) {
             $events = Event::where('event_date', '>=', now()->toDateString())
                 ->orderBy('event_date', 'asc')
                 ->take(5)
@@ -95,16 +160,16 @@ class WhatsAppWebhookController extends Controller
                     $reply .= "   🔗 Book: https://pmccuk.org/events/{$ev->id}\n\n";
                 }
                 $reply .= "Reply *TICKET* anytime to retrieve your confirmed passes!\n🌐 https://pmccuk.org";
-                OpenWaService::sendText($phone, $reply);
+                OpenWaService::sendText($fromJid, $reply);
                 return response()->json(['status' => 'events_sent']);
             } else {
-                OpenWaService::sendText($phone, "ℹ️ There are currently no upcoming events scheduled on the portal. Stay tuned to https://pmccuk.org/events for announcements!");
+                OpenWaService::sendText($fromJid, "ℹ️ There are currently no upcoming events scheduled on the portal. Stay tuned to https://pmccuk.org/events for announcements!");
                 return response()->json(['status' => 'no_events']);
             }
         }
 
         // 4. OFFERS / SPONSORS -> Local Plymouth Discounts
-        if (in_array($keyword, ['OFFERS', 'OFFER', 'SPONSORS', 'SPONSOR', 'DISCOUNTS'])) {
+        if (in_array($upperText, ['OFFERS', 'OFFER', 'SPONSORS', 'SPONSOR', 'DISCOUNTS'])) {
             $offers = SponsorOffer::where('is_active', 1)->take(6)->get();
             if ($offers->count() > 0) {
                 $reply = "🛍️ *PMCC-UK Member Privilege Discounts in Plymouth:*\n\n";
@@ -118,16 +183,16 @@ class WhatsAppWebhookController extends Controller
                     $reply .= "   📍 {$off->location}\n\n";
                 }
                 $reply .= "_Show your PMCC Digital ID Card to redeem these perks._\n👉 Browse all offers: https://pmccuk.org/offers";
-                OpenWaService::sendText($phone, $reply);
+                OpenWaService::sendText($fromJid, $reply);
                 return response()->json(['status' => 'offers_sent']);
             } else {
-                OpenWaService::sendText($phone, "🛍️ Check out all community partner discounts and sponsor offers on our website:\n👉 https://pmccuk.org/offers");
+                OpenWaService::sendText($fromJid, "🛍️ Check out all community partner discounts and sponsor offers on our website:\n👉 https://pmccuk.org/offers");
                 return response()->json(['status' => 'offers_generic']);
             }
         }
 
         // 5. STUDENT -> Student Wing Orientation & Support
-        if (in_array($keyword, ['STUDENT', 'STUDENTS', 'UNIVERSITY', 'COLLEGE'])) {
+        if (in_array($upperText, ['STUDENT', 'STUDENTS', 'UNIVERSITY', 'COLLEGE'])) {
             $reply = "🎓 *Welcome to the PMCC-UK Student Wing!*\n\n" .
                 "Are you a student studying in Plymouth (University of Plymouth, Marjon, City College)? We are here to support your UK journey!\n\n" .
                 "📌 *Essential Resources:*\n" .
@@ -139,7 +204,7 @@ class WhatsAppWebhookController extends Controller
                 "Submit your details at https://pmccuk.org/student-corner to be added to the official student WhatsApp group!\n\n" .
                 "Warm regards,\n*PMCC-UK Youth & Student Wing*";
 
-            OpenWaService::sendText($phone, $reply);
+            OpenWaService::sendText($fromJid, $reply);
             return response()->json(['status' => 'student_sent']);
         }
 
@@ -154,7 +219,7 @@ class WhatsAppWebhookController extends Controller
             "👉 *HELP* - View this quick menu\n\n" .
             "🌐 Official Website: https://pmccuk.org";
 
-        OpenWaService::sendText($phone, $menu);
+        OpenWaService::sendText($fromJid, $menu);
         return response()->json(['status' => 'menu_sent']);
     }
 }
