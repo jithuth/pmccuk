@@ -839,6 +839,7 @@ class WhatsAppController extends Controller
                 'formatted_phone' => OpenWaService::formatPhoneDisplay($item['phone'] ?? ''),
                 'status' => $st,
                 'sent_at' => $item['sent_at'] ?? null,
+                'message_id' => $item['message_id'] ?? null,
                 'error' => $item['error'] ?? null
             ];
         }

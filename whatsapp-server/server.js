@@ -895,21 +895,23 @@ app.post('/message/revoke', authenticate, async (req, res) => {
     if (Array.isArray(items) && items.length > 0) {
         const results = [];
         for (const item of items) {
-            if (!item.to || !item.messageId) continue;
+            const targetTo = item.to || item.phone;
+            const targetMsgId = item.messageId || item.message_id;
+            if (!targetTo || !targetMsgId) continue;
             try {
-                const jid = formatJid(item.to);
+                const jid = formatJid(targetTo);
                 const key = {
                     remoteJid: jid,
                     fromMe: true,
-                    id: item.messageId
+                    id: targetMsgId
                 };
                 await sock.sendMessage(jid, { delete: key });
-                results.push({ to: jid, messageId: item.messageId, success: true });
-                logEvent('system', 'WARNING', `Revoked message #${item.messageId} for ${jid}`);
+                results.push({ to: jid, messageId: targetMsgId, success: true });
+                logEvent('system', 'WARNING', `Revoked message #${targetMsgId} for ${jid}`);
                 // 150ms pacing between revokes
                 await new Promise(resolve => setTimeout(resolve, 150));
             } catch (revErr) {
-                results.push({ to: item.to, messageId: item.messageId, success: false, error: revErr.message });
+                results.push({ to: targetTo, messageId: targetMsgId, success: false, error: revErr.message });
             }
         }
 
