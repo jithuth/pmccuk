@@ -1058,9 +1058,9 @@
                                     class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-2 d-block">1.
                                     Select Target Audience</label>
                                 <div class="row g-2">
-                                    <div class="col-sm-6">
+                                    <div class="col-md-4 col-sm-6">
                                         <label
-                                            class="p-3 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option"
+                                            class="p-2.5 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option h-100"
                                             style="cursor:pointer;">
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="radio" name="broadcast_audience" value="members" checked
@@ -1071,9 +1071,9 @@
                                                 class="badge bg-success-subtle text-success rounded-pill text-xs px-2">{{ $counts['members'] ?? 0 }}</span>
                                         </label>
                                     </div>
-                                    <div class="col-sm-6">
+                                    <div class="col-md-4 col-sm-6">
                                         <label
-                                            class="p-3 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option"
+                                            class="p-2.5 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option h-100"
                                             style="cursor:pointer;">
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="radio" name="broadcast_audience" value="attendees"
@@ -1084,9 +1084,9 @@
                                                 class="badge bg-primary-subtle text-primary rounded-pill text-xs px-2">{{ $counts['attendees'] ?? 0 }}</span>
                                         </label>
                                     </div>
-                                    <div class="col-sm-6">
+                                    <div class="col-md-4 col-sm-6">
                                         <label
-                                            class="p-3 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option"
+                                            class="p-2.5 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option h-100"
                                             style="cursor:pointer;">
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="radio" name="broadcast_audience" value="students"
@@ -1097,9 +1097,32 @@
                                                 class="badge bg-info-subtle text-info rounded-pill text-xs px-2">{{ $counts['students'] ?? 0 }}</span>
                                         </label>
                                     </div>
-                                    <div class="col-sm-6">
+                                    <div class="col-md-6 col-sm-6">
                                         <label
-                                            class="p-3 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option"
+                                            class="p-2.5 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option h-100"
+                                            style="cursor:pointer;" id="labelAudienceExecutives">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <input type="radio" name="broadcast_audience" value="executives"
+                                                    class="form-check-input mt-0">
+                                                <span class="text-xs fw-bold text-dark d-flex align-items-center gap-1.5">
+                                                    <i class="fas fa-star text-warning"></i> Executive Favorites
+                                                </span>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-1.5">
+                                                <span class="badge bg-warning-subtle text-dark border border-warning-subtle rounded-pill text-xs px-2"
+                                                    id="execFavoritesCountBadge">{{ count($favorites ?? []) }} Saved</span>
+                                                <button type="button"
+                                                    class="btn btn-xs btn-outline-warning rounded-circle p-0"
+                                                    style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;"
+                                                    onclick="openFavoritesModal(event)" title="Manage Favorite Numbers">
+                                                    <i class="fas fa-cog text-xxs"></i>
+                                                </button>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="col-md-6 col-sm-6">
+                                        <label
+                                            class="p-2.5 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option h-100"
                                             style="cursor:pointer;">
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="radio" name="broadcast_audience" value="custom"
@@ -1112,10 +1135,50 @@
                                     </div>
                                 </div>
 
-                                <!-- Custom Numbers Textarea (Hidden by default) -->
+                                <!-- Executive Members Selection Card (shown when audience is 'executives') -->
+                                <div id="executivesSelectorWrap" class="mt-2.5 p-3 bg-light rounded-4 border d-none">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2 pb-2 border-bottom border-light">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="badge bg-warning text-dark p-1.5 rounded-circle d-flex align-items-center justify-content-center"
+                                                style="width:24px;height:24px;">
+                                                <i class="fas fa-star text-xxs"></i>
+                                            </span>
+                                            <span class="text-xs fw-bold text-dark">Select Executive Recipients</span>
+                                            <span class="badge bg-white text-dark border text-xxs px-2 py-0.5 rounded-pill"
+                                                id="execSelectedCounter">0 selected</span>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-1.5">
+                                            <button type="button" class="btn btn-xs btn-outline-dark rounded-pill px-2.5 py-0.5 text-xxs fw-bold"
+                                                id="btnSelectAllExecs">
+                                                Select All
+                                            </button>
+                                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-0.5 text-xxs fw-bold"
+                                                id="btnDeselectAllExecs">
+                                                Deselect All
+                                            </button>
+                                            <button type="button" class="btn btn-xs btn-warning text-dark rounded-pill px-2.5 py-0.5 text-xxs fw-bold shadow-sm"
+                                                onclick="openFavoritesModal(event)">
+                                                <i class="fas fa-plus me-1"></i> Manage / Add
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="executivesListContainer" class="d-flex flex-wrap gap-2 pt-1" style="max-height: 190px; overflow-y: auto;">
+                                        <!-- Dynamically rendered executive pill checkboxes -->
+                                    </div>
+                                </div>
+
+                                <!-- Custom Numbers Textarea (shown when audience is 'custom') -->
                                 <div id="customNumbersWrap" class="mt-2.5 d-none">
-                                    <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-1">Enter
-                                        Phone Numbers (one per line or comma-separated)</label>
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-1 gap-1">
+                                        <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-0">Enter
+                                            Phone Numbers (one per line or comma-separated)</label>
+                                        <span class="text-xxs text-muted d-flex align-items-center gap-1">
+                                            <i class="fas fa-star text-warning"></i> Click favorite to insert:
+                                        </span>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1 mb-2" id="quickInsertExecChips">
+                                        <!-- Quick insert chips -->
+                                    </div>
                                     <textarea name="custom_numbers" id="broadcastCustomNumbers" rows="2"
                                         class="form-control bg-light border-0 text-xs font-monospace"
                                         placeholder="07901296858, 447812345678, 919876543210"></textarea>
@@ -1532,6 +1595,104 @@
                 <div class="modal-footer bg-light p-3 border-top">
                     <button type="button" class="btn btn-light btn-sm text-xs rounded-pill px-3"
                         data-bs-dismiss="modal">Close Window</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 6. EXECUTIVE FAVORITES MANAGER MODAL ── -->
+    <div class="modal fade" id="modalManageFavorites" tabindex="-1" aria-labelledby="modalManageFavoritesLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header bg-warning-subtle border-bottom border-warning-subtle p-3.5">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <div class="rounded-circle bg-warning text-dark p-2"
+                            style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div>
+                            <h6 class="modal-title fw-black text-dark mb-0" id="modalManageFavoritesLabel">Executive Committee Favorites</h6>
+                            <span class="text-xxs text-muted">Save favorite VIP executive numbers for 1-click mass broadcasts</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-4">
+                        <!-- Left: Add / Edit Form -->
+                        <div class="col-lg-5">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <h6 class="text-xs fw-bold text-dark text-uppercase tracking-wider mb-2.5 d-flex align-items-center gap-1.5" id="favFormTitle">
+                                    <i class="fas fa-user-plus text-warning"></i> Add Executive Member
+                                </h6>
+                                <form id="formSaveFavorite">
+                                    <input type="hidden" id="favId" value="">
+                                    <div class="mb-2.5">
+                                        <label class="form-label text-xxs fw-bold text-muted text-uppercase mb-1">Full Name</label>
+                                        <input type="text" id="favName" class="form-control form-control-sm text-xs rounded-2"
+                                            placeholder="e.g. Jithu (President)" required>
+                                    </div>
+                                    <div class="mb-2.5">
+                                        <label class="form-label text-xxs fw-bold text-muted text-uppercase mb-1">WhatsApp Phone Number</label>
+                                        <input type="text" id="favPhone" class="form-control form-control-sm text-xs font-monospace rounded-2"
+                                            placeholder="07901296858 or +447901296858" required>
+                                        <div class="form-text text-xxs text-muted">Supports UK format (07...) or international format with country code.</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label text-xxs fw-bold text-muted text-uppercase mb-1">Role / Designation (Optional)</label>
+                                        <input type="text" id="favRole" class="form-control form-control-sm text-xs rounded-2"
+                                            placeholder="President, Secretary, Trustee, etc.">
+                                    </div>
+                                    <div id="favAlert" class="alert d-none text-xs rounded-2 p-2.5 mb-2.5"></div>
+                                    <div class="d-flex gap-2">
+                                        <button type="submit" id="btnSaveFav" class="btn btn-warning btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm flex-grow-1">
+                                            <i class="fas fa-save me-1"></i> <span id="favSaveBtnText">Save to Favorites</span>
+                                        </button>
+                                        <button type="button" id="btnCancelFavEdit" class="btn btn-outline-secondary btn-sm rounded-pill text-xs px-2.5 d-none" onclick="resetFavForm()">
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Right: Directory List of Saved Numbers -->
+                        <div class="col-lg-7">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-xs fw-bold text-dark text-uppercase tracking-wider">
+                                    Saved Directory (<span id="favDirectoryCount">0</span>)
+                                </span>
+                                <input type="text" id="favSearchInput" class="form-control form-control-sm text-xxs rounded-pill px-2.5 py-0.5"
+                                    style="max-width: 160px;" placeholder="Search directory...">
+                            </div>
+                            <div class="border rounded-3 overflow-hidden bg-white" style="max-height: 290px; overflow-y: auto;">
+                                <table class="table table-hover align-middle mb-0 text-xs">
+                                    <thead class="table-light text-xxs text-uppercase text-muted border-bottom">
+                                        <tr>
+                                            <th class="ps-3 py-2">Executive</th>
+                                            <th class="py-2">Phone</th>
+                                            <th class="text-end pe-3 py-2">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="favTableBody">
+                                        <!-- Dynamically generated rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="favEmptyState" class="text-center py-4 text-muted text-xs d-none">
+                                <i class="fas fa-star-half-alt text-warning fs-3 mb-2 d-block"></i>
+                                No executive favorite numbers found.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light p-3 border-top d-flex justify-content-between">
+                    <span class="text-xxs text-muted">
+                        <i class="fas fa-shield-alt text-success me-1"></i> Safely encrypted in system settings
+                    </span>
+                    <button type="button" class="btn btn-light btn-sm text-xs rounded-pill px-3"
+                        data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -2033,22 +2194,353 @@
                     });
             });
 
-            // ── Broadcast Studio Logic ──
+            // ── Helper Function ──
+            function escapeHtml(str) {
+                if (!str) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            // ── Executive Favorites & Broadcast Studio Logic ──
+            let savedFavorites = @json($favorites ?? []);
             const formBroadcast = document.getElementById('formBroadcast');
             const broadcastAlert = document.getElementById('broadcastAlert');
             const btnSubmitBroadcast = document.getElementById('btnSubmitBroadcast');
             const broadcastMessage = document.getElementById('broadcastMessage');
             const customNumbersWrap = document.getElementById('customNumbersWrap');
+            const executivesSelectorWrap = document.getElementById('executivesSelectorWrap');
+            const executivesListContainer = document.getElementById('executivesListContainer');
+            const execSelectedCounter = document.getElementById('execSelectedCounter');
+            const execFavoritesCountBadge = document.getElementById('execFavoritesCountBadge');
+            const quickInsertExecChips = document.getElementById('quickInsertExecChips');
+            const btnSelectAllExecs = document.getElementById('btnSelectAllExecs');
+            const btnDeselectAllExecs = document.getElementById('btnDeselectAllExecs');
             const audienceRadios = document.querySelectorAll('input[name="broadcast_audience"]');
             const bcastChips = document.querySelectorAll('.bcast-chip');
 
-            // Toggle custom numbers textarea
+            // Modal & Form Elements for Executive Favorites
+            const modalManageFavEl = document.getElementById('modalManageFavorites');
+            const formSaveFavorite = document.getElementById('formSaveFavorite');
+            const favId = document.getElementById('favId');
+            const favName = document.getElementById('favName');
+            const favPhone = document.getElementById('favPhone');
+            const favRole = document.getElementById('favRole');
+            const favAlert = document.getElementById('favAlert');
+            const btnSaveFav = document.getElementById('btnSaveFav');
+            const favSaveBtnText = document.getElementById('favSaveBtnText');
+            const btnCancelFavEdit = document.getElementById('btnCancelFavEdit');
+            const favFormTitle = document.getElementById('favFormTitle');
+            const favTableBody = document.getElementById('favTableBody');
+            const favDirectoryCount = document.getElementById('favDirectoryCount');
+            const favSearchInput = document.getElementById('favSearchInput');
+            const favEmptyState = document.getElementById('favEmptyState');
+
+            // Open Favorites Modal
+            window.openFavoritesModal = function (e) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                resetFavForm();
+                renderFavoritesTable();
+                if (modalManageFavEl) {
+                    const bsModal = bootstrap.Modal.getOrCreateInstance(modalManageFavEl);
+                    bsModal.show();
+                }
+            };
+
+            // Reset Favorite Add/Edit Form
+            window.resetFavForm = function () {
+                if (favId) favId.value = '';
+                if (favName) favName.value = '';
+                if (favPhone) favPhone.value = '';
+                if (favRole) favRole.value = '';
+                if (favSaveBtnText) favSaveBtnText.textContent = 'Save to Favorites';
+                if (btnCancelFavEdit) btnCancelFavEdit.classList.add('d-none');
+                if (favFormTitle) favFormTitle.innerHTML = '<i class="fas fa-user-plus text-warning"></i> Add Executive Member';
+                if (favAlert) favAlert.className = 'alert d-none text-xs rounded-2 p-2.5 mb-2.5';
+            };
+
+            // Edit Favorite Contact
+            window.editFavorite = function (id) {
+                const item = savedFavorites.find(f => String(f.id) === String(id));
+                if (!item) return;
+                favId.value = item.id;
+                favName.value = item.name;
+                favPhone.value = item.phone;
+                favRole.value = item.role || '';
+                favSaveBtnText.textContent = 'Update Executive';
+                btnCancelFavEdit.classList.remove('d-none');
+                favFormTitle.innerHTML = '<i class="fas fa-user-edit text-warning"></i> Edit Executive Member';
+                favName.focus();
+            };
+
+            // Delete Favorite Contact
+            window.deleteFavorite = function (id, name) {
+                if (!confirm(`Are you sure you want to remove "${name}" from Executive Favorites?`)) {
+                    return;
+                }
+
+                fetch(`{{ url('/admin/whatsapp/favorites') }}/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            savedFavorites = data.favorites || [];
+                            syncFavoritesUI();
+                            if (favAlert) {
+                                favAlert.className = 'alert alert-success text-xs rounded-2 p-2.5 mb-2.5 border-0 bg-success-subtle text-success';
+                                favAlert.innerHTML = `<i class="fas fa-check-circle me-1"></i> Contact removed.`;
+                            }
+                            resetFavForm();
+                        } else {
+                            alert(data.message || 'Failed to remove contact.');
+                        }
+                    })
+                    .catch(err => alert('Network error: ' + err));
+            };
+
+            // Render Directory Table in Modal
+            function renderFavoritesTable() {
+                if (!favTableBody) return;
+                const search = (favSearchInput?.value || '').toLowerCase().trim();
+                const filtered = savedFavorites.filter(f =>
+                    (f.name || '').toLowerCase().includes(search) ||
+                    (f.phone || '').toLowerCase().includes(search) ||
+                    (f.role || '').toLowerCase().includes(search)
+                );
+
+                if (favDirectoryCount) favDirectoryCount.textContent = savedFavorites.length;
+                if (execFavoritesCountBadge) execFavoritesCountBadge.textContent = `${savedFavorites.length} Saved`;
+
+                if (filtered.length === 0) {
+                    favTableBody.innerHTML = '';
+                    if (favEmptyState) favEmptyState.classList.remove('d-none');
+                    return;
+                }
+
+                if (favEmptyState) favEmptyState.classList.add('d-none');
+
+                let html = '';
+                filtered.forEach(item => {
+                    html += `
+                        <tr>
+                            <td class="ps-3 py-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-warning-subtle text-dark border border-warning-subtle d-flex align-items-center justify-content-center fw-bold text-xxs flex-shrink-0"
+                                        style="width:28px;height:28px;">
+                                        ${escapeHtml(item.name.charAt(0).toUpperCase())}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark text-xs">${escapeHtml(item.name)}</div>
+                                        <span class="badge bg-light text-muted border text-xxs px-1.5 py-0 rounded">${escapeHtml(item.role || 'Executive')}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-2">
+                                <span class="font-monospace text-xs text-dark fw-bold">${escapeHtml(item.phone)}</span>
+                            </td>
+                            <td class="text-end pe-3 py-2">
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-secondary btn-xs rounded-start"
+                                        onclick="editFavorite('${escapeHtml(String(item.id))}')" title="Edit Contact">
+                                        <i class="fas fa-pencil-alt text-xxs"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-xs rounded-end"
+                                        onclick="deleteFavorite('${escapeHtml(String(item.id))}', '${escapeHtml(item.name)}')" title="Remove from Favorites">
+                                        <i class="fas fa-trash-alt text-xxs"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                favTableBody.innerHTML = html;
+            }
+
+            favSearchInput?.addEventListener('input', renderFavoritesTable);
+
+            // Save / Update Favorite Contact
+            formSaveFavorite?.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const idVal = favId?.value || '';
+                const nameVal = favName?.value.trim() || '';
+                const phoneVal = favPhone?.value.trim() || '';
+                const roleVal = favRole?.value.trim() || '';
+
+                if (!nameVal || !phoneVal) return;
+
+                btnSaveFav.disabled = true;
+                btnSaveFav.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+                favAlert.className = 'alert d-none text-xs';
+
+                fetch('{{ route('admin.whatsapp.favorites.save') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: idVal,
+                        name: nameVal,
+                        phone: phoneVal,
+                        role: roleVal
+                    })
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        btnSaveFav.disabled = false;
+                        btnSaveFav.innerHTML = '<i class="fas fa-save me-1"></i> <span id="favSaveBtnText">Save to Favorites</span>';
+
+                        if (data.success) {
+                            savedFavorites = data.favorites || [];
+                            syncFavoritesUI();
+                            favAlert.className = 'alert alert-success text-xs rounded-2 p-2.5 mb-2.5 border-0 bg-success-subtle text-success';
+                            favAlert.innerHTML = `<i class="fas fa-check-circle me-1"></i> ${data.message}`;
+                            resetFavForm();
+                        } else {
+                            favAlert.className = 'alert alert-danger text-xs rounded-2 p-2.5 mb-2.5 border-0 bg-danger-subtle text-danger';
+                            favAlert.innerHTML = `<i class="fas fa-exclamation-circle me-1"></i> ${data.message || 'Failed to save.'}`;
+                        }
+                    })
+                    .catch(err => {
+                        btnSaveFav.disabled = false;
+                        btnSaveFav.innerHTML = '<i class="fas fa-save me-1"></i> <span id="favSaveBtnText">Save to Favorites</span>';
+                        favAlert.className = 'alert alert-danger text-xs rounded-2 p-2.5 mb-2.5 border-0 bg-danger-subtle text-danger';
+                        favAlert.innerHTML = `<i class="fas fa-wifi me-1"></i> Network error: ${err}`;
+                    });
+            });
+
+            // Update Selection Counter
+            function updateExecSelectionCount() {
+                const total = savedFavorites.length;
+                const checked = document.querySelectorAll('.exec-select-chk:checked').length;
+                if (execSelectedCounter) {
+                    execSelectedCounter.textContent = `${checked} of ${total} selected`;
+                    if (checked > 0) {
+                        execSelectedCounter.className = 'badge bg-warning text-dark border border-warning text-xxs px-2 py-0.5 rounded-pill';
+                    } else {
+                        execSelectedCounter.className = 'badge bg-secondary-subtle text-muted border text-xxs px-2 py-0.5 rounded-pill';
+                    }
+                }
+            }
+
+            // Render Executive Pill Checkboxes in Broadcast Studio
+            function renderExecutiveCheckboxes() {
+                if (!executivesListContainer) return;
+                if (savedFavorites.length === 0) {
+                    executivesListContainer.innerHTML = `
+                        <div class="p-3 text-center w-100 text-muted text-xs bg-white rounded-3 border border-dashed">
+                            <i class="fas fa-user-friends text-warning fs-5 mb-1 d-block"></i>
+                            No executive favorites saved yet.
+                            <button type="button" class="btn btn-xs btn-warning text-dark rounded-pill px-2.5 py-0.5 fw-bold ms-1" onclick="openFavoritesModal(event)">
+                                Add Executive Contacts
+                            </button>
+                        </div>
+                    `;
+                    updateExecSelectionCount();
+                    return;
+                }
+
+                let html = '';
+                savedFavorites.forEach(item => {
+                    html += `
+                        <label class="btn btn-sm btn-white border border-light-subtle rounded-3 d-flex align-items-center gap-2 px-2.5 py-2 shadow-sm text-start bg-white" style="cursor:pointer; flex: 1 1 calc(50% - 8px); min-width: 220px;">
+                            <input type="checkbox" class="form-check-input exec-select-chk mt-0 flex-shrink-0" value="${escapeHtml(String(item.id))}" checked>
+                            <div class="overflow-hidden flex-grow-1">
+                                <div class="d-flex align-items-center justify-content-between gap-1">
+                                    <span class="fw-bold text-dark text-xs text-truncate">${escapeHtml(item.name)}</span>
+                                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle text-xxs px-1.5 py-0 rounded-pill flex-shrink-0">${escapeHtml(item.role || 'Executive')}</span>
+                                </div>
+                                <span class="text-muted font-monospace text-xxs d-block">${escapeHtml(item.phone)}</span>
+                            </div>
+                        </label>
+                    `;
+                });
+                executivesListContainer.innerHTML = html;
+
+                document.querySelectorAll('.exec-select-chk').forEach(chk => {
+                    chk.addEventListener('change', updateExecSelectionCount);
+                });
+                updateExecSelectionCount();
+            }
+
+            // Render Quick Insert Chips in Custom Numbers area
+            function renderQuickInsertChips() {
+                if (!quickInsertExecChips) return;
+                if (savedFavorites.length === 0) {
+                    quickInsertExecChips.innerHTML = '<span class="text-xxs text-muted fst-italic">No favorite numbers yet.</span>';
+                    return;
+                }
+                let html = '';
+                savedFavorites.forEach(item => {
+                    html += `
+                        <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-0.5 text-xxs bg-white shadow-none"
+                            onclick="insertNumberToCustom('${escapeHtml(item.phone)}')">
+                            <i class="fas fa-plus text-warning me-1"></i>${escapeHtml(item.name)} <span class="text-muted font-monospace">(${escapeHtml(item.phone)})</span>
+                        </button>
+                    `;
+                });
+                quickInsertExecChips.innerHTML = html;
+            }
+
+            // Insert single number into Custom Numbers textarea
+            window.insertNumberToCustom = function (phone) {
+                const textarea = document.getElementById('broadcastCustomNumbers');
+                if (!textarea) return;
+                let val = textarea.value.trim();
+                if (!val) {
+                    textarea.value = phone;
+                } else {
+                    const existing = val.split(/[\r\n,]+/).map(s => s.trim());
+                    if (!existing.includes(phone)) {
+                        textarea.value = val + ', ' + phone;
+                    }
+                }
+                textarea.focus();
+            };
+
+            // Master Synchronizer
+            function syncFavoritesUI() {
+                renderExecutiveCheckboxes();
+                renderQuickInsertChips();
+                renderFavoritesTable();
+            }
+
+            btnSelectAllExecs?.addEventListener('click', function () {
+                document.querySelectorAll('.exec-select-chk').forEach(c => c.checked = true);
+                updateExecSelectionCount();
+            });
+
+            btnDeselectAllExecs?.addEventListener('click', function () {
+                document.querySelectorAll('.exec-select-chk').forEach(c => c.checked = false);
+                updateExecSelectionCount();
+            });
+
+            // Initial Sync on load
+            syncFavoritesUI();
+
+            // Toggle custom numbers textarea and executives selector card
             audienceRadios.forEach(radio => {
                 radio.addEventListener('change', function () {
                     if (this.value === 'custom') {
-                        customNumbersWrap.classList.remove('d-none');
+                        customNumbersWrap?.classList.remove('d-none');
+                        executivesSelectorWrap?.classList.add('d-none');
+                    } else if (this.value === 'executives') {
+                        executivesSelectorWrap?.classList.remove('d-none');
+                        customNumbersWrap?.classList.add('d-none');
                     } else {
-                        customNumbersWrap.classList.add('d-none');
+                        customNumbersWrap?.classList.add('d-none');
+                        executivesSelectorWrap?.classList.add('d-none');
                     }
                 });
             });
@@ -2079,7 +2571,16 @@
                 const msg = broadcastMessage?.value || '';
                 const customNums = document.getElementById('broadcastCustomNumbers')?.value || '';
 
-                if (!confirm('Are you sure you want to launch this broadcast to the selected audience segment?')) {
+                let selectedExecs = [];
+                if (audience === 'executives') {
+                    selectedExecs = Array.from(document.querySelectorAll('.exec-select-chk:checked')).map(el => el.value);
+                    if (selectedExecs.length === 0) {
+                        alert('Please select at least one executive recipient from the checklist.');
+                        return;
+                    }
+                }
+
+                if (!confirm(`Are you sure you want to launch this broadcast to the selected audience (${audience.toUpperCase()})?`)) {
                     return;
                 }
 
@@ -2096,7 +2597,8 @@
                     body: JSON.stringify({
                         audience: audience,
                         message: msg,
-                        custom_numbers: customNums
+                        custom_numbers: customNums,
+                        selected_executives: selectedExecs
                     })
                 })
                     .then(res => res.json())

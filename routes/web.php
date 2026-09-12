@@ -494,6 +494,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('/send-test', [WhatsAppController::class, 'sendTest'])->name('send-test');
                 Route::post('/test-admin-alert', [WhatsAppController::class, 'testAdminAlert'])->name('test-admin-alert');
                 Route::post('/broadcast', [WhatsAppController::class, 'broadcast'])->name('broadcast');
+                Route::get('/favorites', [WhatsAppController::class, 'getFavorites'])->name('favorites.get');
+                Route::post('/favorites', [WhatsAppController::class, 'saveFavorite'])->name('favorites.save');
+                Route::delete('/favorites/{id}', [WhatsAppController::class, 'deleteFavorite'])->name('favorites.delete');
                 Route::post('/logout', [WhatsAppController::class, 'logout'])->name('logout');
                 Route::post('/revoke', [WhatsAppController::class, 'revoke'])->name('revoke');
                 Route::get('/logs', [WhatsAppController::class, 'logs'])->name('logs');

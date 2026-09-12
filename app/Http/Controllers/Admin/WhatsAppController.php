@@ -29,13 +29,33 @@ class WhatsAppController extends Controller
             'admin_numbers' => OpenWaService::getSetting('whatsapp_admin_numbers', ''),
         ];
 
+        $rawFavorites = OpenWaService::getSetting('whatsapp_favorite_executives', '[]');
+        $favorites = json_decode($rawFavorites, true) ?: [];
+
+        if (empty($favorites)) {
+            $adminNums = OpenWaService::getSetting('whatsapp_admin_numbers', '');
+            if (!empty($adminNums)) {
+                $numArr = array_filter(array_map('trim', preg_split('/[,\n;]+/', $adminNums)));
+                $idx = 1;
+                foreach ($numArr as $n) {
+                    $favorites[] = [
+                        'id' => (string) $idx++,
+                        'name' => 'Admin Executive',
+                        'phone' => $n,
+                        'role' => 'Executive Committee'
+                    ];
+                }
+            }
+        }
+
         $counts = [
             'members' => \App\Models\Member::where('status', 'active')->whereNotNull('mobile_number')->count(),
             'attendees' => \App\Models\EventBooking::where('booking_status', 'approved')->whereNotNull('phone')->count(),
             'students' => \App\Models\StudentRequest::whereNotNull('phone')->count(),
+            'executives' => count($favorites),
         ];
 
-        return view('admin.whatsapp.index', compact('status', 'settings', 'counts'));
+        return view('admin.whatsapp.index', compact('status', 'settings', 'counts', 'favorites'));
     }
 
     /**
@@ -223,9 +243,10 @@ class WhatsAppController extends Controller
     public function broadcast(Request $request)
     {
         $request->validate([
-            'audience' => 'required|string|in:members,attendees,students,custom',
+            'audience' => 'required|string|in:members,attendees,students,executives,custom',
             'message' => 'required|string|max:2000',
-            'custom_numbers' => 'nullable|string'
+            'custom_numbers' => 'nullable|string',
+            'selected_executives' => 'nullable|array'
         ]);
 
         $audience = $request->input('audience');
@@ -259,6 +280,24 @@ class WhatsAppController extends Controller
                     'phone' => $s->phone,
                     'name' => $s->full_name ?? 'Student'
                 ];
+            }
+        } elseif ($audience === 'executives') {
+            $raw = OpenWaService::getSetting('whatsapp_favorite_executives', '[]');
+            $list = json_decode($raw, true) ?: [];
+            $selectedIds = $request->input('selected_executives');
+
+            foreach ($list as $item) {
+                if (!empty($selectedIds) && is_array($selectedIds)) {
+                    if (!in_array((string) ($item['id'] ?? ''), array_map('strval', $selectedIds))) {
+                        continue;
+                    }
+                }
+                if (!empty($item['phone'])) {
+                    $recipients[] = [
+                        'phone' => $item['phone'],
+                        'name' => $item['name'] ?? 'Executive Member'
+                    ];
+                }
             }
         } elseif ($audience === 'custom') {
             $raw = $request->input('custom_numbers', '');
@@ -295,6 +334,100 @@ class WhatsAppController extends Controller
             'success' => true,
             'message' => "Broadcast complete! {$res['sent']} dispatched successfully, {$res['failed']} failed.",
             'stats' => $res
+        ]);
+    }
+
+    /**
+     * Get list of favorite executive member numbers
+     */
+    public function getFavorites()
+    {
+        $raw = OpenWaService::getSetting('whatsapp_favorite_executives', '[]');
+        $list = json_decode($raw, true) ?: [];
+        return response()->json([
+            'success' => true,
+            'favorites' => array_values($list)
+        ]);
+    }
+
+    /**
+     * Save or update an executive favorite contact
+     */
+    public function saveFavorite(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'phone' => 'required|string|min:8|max:25',
+            'role' => 'nullable|string|max:100',
+            'id' => 'nullable|string'
+        ]);
+
+        $name = trim($request->input('name'));
+        $phone = trim($request->input('phone'));
+        $role = trim($request->input('role') ?: 'Executive Committee');
+
+        $raw = OpenWaService::getSetting('whatsapp_favorite_executives', '[]');
+        $list = json_decode($raw, true) ?: [];
+
+        $id = $request->input('id');
+        $found = false;
+
+        if ($id) {
+            foreach ($list as &$item) {
+                if (isset($item['id']) && (string) $item['id'] === (string) $id) {
+                    $item['name'] = $name;
+                    $item['phone'] = $phone;
+                    $item['role'] = $role;
+                    $found = true;
+                    break;
+                }
+            }
+            unset($item);
+        }
+
+        if (!$found) {
+            $id = (string) (time() . rand(100, 999));
+            $list[] = [
+                'id' => $id,
+                'name' => $name,
+                'phone' => $phone,
+                'role' => $role
+            ];
+        }
+
+        \App\Models\Setting::updateOrCreate(
+            ['setting_key' => 'whatsapp_favorite_executives'],
+            ['setting_value' => json_encode(array_values($list))]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Saved {$name} ({$phone}) to Executive Favorites.",
+            'favorites' => array_values($list)
+        ]);
+    }
+
+    /**
+     * Remove an executive favorite contact
+     */
+    public function deleteFavorite($id)
+    {
+        $raw = OpenWaService::getSetting('whatsapp_favorite_executives', '[]');
+        $list = json_decode($raw, true) ?: [];
+
+        $filtered = array_values(array_filter($list, function ($item) use ($id) {
+            return (string) ($item['id'] ?? '') !== (string) $id;
+        }));
+
+        \App\Models\Setting::updateOrCreate(
+            ['setting_key' => 'whatsapp_favorite_executives'],
+            ['setting_value' => json_encode($filtered)]
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Executive contact removed from favorites.',
+            'favorites' => $filtered
         ]);
     }
 }
