@@ -51,6 +51,18 @@ let currentQrRaw = null;
 let currentQrImage = null;
 let currentUser = null;
 let isLoggingOut = false;
+let reconnectTimer = null;
+
+function scheduleInitWhatsApp(delayMs = 2000) {
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+    reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        initWhatsApp();
+    }, delayMs);
+}
 
 // ── Persistent LID <-> Phone Mapping ──
 // Avoids "Waiting for this message" when communicating with devices using Linked Identity (LID)
@@ -241,10 +253,28 @@ function formatJid(target) {
 
 // ── Initialize WhatsApp Socket ──
 async function initWhatsApp() {
+    if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+    }
+
+    // Cleanly detach and discard existing socket if present
+    if (sock) {
+        try {
+            sock.ev?.removeAllListeners();
+            sock.end(undefined);
+        } catch (e) {}
+        sock = null;
+    }
+
     loadPersistentMappings();
     loadPersistentMessages();
 
     try {
+        if (!fs.existsSync(SESSION_DIR)) {
+            fs.mkdirSync(SESSION_DIR, { recursive: true });
+        }
+
         const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
         const { version } = await fetchLatestBaileysVersion();
 
@@ -326,7 +356,8 @@ async function initWhatsApp() {
 
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
-                const shouldReconnect = statusCode !== DisconnectReason.loggedOut && !isLoggingOut;
+                const isLoggedOutStatus = statusCode === DisconnectReason.loggedOut;
+                const shouldReconnect = !isLoggedOutStatus && !isLoggingOut;
 
                 connectionState = 'disconnected';
                 currentQrRaw = null;
@@ -337,13 +368,13 @@ async function initWhatsApp() {
 
                 if (shouldReconnect) {
                     connectionState = 'connecting';
-                    setTimeout(() => initWhatsApp(), 4000);
-                } else if (isLoggingOut) {
-                    isLoggingOut = false;
+                    scheduleInitWhatsApp(3000);
+                } else if (isLoggedOutStatus && !isLoggingOut) {
                     try {
                         fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+                        fs.mkdirSync(SESSION_DIR, { recursive: true });
                     } catch (rmErr) {}
-                    setTimeout(() => initWhatsApp(), 2000);
+                    scheduleInitWhatsApp(2000);
                 }
             } else if (connection === 'connecting') {
                 connectionState = 'connecting';
@@ -501,6 +532,7 @@ app.post('/session/logout', authenticate, async (req, res) => {
         isLoggingOut = true;
         if (sock) {
             try {
+                sock.ev?.removeAllListeners();
                 await Promise.race([
                     sock.logout(),
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Logout timeout')), 3500))
@@ -508,10 +540,12 @@ app.post('/session/logout', authenticate, async (req, res) => {
             } catch (logoutErr) {
                 try { sock.end(undefined); } catch (e) {}
             }
+            sock = null;
         }
 
         try {
             fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+            fs.mkdirSync(SESSION_DIR, { recursive: true });
         } catch (rmErr) {}
 
         connectionState = 'disconnected';
@@ -525,15 +559,14 @@ app.post('/session/logout', authenticate, async (req, res) => {
 
         logEvent('system', 'SUCCESS', 'WhatsApp session credentials unlinked. Restarting socket for fresh QR...');
 
-        setTimeout(() => {
-            initWhatsApp();
-        }, 1500);
+        scheduleInitWhatsApp(1200);
 
         res.json({
             success: true,
             message: 'WhatsApp session logged out and unlinked successfully.'
         });
     } catch (e) {
+        isLoggingOut = false;
         logEvent('error', 'ERROR', 'Session logout error: ' + e.message);
         res.status(500).json({
             success: false,
@@ -551,6 +584,7 @@ app.post('/session/revoke', authenticate, async (req, res) => {
         isLoggingOut = true;
         if (sock) {
             try {
+                sock.ev?.removeAllListeners();
                 if (!force) {
                     await Promise.race([
                         sock.logout(),
@@ -562,11 +596,13 @@ app.post('/session/revoke', authenticate, async (req, res) => {
             } catch (err) {
                 try { sock.end(undefined); } catch (e) {}
             }
+            sock = null;
         }
 
-        // Wipe session directory
+        // Wipe session directory and immediately ensure clean folder exists
         try {
             fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+            fs.mkdirSync(SESSION_DIR, { recursive: true });
         } catch (rmErr) {
             console.warn('[WhatsApp Daemon] Remove session dir error:', rmErr.message);
         }
@@ -583,15 +619,14 @@ app.post('/session/revoke', authenticate, async (req, res) => {
 
         logEvent('system', 'SUCCESS', 'Session credentials completely wiped. Generating fresh QR code...');
 
-        setTimeout(() => {
-            initWhatsApp();
-        }, 1500);
+        scheduleInitWhatsApp(1200);
 
         res.json({
             success: true,
             message: 'WhatsApp session successfully revoked and purged. A fresh QR code is being generated.'
         });
     } catch (e) {
+        isLoggingOut = false;
         logEvent('error', 'ERROR', 'Session revoke failed: ' + e.message);
         res.status(500).json({
             success: false,
