@@ -340,6 +340,10 @@ Route::post('/student-submit', [MembershipController::class, 'submitStudentReque
 Route::get('/tomjsailor', [AdminAuthController::class, 'showLogin'])->name('admin.login')->middleware('throttle:login');
 Route::post('/tomjsailor', [AdminAuthController::class, 'login'])->middleware('throttle:login');
 
+// Safe entry points
+Route::get('/admin/login', fn () => redirect()->route('admin.login'));
+Route::get('/admin', fn () => redirect()->route('admin.dashboard'));
+
 Route::prefix('admin')->name('admin.')->group(function () {
     // Also support /admin/tomjsailor
     Route::get('/tomjsailor', [AdminAuthController::class, 'showLogin'])->middleware('throttle:login');

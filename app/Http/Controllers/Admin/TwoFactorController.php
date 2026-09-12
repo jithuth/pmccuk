@@ -69,7 +69,8 @@ class TwoFactorController extends Controller
             );
         } catch (\Exception $e) {}
 
-        return redirect()->intended(route('admin.dashboard'));
+        session()->forget('url.intended');
+        return redirect()->route('admin.dashboard');
     }
 
     // ─── 2FA Setup (from admin profile) ───────────────────────────
