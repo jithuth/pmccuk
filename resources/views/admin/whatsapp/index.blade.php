@@ -2093,11 +2093,14 @@
                 </div>
                 <div class="modal-footer bg-white p-3 border-top d-flex justify-content-between align-items-center">
                     <div class="text-xxs text-muted">
-                        <i class="fas fa-shield-alt text-success me-1"></i> Safe: Every recipient state is persisted immediately to database.
+                        <i class="fas fa-shield-alt text-success me-1"></i> Controlled: Each batch requires intentional dispatch with full pause/revoke control.
                     </div>
-                    <div class="d-flex gap-2">
-                        <button type="button" id="btnLiveBcPauseResume" class="btn btn-warning btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm" onclick="togglePauseLiveBroadcast()">
-                            <i class="fas fa-pause me-1"></i> Pause
+                    <div class="d-flex gap-2 align-items-center">
+                        <button type="button" id="btnLiveBcRevoke" class="btn btn-outline-danger btn-sm rounded-pill text-xs px-3 d-none" onclick="revokeCurrentLiveBroadcast()">
+                            <i class="fas fa-undo me-1"></i> Revoke Sent
+                        </button>
+                        <button type="button" id="btnLiveBcPauseResume" class="btn btn-primary btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm" onclick="togglePauseLiveBroadcast()">
+                            <i class="fas fa-play me-1"></i> Start Dispatch
                         </button>
                         <button type="button" id="btnLiveBcClose" class="btn btn-outline-secondary btn-sm rounded-pill text-xs px-3" onclick="closeLiveBroadcastModal()">
                             Close / Background
@@ -2163,6 +2166,7 @@
                             <button type="button" class="btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn active btn-dark" data-filter="all" onclick="filterReportTable('all')">All</button>
                             <button type="button" class="btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn btn-outline-success" data-filter="sent" onclick="filterReportTable('sent')">Sent</button>
                             <button type="button" class="btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn btn-outline-danger" data-filter="failed" onclick="filterReportTable('failed')">Failed</button>
+                            <button type="button" class="btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn btn-outline-secondary" data-filter="revoked" onclick="filterReportTable('revoked')">Revoked</button>
                             <button type="button" class="btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn btn-outline-warning" data-filter="pending" onclick="filterReportTable('pending')">Pending</button>
                         </div>
                         <div class="d-flex gap-2">
@@ -3470,8 +3474,8 @@
 
             window.startLiveBroadcastBatching = function(broadcastId, total, title) {
                 currentLiveBroadcastId = broadcastId;
-                isLiveRunning = true;
-                isLivePaused = false;
+                isLiveRunning = false;
+                isLivePaused = true;
                 liveTotal = parseInt(total) || 0;
                 liveSent = 0;
                 liveFailed = 0;
@@ -3505,21 +3509,35 @@
 
                 const stateBadge = document.getElementById('liveBcStateBadge');
                 if (stateBadge) {
-                    stateBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 text-xxs rounded-pill';
-                    stateBadge.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Running';
+                    stateBadge.className = 'badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1 text-xxs rounded-pill';
+                    stateBadge.innerHTML = '<i class="fas fa-hand-paper me-1"></i> Armed &amp; Ready';
                 }
 
+                const batchInitialSize = Math.min(BATCH_SIZE_LIMIT, liveTotal);
                 const btnPause = document.getElementById('btnLiveBcPauseResume');
                 if (btnPause) {
                     btnPause.disabled = false;
-                    btnPause.className = 'btn btn-warning btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm';
-                    btnPause.innerHTML = '<i class="fas fa-pause me-1"></i> Pause';
+                    btnPause.className = 'btn btn-primary btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm';
+                    btnPause.innerHTML = `<i class="fas fa-play me-1"></i> Start Batch 1 (${batchInitialSize} recipients)`;
+                }
+
+                const btnRevoke = document.getElementById('btnLiveBcRevoke');
+                if (btnRevoke) {
+                    btnRevoke.classList.add('d-none');
+                    btnRevoke.disabled = false;
+                    btnRevoke.className = 'btn btn-outline-danger btn-sm rounded-pill text-xs px-3';
+                    btnRevoke.innerHTML = '<i class="fas fa-undo me-1"></i> Revoke Sent';
+                }
+
+                const actEl = document.getElementById('liveBcCurrentAction');
+                if (actEl) {
+                    actEl.textContent = `Batch 1 ready (${batchInitialSize} recipients). Click "Start Batch 1" below to begin.`;
                 }
 
                 const totalBatches = Math.max(1, Math.ceil(liveTotal / BATCH_SIZE_LIMIT));
                 const logContainer = document.getElementById('liveBcLogContainer');
                 if (logContainer) {
-                    logContainer.innerHTML = `<div class="text-info fw-bold">[${formatLogTimestamp()}] Initialized batch dispatch for Broadcast #${broadcastId} (${liveTotal} total recipients divided into ${totalBatches} batches of 20 with 3-minute anti-ban safety gap). Starting Batch 1...</div>`;
+                    logContainer.innerHTML = `<div class="text-info fw-bold">[${formatLogTimestamp()}] Initialized batch dispatch for Broadcast #${broadcastId} (${liveTotal} total recipients divided into ${totalBatches} batches of 20 with 3-minute anti-ban safety gap). Dispatch is armed and waiting for confirmation.</div>`;
                 }
 
                 const modalEl = document.getElementById('modalBroadcastLiveProgress');
@@ -3528,7 +3546,8 @@
                 }
                 liveBcModalInstance?.show();
 
-                dispatchNextBatch();
+                // Intentional Non-Immediate Start: Do NOT call dispatchNextBatch() here.
+                // The admin must click "Start Batch 1" to confirm dispatch.
             };
 
             function dispatchNextBatch() {
@@ -3577,6 +3596,13 @@
                     if (pBar) {
                         pBar.style.width = pct + '%';
                         pBar.textContent = pct + '%';
+                    }
+
+                    // Reveal and update Revoke button if messages have been sent
+                    const btnRevoke = document.getElementById('btnLiveBcRevoke');
+                    if (btnRevoke && liveSent > 0) {
+                        btnRevoke.classList.remove('d-none');
+                        btnRevoke.innerHTML = `<i class="fas fa-undo me-1"></i> Revoke (${liveSent} Sent)`;
                     }
 
                     // Log each recipient in this chunk
@@ -3644,6 +3670,12 @@
                 const timerEl = document.getElementById('liveBcCooldownTimer');
                 const badgeEl = document.getElementById('liveBcBatchBadge');
                 const actEl = document.getElementById('liveBcCurrentAction');
+                const stateBadge = document.getElementById('liveBcStateBadge');
+
+                if (stateBadge) {
+                    stateBadge.className = 'badge bg-warning-subtle text-dark border border-warning-subtle px-2.5 py-1 text-xxs rounded-pill';
+                    stateBadge.innerHTML = `<i class="fas fa-shield-virus me-1"></i> Anti-Ban Cooldown (Batch ${currentBatchIndex} Done)`;
+                }
 
                 if (cdCard) cdCard.classList.remove('d-none');
                 if (badgeEl) badgeEl.textContent = `Batch ${currentBatchIndex} of ${totalBatches} Completed`;
@@ -3689,20 +3721,43 @@
                 const totalBatches = Math.max(1, Math.ceil(liveTotal / BATCH_SIZE_LIMIT));
                 appendLiveLog(`<div class="text-success fw-bold my-1">[Anti-Ban Safety] Resuming: Starting Batch ${currentBatchIndex} of ${totalBatches}...</div>`);
 
+                const stateBadge = document.getElementById('liveBcStateBadge');
+                if (stateBadge) {
+                    stateBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 text-xxs rounded-pill';
+                    stateBadge.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> Running Batch ${currentBatchIndex}`;
+                }
+
                 if (isLiveRunning && !isLivePaused) {
                     dispatchNextBatch();
                 }
             }
 
             window.togglePauseLiveBroadcast = function() {
-                if (!isLiveRunning) return;
-                isLivePaused = !isLivePaused;
-
                 const btnPause = document.getElementById('btnLiveBcPauseResume');
                 const stateBadge = document.getElementById('liveBcStateBadge');
                 const actEl = document.getElementById('liveBcCurrentAction');
 
-                if (isLivePaused) {
+                // Case 1: Initial Armed & Ready state (waiting to start Batch 1)
+                if (!isLiveRunning && isLivePaused) {
+                    isLiveRunning = true;
+                    isLivePaused = false;
+
+                    if (btnPause) {
+                        btnPause.className = 'btn btn-warning btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm';
+                        btnPause.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Dispatch';
+                    }
+                    if (stateBadge) {
+                        stateBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 text-xxs rounded-pill';
+                        stateBadge.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> Running Batch ${currentBatchIndex}`;
+                    }
+                    appendLiveLog(`<div class="text-success fw-bold">[${formatLogTimestamp()}] ▶ Dispatch confirmed by user. Starting Batch ${currentBatchIndex}...</div>`);
+                    dispatchNextBatch();
+                    return;
+                }
+
+                // Case 2: Currently running and user clicks Pause
+                if (isLiveRunning && !isLivePaused) {
+                    isLivePaused = true;
                     if (btnPause) {
                         btnPause.className = 'btn btn-success btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm';
                         btnPause.innerHTML = '<i class="fas fa-play me-1"></i> Resume Dispatch';
@@ -3713,20 +3768,100 @@
                     }
                     if (actEl) actEl.textContent = 'Paused by user.';
                     appendLiveLog(`<div class="text-warning">[${formatLogTimestamp()}] ⏸ Batch dispatch paused by user. Progress is preserved in database.</div>`);
-                } else {
+                    return;
+                }
+
+                // Case 3: Paused and user clicks Resume
+                if (isLiveRunning && isLivePaused) {
+                    isLivePaused = false;
                     if (btnPause) {
                         btnPause.className = 'btn btn-warning btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm';
-                        btnPause.innerHTML = '<i class="fas fa-pause me-1"></i> Pause';
+                        btnPause.innerHTML = '<i class="fas fa-pause me-1"></i> Pause Dispatch';
                     }
                     if (stateBadge) {
                         stateBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 text-xxs rounded-pill';
-                        stateBadge.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Running';
+                        stateBadge.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> Running Batch ${currentBatchIndex}`;
                     }
                     appendLiveLog(`<div class="text-success">[${formatLogTimestamp()}] ▶ Resuming batch dispatch...</div>`);
                     if (!isCooldownActive) {
                         dispatchNextBatch();
                     }
                 }
+            };
+
+            window.revokeCurrentLiveBroadcast = function() {
+                if (!currentLiveBroadcastId) return;
+
+                // Immediately pause live sending
+                isLivePaused = true;
+                const btnPause = document.getElementById('btnLiveBcPauseResume');
+                if (btnPause && isLiveRunning) {
+                    btnPause.className = 'btn btn-success btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm';
+                    btnPause.innerHTML = '<i class="fas fa-play me-1"></i> Resume Dispatch';
+                }
+
+                const countToRevoke = liveSent;
+                if (!confirm(`Are you sure you want to stop dispatch and REVOKE (delete for everyone on WhatsApp) all ${countToRevoke} sent messages for this broadcast? This action cannot be undone.`)) {
+                    return;
+                }
+
+                const btnRevoke = document.getElementById('btnLiveBcRevoke');
+                if (btnRevoke) {
+                    btnRevoke.disabled = true;
+                    btnRevoke.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Revoking...';
+                }
+
+                appendLiveLog(`<div class="text-danger fw-bold my-1">[Revoke Action] Dispatched bulk revocation request to WhatsApp server for ${countToRevoke} messages...</div>`);
+
+                fetch(`{{ url('admin/whatsapp/broadcast') }}/${currentLiveBroadcastId}/revoke`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        isLiveRunning = false;
+                        if (cooldownTimerId) { clearInterval(cooldownTimerId); cooldownTimerId = null; }
+                        document.getElementById('liveBcCooldownCard')?.classList.add('d-none');
+
+                        const stateBadge = document.getElementById('liveBcStateBadge');
+                        if (stateBadge) {
+                            stateBadge.className = 'badge bg-danger text-white px-2.5 py-1 text-xxs rounded-pill';
+                            stateBadge.innerHTML = '<i class="fas fa-ban me-1"></i> Revoked';
+                        }
+                        if (btnPause) {
+                            btnPause.disabled = true;
+                            btnPause.className = 'btn btn-secondary btn-sm rounded-pill text-xs px-3';
+                            btnPause.innerHTML = '<i class="fas fa-ban me-1"></i> Stopped &amp; Revoked';
+                        }
+                        if (btnRevoke) {
+                            btnRevoke.className = 'btn btn-danger btn-sm rounded-pill text-xs px-3';
+                            btnRevoke.innerHTML = `<i class="fas fa-check me-1"></i> Revoked (${data.revoked_count})`;
+                        }
+
+                        appendLiveLog(`<div class="text-white bg-danger p-2.5 rounded my-2"><strong>🚫 Broadcast Revoked!</strong> Successfully revoked ${data.revoked_count} messages on WhatsApp server. ${data.errors_count > 0 ? `(${data.errors_count} failed)` : ''}</div>`);
+                        alert(data.message || 'Messages revoked successfully.');
+                        refreshScheduledQueue();
+                    } else {
+                        if (btnRevoke) {
+                            btnRevoke.disabled = false;
+                            btnRevoke.innerHTML = `<i class="fas fa-undo me-1"></i> Revoke (${liveSent} Sent)`;
+                        }
+                        alert(data.message || 'Failed to revoke messages.');
+                        appendLiveLog(`<div class="text-danger font-monospace">[Revoke Error] ${escapeHtml(data.message || 'Revocation failed')}</div>`);
+                    }
+                })
+                .catch(err => {
+                    if (btnRevoke) {
+                        btnRevoke.disabled = false;
+                        btnRevoke.innerHTML = `<i class="fas fa-undo me-1"></i> Revoke (${liveSent} Sent)`;
+                    }
+                    alert('Network error while requesting revocation: ' + err.message);
+                });
             };
 
             window.closeLiveBroadcastModal = function() {
@@ -3803,6 +3938,11 @@
                             <i class="fas fa-redo me-1"></i> Retry ${data.failed_count} Failed
                         </button>`;
                     }
+                    if (data.sent_count > 0) {
+                        actHtml += `<button type="button" class="btn btn-outline-danger btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm" onclick="revokeEntireBroadcast(${broadcastId})">
+                            <i class="fas fa-undo me-1"></i> Revoke All Sent Messages (${data.sent_count})
+                        </button>`;
+                    }
                     actContainer.innerHTML = actHtml;
                 })
                 .catch(err => {
@@ -3836,11 +3976,24 @@
                         statusBadge = '<span class="badge bg-success-subtle text-success border border-success-subtle text-xxs px-2 py-1 rounded-pill"><i class="fas fa-check-circle me-1"></i>Sent</span>';
                     } else if (r.status === 'failed') {
                         statusBadge = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle text-xxs px-2 py-1 rounded-pill"><i class="fas fa-times-circle me-1"></i>Failed</span>';
+                    } else if (r.status === 'revoked') {
+                        statusBadge = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle text-xxs px-2 py-1 rounded-pill"><i class="fas fa-ban me-1"></i>Revoked</span>';
                     }
 
                     const phoneDisplay = r.formatted_phone || r.phone || '--';
                     const timeDisplay = r.sent_at || r.failed_at || '<span class="text-muted text-xxs">&mdash;</span>';
-                    const notesDisplay = r.error ? `<span class="text-danger font-monospace text-xxs">${escapeHtml(r.error)}</span>` : (r.message_id ? `<span class="text-muted text-xxs font-monospace">ID: ${escapeHtml(r.message_id.substring(0,16))}...</span>` : '<span class="text-muted text-xxs">&mdash;</span>');
+                    
+                    let actionHtml = '';
+                    if (r.status === 'sent' && r.message_id) {
+                        actionHtml = `<button type="button" class="btn btn-outline-danger btn-xxs py-0 px-2 rounded-pill ms-1" onclick="revokeSingleRecipientMessage(${currentReportBroadcastId}, ${idx})" title="Delete message for recipient on WhatsApp"><i class="fas fa-undo me-0.5"></i>Revoke</button>`;
+                    }
+
+                    let notesDisplay = '<span class="text-muted text-xxs">&mdash;</span>';
+                    if (r.error) {
+                        notesDisplay = `<span class="text-danger font-monospace text-xxs">${escapeHtml(r.error)}</span>`;
+                    } else if (r.message_id) {
+                        notesDisplay = `<span class="text-muted text-xxs font-monospace">ID: ${escapeHtml(r.message_id.substring(0,14))}...</span> ${actionHtml}`;
+                    }
 
                     return `<tr>
                         <td class="ps-3 py-2 text-muted text-xxs font-monospace">${idx + 1}</td>
@@ -3868,6 +4021,53 @@
 
             window.handleReportSearch = function(val) {
                 renderReportTable();
+            };
+
+            window.revokeEntireBroadcast = function(broadcastId) {
+                if (!confirm(`Are you sure you want to REVOKE (delete for everyone on WhatsApp) ALL sent messages for Broadcast #${broadcastId}? This cannot be undone.`)) {
+                    return;
+                }
+
+                fetch(`{{ url('admin/whatsapp/broadcast') }}/${broadcastId}/revoke`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || (data.success ? 'Messages revoked.' : 'Revocation failed.'));
+                    if (data.success) {
+                        viewBroadcastDetails(broadcastId);
+                        refreshScheduledQueue();
+                    }
+                })
+                .catch(err => alert('Network error while revoking: ' + err.message));
+            };
+
+            window.revokeSingleRecipientMessage = function(broadcastId, index) {
+                if (!confirm(`Revoke (delete for everyone on WhatsApp) this message?`)) {
+                    return;
+                }
+
+                fetch(`{{ url('admin/whatsapp/broadcast') }}/${broadcastId}/revoke-recipient/${index}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    alert(data.message || (data.success ? 'Message revoked.' : 'Revocation failed.'));
+                    if (data.success) {
+                        viewBroadcastDetails(broadcastId);
+                    }
+                })
+                .catch(err => alert('Network error while revoking: ' + err.message));
             };
 
             window.resumeInteractiveBroadcast = function(broadcastId) {

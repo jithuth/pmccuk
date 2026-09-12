@@ -880,6 +880,85 @@ app.post('/send/contact', authenticate, async (req, res) => {
     }
 });
 
+// Revoke / Delete a sent message for everyone on WhatsApp
+app.post('/message/revoke', authenticate, async (req, res) => {
+    if (connectionState !== 'connected' || !sock) {
+        return res.status(503).json({
+            success: false,
+            error: 'WhatsApp device is not connected. Current state: ' + connectionState
+        });
+    }
+
+    const { to, messageId, items } = req.body;
+
+    // Support bulk revocation: items = [{ to, messageId }, ...]
+    if (Array.isArray(items) && items.length > 0) {
+        const results = [];
+        for (const item of items) {
+            if (!item.to || !item.messageId) continue;
+            try {
+                const jid = formatJid(item.to);
+                const key = {
+                    remoteJid: jid,
+                    fromMe: true,
+                    id: item.messageId
+                };
+                await sock.sendMessage(jid, { delete: key });
+                results.push({ to: jid, messageId: item.messageId, success: true });
+                logEvent('system', 'WARNING', `Revoked message #${item.messageId} for ${jid}`);
+                // 150ms pacing between revokes
+                await new Promise(resolve => setTimeout(resolve, 150));
+            } catch (revErr) {
+                results.push({ to: item.to, messageId: item.messageId, success: false, error: revErr.message });
+            }
+        }
+
+        return res.json({
+            success: true,
+            revoked_count: results.filter(r => r.success).length,
+            total: items.length,
+            results
+        });
+    }
+
+    // Single message revocation
+    if (!to || !messageId) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parameters "to" (phone/JID) and "messageId" are required.'
+        });
+    }
+
+    try {
+        const jid = formatJid(to);
+        const key = {
+            remoteJid: jid,
+            fromMe: true,
+            id: messageId
+        };
+
+        await sock.sendMessage(jid, { delete: key });
+
+        logEvent('system', 'WARNING', `Revoked message #${messageId} for ${jid}`, {
+            to: jid,
+            messageId
+        });
+
+        res.json({
+            success: true,
+            message: `Message #${messageId} revoked successfully for ${jid}`,
+            messageId,
+            to: jid
+        });
+    } catch (err) {
+        logEvent('error', 'ERROR', `Message revoke error for ${to} (${messageId}): ${err.message}`, { error: err.message });
+        res.status(500).json({
+            success: false,
+            error: err.message
+        });
+    }
+});
+
 // Autonomous 60-second background ticker to process due scheduled broadcasts
 setInterval(() => {
     try {

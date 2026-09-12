@@ -499,6 +499,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::get('/broadcast/{id}/details', [WhatsAppController::class, 'getBroadcastDetails'])->name('broadcast.details');
                 Route::post('/broadcast/{id}/resume', [WhatsAppController::class, 'resumeBroadcast'])->name('broadcast.resume');
                 Route::post('/broadcast/{id}/retry-failed', [WhatsAppController::class, 'retryFailedRecipients'])->name('broadcast.retry-failed');
+                Route::post('/broadcast/{id}/revoke', [WhatsAppController::class, 'revokeBroadcast'])->name('broadcast.revoke');
+                Route::post('/broadcast/{id}/revoke-recipient/{index}', [WhatsAppController::class, 'revokeRecipientMessage'])->name('broadcast.revoke-recipient');
+                Route::post('/message/revoke', [WhatsAppController::class, 'revokeDirectMessage'])->name('message.revoke');
                 Route::get('/favorites', [WhatsAppController::class, 'getFavorites'])->name('favorites.get');
                 Route::post('/favorites', [WhatsAppController::class, 'saveFavorite'])->name('favorites.save');
                 Route::delete('/favorites/{id}', [WhatsAppController::class, 'deleteFavorite'])->name('favorites.delete');

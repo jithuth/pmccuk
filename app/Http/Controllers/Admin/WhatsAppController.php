@@ -730,33 +730,40 @@ class WhatsAppController extends Controller
             $phone = $r['phone'];
             $name = $r['name'] ?? 'Community Member';
 
-            $ok = OpenWaService::dispatchBroadcastBundle(
+            $res = OpenWaService::dispatchBroadcastBundle(
                 $phone,
                 $name,
                 $broadcast->message,
                 $broadcast->attachments ?: []
             );
 
-            if ($ok) {
+            $isOk = is_array($res) ? ($res['success'] ?? false) : (bool)$res;
+            $msgId = is_array($res) ? ($res['message_id'] ?? null) : null;
+
+            if ($isOk) {
                 $recipients[$idx]['status'] = 'sent';
+                $recipients[$idx]['message_id'] = $msgId;
                 $recipients[$idx]['sent_at'] = Carbon::now()->toDateTimeString();
                 $recipients[$idx]['error'] = null;
                 $batchResults[] = [
                     'phone' => $phone,
                     'formatted_phone' => OpenWaService::formatPhoneDisplay($phone),
                     'name' => $name,
-                    'status' => 'sent'
+                    'status' => 'sent',
+                    'message_id' => $msgId
                 ];
                 $errorLogs[] = "[SUCCESS " . date('H:i:s') . "] Dispatched to {$name} (" . OpenWaService::formatPhoneDisplay($phone) . ")";
             } else {
                 $recipients[$idx]['status'] = 'failed';
+                $recipients[$idx]['message_id'] = null;
                 $recipients[$idx]['sent_at'] = Carbon::now()->toDateTimeString();
-                $recipients[$idx]['error'] = 'Dispatch failed from gateway socket';
+                $recipients[$idx]['error'] = is_array($res) ? ($res['error'] ?? 'Dispatch failed') : 'Dispatch failed from gateway socket';
                 $batchResults[] = [
                     'phone' => $phone,
                     'formatted_phone' => OpenWaService::formatPhoneDisplay($phone),
                     'name' => $name,
-                    'status' => 'failed'
+                    'status' => 'failed',
+                    'message_id' => null
                 ];
                 $errorLogs[] = "[FAILED " . date('H:i:s') . "] Failed dispatch to {$name} (" . OpenWaService::formatPhoneDisplay($phone) . ")";
             }
@@ -944,5 +951,110 @@ class WhatsAppController extends Controller
             'success' => true,
             'output' => trim($output)
         ]);
+    }
+
+    /**
+     * Revoke all sent messages for a broadcast (Delete for Everyone on WhatsApp)
+     */
+    public function revokeBroadcast(Request $request, $id)
+    {
+        $broadcast = WhatsAppScheduledBroadcast::findOrFail($id);
+        $recipients = $broadcast->recipients_data ?: [];
+
+        $itemsToRevoke = [];
+        $indicesToRevoke = [];
+        foreach ($recipients as $idx => $r) {
+            if (($r['status'] ?? '') === 'sent' && !empty($r['message_id']) && !empty($r['phone'])) {
+                $itemsToRevoke[] = [
+                    'to' => $r['phone'],
+                    'messageId' => $r['message_id']
+                ];
+                $indicesToRevoke[] = $idx;
+            }
+        }
+
+        if (empty($itemsToRevoke)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No active sent messages with recorded WhatsApp Message IDs were found to revoke for this broadcast.'
+            ], 422);
+        }
+
+        // Call bulk revoke on daemon
+        $res = OpenWaService::revokeMessagesBulk($itemsToRevoke);
+
+        // Mark successfully revoked recipients
+        $revokedCount = 0;
+        foreach ($indicesToRevoke as $idx) {
+            $recipients[$idx]['status'] = 'revoked';
+            $recipients[$idx]['revoked_at'] = Carbon::now()->toDateTimeString();
+            $revokedCount++;
+        }
+
+        $broadcast->recipients_data = $recipients;
+        $broadcast->status = 'revoked';
+        $broadcast->save();
+
+        return response()->json([
+            'success' => true,
+            'revoked_count' => $revokedCount,
+            'message' => "Requested revocation for {$revokedCount} messages on WhatsApp.",
+            'broadcast' => $broadcast
+        ]);
+    }
+
+    /**
+     * Revoke a single recipient's message from a broadcast
+     */
+    public function revokeRecipientMessage(Request $request, $id, $index)
+    {
+        $broadcast = WhatsAppScheduledBroadcast::findOrFail($id);
+        $recipients = $broadcast->recipients_data ?: [];
+
+        if (!isset($recipients[$index])) {
+            return response()->json(['success' => false, 'message' => 'Recipient record not found.'], 404);
+        }
+
+        $r = $recipients[$index];
+        $phone = $r['phone'] ?? null;
+        $msgId = $r['message_id'] ?? null;
+
+        if (!$phone || !$msgId) {
+            return response()->json(['success' => false, 'message' => 'This message does not have a recorded WhatsApp Message ID to revoke.'], 422);
+        }
+
+        $res = OpenWaService::revokeMessage($phone, $msgId);
+
+        if ($res['success']) {
+            $recipients[$index]['status'] = 'revoked';
+            $recipients[$index]['revoked_at'] = Carbon::now()->toDateTimeString();
+            $broadcast->recipients_data = $recipients;
+            $broadcast->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Message for {$r['name']} revoked successfully from WhatsApp."
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $res['message'] ?? 'Failed to revoke message on WhatsApp daemon.'
+        ], 500);
+    }
+
+    /**
+     * Revoke a direct message given phone and message ID
+     */
+    public function revokeDirectMessage(Request $request)
+    {
+        $request->validate([
+            'phone' => 'required|string',
+            'message_id' => 'required|string'
+        ]);
+
+        $res = OpenWaService::revokeMessage($request->input('phone'), $request->input('message_id'));
+
+        return response()->json($res, $res['success'] ? 200 : 500);
     }
 }

@@ -123,24 +123,29 @@ class ProcessScheduledWhatsAppBroadcasts extends Command
                     continue;
                 }
 
-                $ok = OpenWaService::dispatchBroadcastBundle(
+                $res = OpenWaService::dispatchBroadcastBundle(
                     $phone,
                     $name,
                     $broadcast->message,
                     $broadcast->attachments ?? []
                 );
 
-                if ($ok) {
+                $isOk = is_array($res) ? ($res['success'] ?? false) : (bool)$res;
+                $msgId = is_array($res) ? ($res['message_id'] ?? null) : null;
+
+                if ($isOk) {
                     $sent++;
                     $recipients[$idx]['status'] = 'sent';
+                    $recipients[$idx]['message_id'] = $msgId;
                     $recipients[$idx]['sent_at'] = Carbon::now()->toDateTimeString();
                     $recipients[$idx]['error'] = null;
                     $logs[] = "[SUCCESS " . date('H:i:s') . "] Dispatched to {$name} (" . OpenWaService::formatPhoneDisplay($phone) . ")";
                 } else {
                     $failed++;
                     $recipients[$idx]['status'] = 'failed';
+                    $recipients[$idx]['message_id'] = null;
                     $recipients[$idx]['sent_at'] = Carbon::now()->toDateTimeString();
-                    $recipients[$idx]['error'] = 'Gateway delivery failed';
+                    $recipients[$idx]['error'] = is_array($res) ? ($res['error'] ?? 'Gateway delivery failed') : 'Gateway delivery failed';
                     $logs[] = "[FAILED " . date('H:i:s') . "] Delivery failed for {$name} (" . OpenWaService::formatPhoneDisplay($phone) . ")";
                 }
 

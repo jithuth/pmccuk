@@ -386,6 +386,75 @@ class OpenWaService
     }
 
     /**
+     * Revoke / Delete a sent message for everyone on WhatsApp
+     */
+    public static function revokeMessage(string $phoneOrJid, string $messageId): array
+    {
+        try {
+            $formatted = self::formatPhone($phoneOrJid) ?: $phoneOrJid;
+            $response = Http::timeout(8)
+                ->withToken(self::getApiKey())
+                ->post(self::getServerUrl() . '/message/revoke', [
+                    'to' => $formatted,
+                    'messageId' => $messageId,
+                ]);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'message' => $response->json('message') ?? "Message #{$messageId} revoked successfully."
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => $response->json('error') ?? 'Failed to revoke message from WhatsApp.'
+            ];
+        } catch (\Throwable $e) {
+            Log::error('[WhatsApp] Revoke message error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Connection error contacting WhatsApp daemon: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Revoke multiple sent messages in batch
+     */
+    public static function revokeMessagesBulk(array $items): array
+    {
+        if (empty($items)) {
+            return ['success' => true, 'revoked_count' => 0, 'results' => []];
+        }
+
+        try {
+            $response = Http::timeout(30)
+                ->withToken(self::getApiKey())
+                ->post(self::getServerUrl() . '/message/revoke', [
+                    'items' => $items
+                ]);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+
+            return [
+                'success' => false,
+                'revoked_count' => 0,
+                'message' => $response->json('error') ?? 'Batch revocation failed'
+            ];
+        } catch (\Throwable $e) {
+            Log::error('[WhatsApp] Bulk revoke error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'revoked_count' => 0,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Fetch Live Gateway & Bot Logs from daemon, with fallback to Laravel logs
      */
     public static function getLogs(int $limit = 100, ?string $type = null, ?int $sinceId = null, ?string $search = null): array
@@ -494,19 +563,19 @@ class OpenWaService
     }
 
     /**
-     * Send Plain Text Message
+     * Send Plain Text Message with detailed result and Message ID
      */
-    public static function sendText(string $phone, string $message): bool
+    public static function sendTextMessage(string $phone, string $message): array
     {
         if (!self::isEnabled()) {
             Log::info("[WhatsApp] Skipping dispatch to {$phone}: WhatsApp automation is disabled.");
-            return false;
+            return ['success' => false, 'messageId' => null, 'error' => 'WhatsApp automation is disabled'];
         }
 
         $formatted = self::formatPhone($phone);
         if (!$formatted) {
             Log::warning("[WhatsApp] Invalid phone number provided: {$phone}");
-            return false;
+            return ['success' => false, 'messageId' => null, 'error' => 'Invalid phone number'];
         }
 
         try {
@@ -518,16 +587,38 @@ class OpenWaService
                 ]);
 
             if ($response->successful()) {
-                Log::info("[WhatsApp] Text message sent successfully to {$formatted}");
-                return true;
+                $msgId = $response->json('messageId');
+                Log::info("[WhatsApp] Text message sent successfully to {$formatted} (ID: {$msgId})");
+                return [
+                    'success' => true,
+                    'messageId' => $msgId,
+                    'to' => $formatted
+                ];
             }
 
             Log::error("[WhatsApp] Failed to send text to {$formatted}: " . $response->body());
-            return false;
+            return [
+                'success' => false,
+                'messageId' => null,
+                'error' => $response->json('error') ?? $response->body()
+            ];
         } catch (\Throwable $e) {
             Log::error("[WhatsApp] Exception sending text to {$formatted}: " . $e->getMessage());
-            return false;
+            return [
+                'success' => false,
+                'messageId' => null,
+                'error' => $e->getMessage()
+            ];
         }
+    }
+
+    /**
+     * Send Plain Text Message
+     */
+    public static function sendText(string $phone, string $message): bool
+    {
+        $res = self::sendTextMessage($phone, $message);
+        return $res['success'];
     }
 
     /**
@@ -622,11 +713,11 @@ class OpenWaService
      * - Multiple documents (PDF, Docx, etc.)
      * - Multiple contact cards (vCards)
      */
-    public static function dispatchBroadcastBundle(string $recipientPhone, string $recipientName, string $message, array $attachments = []): bool
+    public static function dispatchBroadcastBundle(string $recipientPhone, string $recipientName, string $message, array $attachments = []): array
     {
         $formatted = self::formatPhone($recipientPhone);
         if (!$formatted) {
-            return false;
+            return ['success' => false, 'message_id' => null, 'error' => 'Invalid phone number'];
         }
 
         // 1. Personalize text and append URL blocks if present
@@ -644,11 +735,10 @@ class OpenWaService
             }
         }
 
-        // Send main text message
-        $mainOk = self::sendText($formatted, $body);
-        if (!$mainOk) {
-            // Even if text failed, try sending media
-        }
+        // Send main text message and capture message ID for audit & revocation
+        $textRes = self::sendTextMessage($formatted, $body);
+        $msgId = $textRes['messageId'] ?? null;
+        $mainOk = $textRes['success'] ?? false;
 
         // 2. Dispatch multiple images
         $images = $attachments['images'] ?? [];
@@ -694,7 +784,11 @@ class OpenWaService
             }
         }
 
-        return true;
+        return [
+            'success' => $mainOk || !empty($images) || !empty($docs) || !empty($contacts),
+            'message_id' => $msgId,
+            'error' => $textRes['error'] ?? null
+        ];
     }
 
     /**
