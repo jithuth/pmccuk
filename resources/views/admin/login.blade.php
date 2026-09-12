@@ -187,7 +187,7 @@
             </div>
         @endif
 
-        <form id="loginForm" action="{{ route('admin.login') }}" method="post">
+        <form id="loginForm" action="{{ route('admin.login', [], false) }}" method="post">
             @csrf
             <input type="hidden" name="login_photo" id="login_photo">
             

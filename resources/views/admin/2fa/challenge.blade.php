@@ -23,7 +23,7 @@
                 </div>
             @endif
 
-            <form action="{{ route('admin.2fa.verify') }}" method="POST">
+            <form action="{{ route('admin.2fa.verify', [], false) }}" method="POST">
                 @csrf
                 <div class="form-group mb-3">
                     <label class="text-muted small font-weight-bold mb-1">Authentication Code</label>
