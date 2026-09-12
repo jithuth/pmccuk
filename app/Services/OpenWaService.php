@@ -465,6 +465,125 @@ class OpenWaService
     }
 
     /**
+     * Send Contact Card (vCard)
+     */
+    public static function sendContact(string $phone, string $contactName, string $contactPhone, ?string $role = null): bool
+    {
+        if (!self::isEnabled()) {
+            return false;
+        }
+
+        $formatted = self::formatPhone($phone);
+        if (!$formatted) {
+            return false;
+        }
+
+        try {
+            $response = Http::timeout(8)
+                ->withToken(self::getApiKey())
+                ->post(self::getServerUrl() . '/send/contact', [
+                    'to' => $formatted,
+                    'name' => $contactName,
+                    'phone' => $contactPhone,
+                    'role' => $role
+                ]);
+
+            if ($response->successful()) {
+                Log::info("[WhatsApp] Contact {$contactName} ({$contactPhone}) sent to {$formatted}");
+                return true;
+            }
+
+            Log::error("[WhatsApp] Failed to send contact to {$formatted}: " . $response->body());
+            return false;
+        } catch (\Throwable $e) {
+            Log::error("[WhatsApp] Exception sending contact to {$formatted}: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Dispatch a complete multi-attachment broadcast bundle to a recipient:
+     * - Main personalized text message with any attached URLs
+     * - Multiple images (with caption)
+     * - Multiple documents (PDF, Docx, etc.)
+     * - Multiple contact cards (vCards)
+     */
+    public static function dispatchBroadcastBundle(string $recipientPhone, string $recipientName, string $message, array $attachments = []): bool
+    {
+        $formatted = self::formatPhone($recipientPhone);
+        if (!$formatted) {
+            return false;
+        }
+
+        // 1. Personalize text and append URL blocks if present
+        $body = str_replace('{name}', $recipientName, $message);
+
+        $urls = $attachments['urls'] ?? [];
+        if (!empty($urls) && is_array($urls)) {
+            $urlText = "\n";
+            foreach ($urls as $u) {
+                $label = !empty($u['title']) ? "*{$u['title']}*: " : '';
+                $urlText .= "\n🔗 {$label}{$u['url']}";
+            }
+            if (!str_contains($body, trim($urlText))) {
+                $body .= $urlText;
+            }
+        }
+
+        // Send main text message
+        $mainOk = self::sendText($formatted, $body);
+        if (!$mainOk) {
+            // Even if text failed, try sending media
+        }
+
+        // 2. Dispatch multiple images
+        $images = $attachments['images'] ?? [];
+        if (!empty($images) && is_array($images)) {
+            foreach ($images as $img) {
+                usleep(350000); // 350ms delay
+                $absPath = $img['path'] ?? null;
+                if ($absPath && file_exists($absPath)) {
+                    $caption = $img['caption'] ?? null;
+                    $mime = $img['mimetype'] ?? 'image/jpeg';
+                    $name = $img['name'] ?? 'broadcast_image.jpg';
+                    self::sendFile($formatted, $absPath, $name, $caption, $mime);
+                }
+            }
+        }
+
+        // 3. Dispatch multiple documents
+        $docs = $attachments['documents'] ?? [];
+        if (!empty($docs) && is_array($docs)) {
+            foreach ($docs as $doc) {
+                usleep(350000); // 350ms delay
+                $absPath = $doc['path'] ?? null;
+                if ($absPath && file_exists($absPath)) {
+                    $caption = $doc['caption'] ?? null;
+                    $mime = $doc['mimetype'] ?? 'application/pdf';
+                    $name = $doc['name'] ?? 'document.pdf';
+                    self::sendFile($formatted, $absPath, $name, $caption, $mime);
+                }
+            }
+        }
+
+        // 4. Dispatch multiple contacts
+        $contacts = $attachments['contacts'] ?? [];
+        if (!empty($contacts) && is_array($contacts)) {
+            foreach ($contacts as $contact) {
+                usleep(350000); // 350ms delay
+                $cName = $contact['name'] ?? 'Executive Member';
+                $cPhone = $contact['phone'] ?? null;
+                $cRole = $contact['role'] ?? 'Executive Committee';
+                if ($cPhone) {
+                    self::sendContact($formatted, $cName, $cPhone, $cRole);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * 1. Member ID Card Delivery Notification (Automated PDF)
      */
     public static function notifyMemberIdCard(Member $member, ?string $pdfPath = null, ?string $targetRecipient = null): bool

@@ -1205,22 +1205,154 @@
                                     </span>
                                 </div>
 
-                                <textarea name="broadcast_message" id="broadcastMessage" rows="5"
+                                <textarea name="broadcast_message" id="broadcastMessage" rows="4"
                                     class="form-control bg-light border-0 rounded-3 text-xs p-3" required
                                     style="resize:none;">🌸 Warmest Onam Greetings from PMCC-UK! May this festive season bring immense joy, health, and prosperity to you and your family. Join our grand celebrations: https://pmccuk.org/events</textarea>
                                 <span class="text-xs text-muted mt-1 d-block">💡 Variable <code>{name}</code> is
                                     automatically replaced with the recipient's name.</span>
                             </div>
 
+                            <!-- ── 3. ATTACHMENT STUDIO ── -->
+                            <div class="mt-2">
+                                <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1.5">
+                                    <i class="fas fa-paperclip text-primary"></i> 3. Add Attachments (Optional)
+                                </label>
+
+                                <!-- Attachment Tab Buttons -->
+                                <div class="d-flex gap-1.5 flex-wrap mb-2">
+                                    <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 text-xxs fw-bold attachment-tab-btn active" data-tab="images" onclick="switchAttachTab('images', this)">
+                                        <i class="fas fa-image me-1"></i> Images
+                                        <span class="badge bg-primary text-white rounded-pill ms-1 px-1" id="imgCountBadge" style="display:none;">0</span>
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 text-xxs fw-bold attachment-tab-btn" data-tab="documents" onclick="switchAttachTab('documents', this)">
+                                        <i class="fas fa-file-alt me-1"></i> Documents
+                                        <span class="badge bg-secondary text-white rounded-pill ms-1 px-1" id="docCountBadge" style="display:none;">0</span>
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2.5 py-1 text-xxs fw-bold attachment-tab-btn" data-tab="urls" onclick="switchAttachTab('urls', this)">
+                                        <i class="fas fa-link me-1"></i> URLs
+                                        <span class="badge bg-success text-white rounded-pill ms-1 px-1" id="urlCountBadge" style="display:none;">0</span>
+                                    </button>
+                                    <button type="button" class="btn btn-xs btn-outline-warning rounded-pill px-2.5 py-1 text-xxs fw-bold attachment-tab-btn" data-tab="contacts" onclick="switchAttachTab('contacts', this)">
+                                        <i class="fas fa-address-card me-1"></i> Contacts
+                                        <span class="badge bg-warning text-dark rounded-pill ms-1 px-1" id="contactCountBadge" style="display:none;">0</span>
+                                    </button>
+                                </div>
+
+                                <!-- Image Uploader Panel -->
+                                <div id="attachTab-images" class="attach-tab-panel bg-light rounded-3 border p-2.5">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <label class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 text-xxs fw-bold mb-0" style="cursor:pointer;">
+                                            <i class="fas fa-plus me-1"></i> Add Images
+                                            <input type="file" name="images[]" id="inputImages" multiple accept="image/jpeg,image/png,image/webp,image/gif" class="d-none">
+                                        </label>
+                                        <span class="text-xxs text-muted">JPEG, PNG, WebP, GIF (max 10MB each)</span>
+                                    </div>
+                                    <div id="imagePreviewStrip" class="d-flex flex-wrap gap-2" style="min-height:52px;"></div>
+                                </div>
+
+                                <!-- Document Uploader Panel -->
+                                <div id="attachTab-documents" class="attach-tab-panel bg-light rounded-3 border p-2.5 d-none">
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <label class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 text-xxs fw-bold mb-0" style="cursor:pointer;">
+                                            <i class="fas fa-plus me-1"></i> Add Documents
+                                            <input type="file" name="documents[]" id="inputDocuments" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip" class="d-none">
+                                        </label>
+                                        <span class="text-xxs text-muted">PDF, Word, Excel, PPT, ZIP (max 25MB each)</span>
+                                    </div>
+                                    <div id="documentPreviewStrip" class="d-flex flex-wrap gap-2" style="min-height:52px;"></div>
+                                </div>
+
+                                <!-- URLs Panel -->
+                                <div id="attachTab-urls" class="attach-tab-panel bg-light rounded-3 border p-2.5 d-none">
+                                    <div class="d-flex gap-1.5 mb-2 align-items-end flex-wrap">
+                                        <div class="flex-grow-1" style="min-width:160px;">
+                                            <input type="text" id="urlInput" class="form-control form-control-sm text-xs rounded-2" placeholder="https://pmccuk.org/events">
+                                        </div>
+                                        <div style="min-width:120px;">
+                                            <input type="text" id="urlTitleInput" class="form-control form-control-sm text-xs rounded-2" placeholder="Link Title (optional)">
+                                        </div>
+                                        <button type="button" class="btn btn-success btn-sm rounded-pill text-xs px-2.5 fw-bold flex-shrink-0" onclick="addUrl()">
+                                            <i class="fas fa-plus me-1"></i> Add URL
+                                        </button>
+                                    </div>
+                                    <div id="urlChips" class="d-flex flex-wrap gap-1.5" style="min-height:28px;"></div>
+                                    <input type="hidden" id="urlsPayload" name="urls" value="[]">
+                                </div>
+
+                                <!-- Contacts Panel -->
+                                <div id="attachTab-contacts" class="attach-tab-panel bg-light rounded-3 border p-2.5 d-none">
+                                    <div class="d-flex gap-1.5 mb-2 align-items-end flex-wrap">
+                                        <div class="flex-grow-1" style="min-width:120px;">
+                                            <input type="text" id="contactNameInput" class="form-control form-control-sm text-xs rounded-2" placeholder="Name">
+                                        </div>
+                                        <div style="min-width:130px;">
+                                            <input type="text" id="contactPhoneInput" class="form-control form-control-sm text-xs rounded-2 font-monospace" placeholder="07901296858">
+                                        </div>
+                                        <div style="min-width:110px;">
+                                            <input type="text" id="contactRoleInput" class="form-control form-control-sm text-xs rounded-2" placeholder="Role (optional)">
+                                        </div>
+                                        <button type="button" class="btn btn-warning btn-sm rounded-pill text-xs text-dark px-2.5 fw-bold flex-shrink-0" onclick="addContact()">
+                                            <i class="fas fa-plus me-1"></i> Add
+                                        </button>
+                                    </div>
+                                    <!-- Quick add from Executive Favorites -->
+                                    <div class="d-flex flex-wrap gap-1 mb-2" id="execContactQuickAdd">
+                                        <span class="text-xxs text-muted fst-italic">Loading favorites...</span>
+                                    </div>
+                                    <div id="contactChips" class="d-flex flex-wrap gap-1.5" style="min-height:28px;"></div>
+                                    <input type="hidden" id="contactsPayload" name="contacts" value="[]">
+                                </div>
+                            </div>
+
+                            <!-- ── 4. SCHEDULING CONTROLS ── -->
+                            <div class="mt-3">
+                                <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-1.5 d-flex align-items-center gap-1.5">
+                                    <i class="fas fa-clock text-info"></i> 4. When to Send
+                                </label>
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <label class="d-flex align-items-center gap-2 p-2 border rounded-3 bg-white cursor-pointer flex-grow-1" style="cursor:pointer; min-width:140px;">
+                                        <input type="radio" name="schedule_mode" value="now" id="scheduleNow" class="form-check-input mt-0" checked>
+                                        <span class="text-xs fw-bold text-dark d-flex align-items-center gap-1.5">
+                                            <i class="fas fa-bolt text-warning"></i> Send Immediately
+                                        </span>
+                                    </label>
+                                    <label class="d-flex align-items-center gap-2 p-2 border rounded-3 bg-white cursor-pointer flex-grow-1" style="cursor:pointer; min-width:140px;">
+                                        <input type="radio" name="schedule_mode" value="scheduled" id="scheduleDeferred" class="form-check-input mt-0">
+                                        <span class="text-xs fw-bold text-dark d-flex align-items-center gap-1.5">
+                                            <i class="fas fa-calendar-alt text-info"></i> Schedule for Later
+                                        </span>
+                                    </label>
+                                </div>
+
+                                <!-- Datetime Picker (hidden by default) -->
+                                <div id="scheduleDatetimeWrap" class="mt-2 p-2.5 bg-info-subtle border border-info-subtle rounded-3 d-none">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <div class="flex-grow-1">
+                                            <label class="form-label text-xxs fw-bold text-muted text-uppercase mb-1">Date &amp; Time (UK London Time)</label>
+                                            <input type="datetime-local" name="scheduled_at" id="scheduledAtInput"
+                                                class="form-control form-control-sm text-xs rounded-2 font-monospace">
+                                        </div>
+                                        <div class="text-xxs text-muted mt-2" style="flex-shrink:0;">
+                                            <i class="fas fa-info-circle text-info me-1"></i>
+                                            BST / GMT (UK)
+                                        </div>
+                                    </div>
+                                    <div class="text-xxs text-muted mt-1.5 d-flex align-items-center gap-1">
+                                        <i class="fas fa-robot text-info"></i>
+                                        The WhatsApp daemon checks for due broadcasts every 60 seconds automatically.
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Progress Alert -->
-                            <div id="broadcastAlert" class="alert d-none text-xs rounded-3 p-3 mb-0"></div>
+                            <div id="broadcastAlert" class="alert d-none text-xs rounded-3 p-3 mb-0 mt-2"></div>
 
                             <!-- Dispatch Button -->
-                            <div class="pt-1">
+                            <div class="pt-1 mt-1">
                                 <button type="submit" id="btnSubmitBroadcast"
                                     class="btn btn-dark w-100 py-2.5 text-xs fw-bold rounded-pill d-flex align-items-center justify-content-center gap-2 shadow-sm">
-                                    <i class="fas fa-paper-plane text-success"></i>
-                                    <span>Launch Safe Community Broadcast</span>
+                                    <i class="fas fa-paper-plane text-success" id="broadcastBtnIcon"></i>
+                                    <span id="broadcastBtnText">Launch Safe Community Broadcast</span>
                                 </button>
                                 <p class="text-center text-muted mb-0 mt-2" style="font-size:11px;">
                                     <i class="fas fa-shield-alt text-success me-1"></i> Equipped with an anti-spam delay
@@ -1348,6 +1480,137 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- ── SCHEDULED BROADCASTS QUEUE ── -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card wa-elevated-card p-0 overflow-hidden">
+                    <div class="card-header bg-white border-bottom border-light p-3.5 d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-2.5">
+                            <div class="rounded-circle bg-info-subtle text-info border border-info-subtle d-flex align-items-center justify-content-center"
+                                style="width:34px;height:34px;">
+                                <i class="fas fa-calendar-check"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-black text-dark mb-0">⏰ Scheduled Broadcasts Queue</h6>
+                                <span class="text-xxs text-muted">Manage pending, active, and completed broadcast history</span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-info-subtle text-info border text-xxs" id="scheduledQueueCount">{{ $scheduledBroadcasts->count() }} records</span>
+                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill text-xxs px-2.5" onclick="refreshScheduledQueue()">
+                                <i class="fas fa-sync-alt me-1" id="queueRefreshIcon"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        @if($scheduledBroadcasts->isEmpty())
+                        <div class="text-center py-5 text-muted text-xs" id="queueEmptyState">
+                            <i class="fas fa-calendar-times fs-3 mb-2 d-block text-muted opacity-50"></i>
+                            No broadcast records yet. Schedule or send a broadcast above to see it here.
+                        </div>
+                        @else
+                        <div class="table-responsive" id="scheduledQueueTable">
+                            <table class="table table-hover align-middle mb-0 text-xs">
+                                <thead class="table-light text-xxs text-uppercase text-muted border-bottom">
+                                    <tr>
+                                        <th class="ps-3 py-2">#</th>
+                                        <th class="py-2">Title / Audience</th>
+                                        <th class="py-2">Scheduled For</th>
+                                        <th class="py-2">Recipients</th>
+                                        <th class="py-2">Attachments</th>
+                                        <th class="py-2">Status</th>
+                                        <th class="text-end pe-3 py-2">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scheduledQueueBody">
+                                    @foreach($scheduledBroadcasts as $bc)
+                                    <tr id="queueRow-{{ $bc->id }}">
+                                        <td class="ps-3 py-2 text-muted font-monospace text-xxs">#{{ $bc->id }}</td>
+                                        <td class="py-2">
+                                            <div class="fw-bold text-dark">{{ Str::limit($bc->title ?? 'Broadcast', 40) }}</div>
+                                            <span class="badge bg-light text-muted border text-xxs px-1.5 rounded-pill">{{ ucfirst($bc->audience) }}</span>
+                                        </td>
+                                        <td class="py-2">
+                                            @if($bc->scheduled_at)
+                                            <span class="text-xs font-monospace">{{ $bc->scheduled_at->format('d M Y') }}</span><br>
+                                            <span class="text-xxs text-muted font-monospace">{{ $bc->scheduled_at->format('h:i A') }} UK</span>
+                                            @else
+                                            <span class="badge bg-success-subtle text-success border text-xxs px-2">Immediate</span>
+                                            @endif
+                                        </td>
+                                        <td class="py-2">
+                                            <div class="d-flex align-items-center gap-1">
+                                                <span class="text-dark fw-bold">{{ $bc->total_recipients }}</span>
+                                                @if($bc->sent_count > 0)
+                                                <span class="badge bg-success-subtle text-success text-xxs">{{ $bc->sent_count }} sent</span>
+                                                @endif
+                                                @if($bc->failed_count > 0)
+                                                <span class="badge bg-danger-subtle text-danger text-xxs">{{ $bc->failed_count }} failed</span>
+                                                @endif
+                                            </div>
+                                        </td>
+                                        <td class="py-2">
+                                            @php
+                                            $att = $bc->attachments ?? [];
+                                            $imgCnt = count($att['images'] ?? []);
+                                            $docCnt = count($att['documents'] ?? []);
+                                            $urlCnt = count($att['urls'] ?? []);
+                                            $conCnt = count($att['contacts'] ?? []);
+                                            @endphp
+                                            <div class="d-flex gap-1 flex-wrap">
+                                                @if($imgCnt > 0)<span class="badge bg-primary-subtle text-primary text-xxs border"><i class="fas fa-image me-1"></i>{{ $imgCnt }}</span>@endif
+                                                @if($docCnt > 0)<span class="badge bg-secondary-subtle text-secondary text-xxs border"><i class="fas fa-file me-1"></i>{{ $docCnt }}</span>@endif
+                                                @if($urlCnt > 0)<span class="badge bg-success-subtle text-success text-xxs border"><i class="fas fa-link me-1"></i>{{ $urlCnt }}</span>@endif
+                                                @if($conCnt > 0)<span class="badge bg-warning-subtle text-dark text-xxs border"><i class="fas fa-address-card me-1"></i>{{ $conCnt }}</span>@endif
+                                                @if($imgCnt + $docCnt + $urlCnt + $conCnt === 0)<span class="text-muted text-xxs">Text only</span>@endif
+                                            </div>
+                                        </td>
+                                        <td class="py-2">
+                                            @php
+                                            $statusConfig = [
+                                                'pending' => ['bg-warning-subtle text-dark border-warning-subtle', 'fa-clock'],
+                                                'processing' => ['bg-info-subtle text-info border-info-subtle', 'fa-spinner fa-spin'],
+                                                'completed' => ['bg-success-subtle text-success border-success-subtle', 'fa-check-circle'],
+                                                'failed' => ['bg-danger-subtle text-danger border-danger-subtle', 'fa-exclamation-circle'],
+                                                'cancelled' => ['bg-secondary-subtle text-secondary border-secondary-subtle', 'fa-ban'],
+                                            ];
+                                            $sc = $statusConfig[$bc->status] ?? ['bg-light text-muted', 'fa-question'];
+                                            @endphp
+                                            <span class="badge border text-xxs px-2 py-1 {{ $sc[0] }}">
+                                                <i class="fas {{ $sc[1] }} me-1"></i>{{ ucfirst($bc->status) }}
+                                            </span>
+                                        </td>
+                                        <td class="text-end pe-3 py-2">
+                                            <div class="d-flex justify-content-end gap-1">
+                                                @if(in_array($bc->status, ['pending', 'failed', 'cancelled']))
+                                                <button type="button" class="btn btn-xs btn-success rounded-pill px-2 text-xxs fw-bold"
+                                                    onclick="sendQueueNow({{ $bc->id }})" title="Send Now">
+                                                    <i class="fas fa-bolt"></i>
+                                                </button>
+                                                @endif
+                                                @if($bc->status === 'pending')
+                                                <button type="button" class="btn btn-xs btn-outline-warning rounded-pill px-2 text-xxs fw-bold"
+                                                    onclick="cancelQueueItem({{ $bc->id }})" title="Cancel">
+                                                    <i class="fas fa-ban"></i>
+                                                </button>
+                                                @endif
+                                                <button type="button" class="btn btn-xs btn-outline-danger rounded-pill px-2 text-xxs"
+                                                    onclick="deleteQueueItem({{ $bc->id }})" title="Delete Record">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ── 4. LIVE WHATSAPP GATEWAY LOGS & BOT CONSOLE ── -->
@@ -2514,6 +2777,7 @@
                 renderExecutiveCheckboxes();
                 renderQuickInsertChips();
                 renderFavoritesTable();
+                if (typeof renderExecContactQuickAdd === 'function') renderExecContactQuickAdd();
             }
 
             btnSelectAllExecs?.addEventListener('click', function () {
@@ -2564,12 +2828,211 @@
                 });
             });
 
-            // Form submission
+            // ── Attachment Studio ──
+            window.switchAttachTab = function(tabName, btn) {
+                document.querySelectorAll('.attach-tab-panel').forEach(p => p.classList.add('d-none'));
+                document.querySelectorAll('.attachment-tab-btn').forEach(b => b.classList.remove('active'));
+                const panel = document.getElementById('attachTab-' + tabName);
+                if (panel) panel.classList.remove('d-none');
+                if (btn) btn.classList.add('active');
+            };
+
+            // Image previews
+            const inputImages = document.getElementById('inputImages');
+            const imagePreviewStrip = document.getElementById('imagePreviewStrip');
+            let imageFileList = [];
+
+            inputImages?.addEventListener('change', function() {
+                Array.from(this.files).forEach(file => {
+                    if (file.size > 10 * 1024 * 1024) {
+                        alert(file.name + ' exceeds 10MB limit.');
+                        return;
+                    }
+                    imageFileList.push(file);
+                    const reader = new FileReader();
+                    const idx = imageFileList.length - 1;
+                    reader.onload = function(e) {
+                        const div = document.createElement('div');
+                        div.style.cssText = 'position:relative;width:64px;height:64px;';
+                        div.innerHTML = `
+                            <img src="${e.target.result}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #dee2e6;">
+                            <button type="button" onclick="removeImage(${idx})"
+                                style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#dc3545;color:#fff;border:none;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+                                <i class="fas fa-times"></i>
+                            </button>`;
+                        div.id = 'imgPreview-' + idx;
+                        imagePreviewStrip?.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                });
+                updateAttachBadge('img', imageFileList.filter(Boolean).length);
+                this.value = '';
+            });
+
+            window.removeImage = function(idx) {
+                imageFileList[idx] = null;
+                document.getElementById('imgPreview-' + idx)?.remove();
+                updateAttachBadge('img', imageFileList.filter(Boolean).length);
+            };
+
+            // Document previews
+            const inputDocuments = document.getElementById('inputDocuments');
+            const documentPreviewStrip = document.getElementById('documentPreviewStrip');
+            let documentFileList = [];
+
+            inputDocuments?.addEventListener('change', function() {
+                Array.from(this.files).forEach(file => {
+                    if (file.size > 25 * 1024 * 1024) {
+                        alert(file.name + ' exceeds 25MB limit.');
+                        return;
+                    }
+                    documentFileList.push(file);
+                    const idx = documentFileList.length - 1;
+                    const ext = file.name.split('.').pop().toUpperCase();
+                    const iconMap = {PDF:'fa-file-pdf text-danger',DOC:'fa-file-word text-primary',DOCX:'fa-file-word text-primary',XLS:'fa-file-excel text-success',XLSX:'fa-file-excel text-success',PPT:'fa-file-powerpoint text-warning',PPTX:'fa-file-powerpoint text-warning',ZIP:'fa-file-archive text-secondary',TXT:'fa-file-alt text-muted'};
+                    const icon = iconMap[ext] || 'fa-file text-muted';
+                    const chip = document.createElement('div');
+                    chip.className = 'd-flex align-items-center gap-1 px-2 py-1 rounded-2 border bg-white text-xs';
+                    chip.id = 'docChip-' + idx;
+                    chip.innerHTML = `<i class="fas ${icon}"></i> <span class="text-truncate" style="max-width:100px;">${escapeHtml(file.name)}</span> <button type="button" class="btn btn-xs p-0 text-danger ms-1" onclick="removeDoc(${idx})"><i class="fas fa-times"></i></button>`;
+                    documentPreviewStrip?.appendChild(chip);
+                });
+                updateAttachBadge('doc', documentFileList.filter(Boolean).length);
+                this.value = '';
+            });
+
+            window.removeDoc = function(idx) {
+                documentFileList[idx] = null;
+                document.getElementById('docChip-' + idx)?.remove();
+                updateAttachBadge('doc', documentFileList.filter(Boolean).length);
+            };
+
+            function updateAttachBadge(type, count) {
+                const map = {img:'imgCountBadge', doc:'docCountBadge', url:'urlCountBadge', contact:'contactCountBadge'};
+                const badge = document.getElementById(map[type]);
+                if (!badge) return;
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.style.display = '';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            // URL Chips
+            let urlsData = [];
+            window.addUrl = function() {
+                const urlInput = document.getElementById('urlInput');
+                const urlTitleInput = document.getElementById('urlTitleInput');
+                const urlVal = urlInput?.value.trim();
+                const titleVal = urlTitleInput?.value.trim();
+                if (!urlVal) { urlInput?.focus(); return; }
+                if (!/^https?:\/\//i.test(urlVal)) {
+                    alert('Please enter a valid URL starting with http:// or https://');
+                    return;
+                }
+                const idx = urlsData.length;
+                urlsData.push({url: urlVal, title: titleVal || urlVal});
+                const chip = document.createElement('span');
+                chip.className = 'badge bg-success-subtle text-success border d-inline-flex align-items-center gap-1.5 px-2 py-1.5 text-xxs rounded-pill';
+                chip.id = 'urlChip-' + idx;
+                chip.innerHTML = `<i class="fas fa-link"></i> <span class="fw-bold">${escapeHtml(titleVal || urlVal)}</span> <button type="button" class="btn btn-xs p-0 text-danger" onclick="removeUrl(${idx})"><i class="fas fa-times"></i></button>`;
+                document.getElementById('urlChips')?.appendChild(chip);
+                document.getElementById('urlsPayload').value = JSON.stringify(urlsData);
+                updateAttachBadge('url', urlsData.filter(Boolean).length);
+                if (urlInput) urlInput.value = '';
+                if (urlTitleInput) urlTitleInput.value = '';
+            };
+
+            window.removeUrl = function(idx) {
+                urlsData[idx] = null;
+                document.getElementById('urlChip-' + idx)?.remove();
+                document.getElementById('urlsPayload').value = JSON.stringify(urlsData);
+                updateAttachBadge('url', urlsData.filter(Boolean).length);
+            };
+
+            // Contact Chips
+            let contactsData = [];
+            window.addContact = function(presetName, presetPhone, presetRole) {
+                const nameInput = document.getElementById('contactNameInput');
+                const phoneInput = document.getElementById('contactPhoneInput');
+                const roleInput = document.getElementById('contactRoleInput');
+                const name = presetName || nameInput?.value.trim();
+                const phone = presetPhone || phoneInput?.value.trim();
+                const role = presetRole || roleInput?.value.trim();
+                if (!name || !phone) { if (!presetName) nameInput?.focus(); return; }
+                const idx = contactsData.length;
+                contactsData.push({name, phone, role});
+                const chip = document.createElement('span');
+                chip.className = 'badge bg-warning-subtle text-dark border d-inline-flex align-items-center gap-1.5 px-2 py-1.5 text-xxs rounded-pill';
+                chip.id = 'contactChip-' + idx;
+                chip.innerHTML = `<i class="fas fa-user"></i> <span class="fw-bold">${escapeHtml(name)}</span> <span class="text-muted font-monospace">${escapeHtml(phone)}</span> <button type="button" class="btn btn-xs p-0 text-danger" onclick="removeContact(${idx})"><i class="fas fa-times"></i></button>`;
+                document.getElementById('contactChips')?.appendChild(chip);
+                document.getElementById('contactsPayload').value = JSON.stringify(contactsData);
+                updateAttachBadge('contact', contactsData.filter(Boolean).length);
+                if (!presetName) {
+                    if (nameInput) nameInput.value = '';
+                    if (phoneInput) phoneInput.value = '';
+                    if (roleInput) roleInput.value = '';
+                }
+            };
+
+            window.removeContact = function(idx) {
+                contactsData[idx] = null;
+                document.getElementById('contactChip-' + idx)?.remove();
+                document.getElementById('contactsPayload').value = JSON.stringify(contactsData);
+                updateAttachBadge('contact', contactsData.filter(Boolean).length);
+            };
+
+            // Render Executive Favorites into quick-add chips in Contacts panel
+            function renderExecContactQuickAdd() {
+                const container = document.getElementById('execContactQuickAdd');
+                if (!container) return;
+                if (!savedFavorites || savedFavorites.length === 0) {
+                    container.innerHTML = '<span class="text-xxs text-muted fst-italic">No favorite contacts saved yet.</span>';
+                    return;
+                }
+                container.innerHTML = savedFavorites.map(f =>
+                    `<button type="button" class="btn btn-xs btn-outline-warning rounded-pill px-2 py-0.5 text-xxs"
+                        onclick="addContact('${escapeHtml(f.name)}','${escapeHtml(f.phone)}','${escapeHtml(f.role||'')}')"
+                        title="Add ${escapeHtml(f.name)} as contact">
+                        <i class="fas fa-star text-warning me-1"></i>${escapeHtml(f.name)}
+                    </button>`
+                ).join('');
+            }
+
+            // ── Scheduling Controls ──
+            document.querySelectorAll('input[name="schedule_mode"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const wrap = document.getElementById('scheduleDatetimeWrap');
+                    const btnText = document.getElementById('broadcastBtnText');
+                    const btnIcon = document.getElementById('broadcastBtnIcon');
+                    if (this.value === 'scheduled') {
+                        wrap?.classList.remove('d-none');
+                        // Default to 1 hour from now UK time
+                        const scheduledAtInput = document.getElementById('scheduledAtInput');
+                        if (scheduledAtInput && !scheduledAtInput.value) {
+                            const now = new Date(new Date().getTime() + 60 * 60 * 1000);
+                            scheduledAtInput.value = now.toISOString().slice(0, 16);
+                        }
+                        if (btnText) btnText.textContent = 'Schedule Broadcast';
+                        if (btnIcon) { btnIcon.className = 'fas fa-calendar-check text-info'; }
+                    } else {
+                        wrap?.classList.add('d-none');
+                        if (btnText) btnText.textContent = 'Launch Safe Community Broadcast';
+                        if (btnIcon) { btnIcon.className = 'fas fa-paper-plane text-success'; }
+                    }
+                });
+            });
+
+            // ── Form Submission (multipart/form-data for file uploads) ──
             formBroadcast?.addEventListener('submit', function (e) {
                 e.preventDefault();
                 const audience = document.querySelector('input[name="broadcast_audience"]:checked')?.value || 'members';
                 const msg = broadcastMessage?.value || '';
                 const customNums = document.getElementById('broadcastCustomNumbers')?.value || '';
+                const scheduleMode = document.querySelector('input[name="schedule_mode"]:checked')?.value || 'now';
+                const scheduledAt = document.getElementById('scheduledAtInput')?.value || '';
 
                 let selectedExecs = [];
                 if (audience === 'executives') {
@@ -2580,47 +3043,182 @@
                     }
                 }
 
-                if (!confirm(`Are you sure you want to launch this broadcast to the selected audience (${audience.toUpperCase()})?`)) {
+                if (scheduleMode === 'scheduled' && !scheduledAt) {
+                    alert('Please select a date and time for scheduling.');
+                    document.getElementById('scheduledAtInput')?.focus();
                     return;
                 }
 
-                btnSubmitBroadcast.disabled = true;
-                btnSubmitBroadcast.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Dispatching Community Broadcast...';
-                broadcastAlert.className = 'alert d-none text-xs';
+                const confirmMsg = scheduleMode === 'scheduled'
+                    ? `Schedule this broadcast for ${scheduledAt} UK time to ${audience.toUpperCase()}?`
+                    : `Launch broadcast immediately to ${audience.toUpperCase()}?`;
+                if (!confirm(confirmMsg)) return;
 
-                fetch('{{ route('admin.whatsapp.broadcast') }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        audience: audience,
-                        message: msg,
-                        custom_numbers: customNums,
-                        selected_executives: selectedExecs
-                    })
-                })
+                btnSubmitBroadcast.disabled = true;
+                btnSubmitBroadcast.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> ' + (scheduleMode === 'scheduled' ? 'Scheduling...' : 'Dispatching...');
+                const broadcastAlert = document.getElementById('broadcastAlert');
+                if (broadcastAlert) broadcastAlert.className = 'alert d-none text-xs';
+
+                // Build FormData for file + text payload
+                const fd = new FormData();
+                fd.append('_token', '{{ csrf_token() }}');
+                fd.append('audience', audience);
+                fd.append('message', msg);
+                fd.append('custom_numbers', customNums);
+                fd.append('schedule_mode', scheduleMode);
+                if (scheduleMode === 'scheduled') fd.append('scheduled_at', scheduledAt);
+                if (selectedExecs.length > 0) fd.append('selected_executives', JSON.stringify(selectedExecs));
+
+                // Append images
+                imageFileList.filter(Boolean).forEach(file => fd.append('images[]', file));
+                // Append documents
+                documentFileList.filter(Boolean).forEach(file => fd.append('documents[]', file));
+                // Append JSON payloads
+                fd.append('urls', document.getElementById('urlsPayload')?.value || '[]');
+                fd.append('contacts', document.getElementById('contactsPayload')?.value || '[]');
+
+                const endpoint = '{{ route('admin.whatsapp.broadcast') }}';
+
+                fetch(endpoint, { method: 'POST', body: fd })
                     .then(res => res.json())
                     .then(data => {
                         btnSubmitBroadcast.disabled = false;
-                        btnSubmitBroadcast.innerHTML = '<i class="fas fa-paper-plane text-success"></i> <span>Launch Safe Community Broadcast</span>';
+                        btnSubmitBroadcast.innerHTML = scheduleMode === 'scheduled'
+                            ? '<i class="fas fa-calendar-check text-info"></i> <span id="broadcastBtnText">Schedule Broadcast</span>'
+                            : '<i class="fas fa-paper-plane text-success" id="broadcastBtnIcon"></i> <span id="broadcastBtnText">Launch Safe Community Broadcast</span>';
 
                         if (data.success) {
-                            broadcastAlert.className = 'alert alert-success text-xs border-0 bg-success-subtle text-success p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
-                            broadcastAlert.innerHTML = `<i class="fas fa-check-circle fs-5"></i> <div><strong>Broadcast Completed!</strong> ${data.message}</div>`;
+                            const alertEl = document.getElementById('broadcastAlert');
+                            if (alertEl) {
+                                alertEl.className = 'alert alert-success text-xs border-0 bg-success-subtle text-success p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm mt-2';
+                                alertEl.innerHTML = `<i class="fas fa-check-circle fs-5"></i> <div><strong>${scheduleMode === 'scheduled' ? 'Scheduled!' : 'Broadcast Completed!'}</strong> ${data.message}</div>`;
+                            }
+                            if (scheduleMode === 'scheduled') {
+                                setTimeout(() => refreshScheduledQueue(), 1500);
+                            }
                         } else {
-                            broadcastAlert.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
-                            broadcastAlert.innerHTML = `<i class="fas fa-exclamation-circle fs-5"></i> <div><strong>Failed:</strong> ${data.message || 'Error occurred.'}</div>`;
+                            const alertEl = document.getElementById('broadcastAlert');
+                            if (alertEl) {
+                                alertEl.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm mt-2';
+                                alertEl.innerHTML = `<i class="fas fa-exclamation-circle fs-5"></i> <div><strong>Failed:</strong> ${data.message || 'Error occurred.'}</div>`;
+                            }
                         }
                     })
                     .catch(err => {
                         btnSubmitBroadcast.disabled = false;
-                        btnSubmitBroadcast.innerHTML = '<i class="fas fa-paper-plane text-success"></i> <span>Launch Safe Community Broadcast</span>';
-                        broadcastAlert.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
-                        broadcastAlert.innerHTML = `<i class="fas fa-wifi fs-5"></i> <div><strong>Network Error:</strong> ${err}</div>`;
+                        btnSubmitBroadcast.innerHTML = '<i class="fas fa-paper-plane text-success" id="broadcastBtnIcon"></i> <span id="broadcastBtnText">Launch Safe Community Broadcast</span>';
+                        const alertEl = document.getElementById('broadcastAlert');
+                        if (alertEl) {
+                            alertEl.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm mt-2';
+                            alertEl.innerHTML = `<i class="fas fa-wifi fs-5"></i> <div><strong>Network Error:</strong> ${err}</div>`;
+                        }
                     });
             });
+
+            // ── Scheduled Queue Management ──
+            window.refreshScheduledQueue = function() {
+                const icon = document.getElementById('queueRefreshIcon');
+                if (icon) icon.className = 'fas fa-sync-alt fa-spin me-1';
+                fetch('{{ route('admin.whatsapp.scheduled.get') }}', {
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (icon) icon.className = 'fas fa-sync-alt me-1';
+                    if (!data.success) return;
+                    const tbody = document.getElementById('scheduledQueueBody');
+                    const countBadge = document.getElementById('scheduledQueueCount');
+                    const emptyState = document.getElementById('queueEmptyState');
+                    if (countBadge) countBadge.textContent = (data.broadcasts?.length || 0) + ' records';
+                    if (!tbody) return;
+                    if (!data.broadcasts || data.broadcasts.length === 0) {
+                        tbody.innerHTML = '';
+                        if (emptyState) emptyState.classList.remove('d-none');
+                        return;
+                    }
+                    if (emptyState) emptyState.classList.add('d-none');
+                    const statusMap = {
+                        pending: ['bg-warning-subtle text-dark border-warning-subtle','fa-clock'],
+                        processing: ['bg-info-subtle text-info border-info-subtle','fa-spinner fa-spin'],
+                        completed: ['bg-success-subtle text-success border-success-subtle','fa-check-circle'],
+                        failed: ['bg-danger-subtle text-danger border-danger-subtle','fa-exclamation-circle'],
+                        cancelled: ['bg-secondary-subtle text-secondary border-secondary-subtle','fa-ban'],
+                    };
+                    tbody.innerHTML = data.broadcasts.map(bc => {
+                        const att = bc.attachments || {};
+                        const sc = statusMap[bc.status] || ['bg-light text-muted', 'fa-question'];
+                        const imgC = (att.images||[]).length, docC = (att.documents||[]).length, urlC = (att.urls||[]).length, conC = (att.contacts||[]).length;
+                        const actBtns = [
+                            (['pending','failed','cancelled'].includes(bc.status)) ? `<button class="btn btn-xs btn-success rounded-pill px-2 text-xxs fw-bold" onclick="sendQueueNow(${bc.id})" title="Send Now"><i class="fas fa-bolt"></i></button>` : '',
+                            (bc.status === 'pending') ? `<button class="btn btn-xs btn-outline-warning rounded-pill px-2 text-xxs fw-bold" onclick="cancelQueueItem(${bc.id})" title="Cancel"><i class="fas fa-ban"></i></button>` : '',
+                            `<button class="btn btn-xs btn-outline-danger rounded-pill px-2 text-xxs" onclick="deleteQueueItem(${bc.id})" title="Delete"><i class="fas fa-trash-alt"></i></button>`
+                        ].join('');
+                        const scheduledFor = bc.scheduled_at
+                            ? new Date(bc.scheduled_at).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+                            : '<span class="badge bg-success-subtle text-success border text-xxs px-2">Immediate</span>';
+                        return `<tr id="queueRow-${bc.id}">
+                            <td class="ps-3 py-2 text-muted font-monospace text-xxs">#${bc.id}</td>
+                            <td class="py-2"><div class="fw-bold text-dark">${escapeHtml((bc.title||'Broadcast').substring(0,40))}</div><span class="badge bg-light text-muted border text-xxs px-1.5 rounded-pill">${escapeHtml(bc.audience||'')}</span></td>
+                            <td class="py-2 text-xs font-monospace">${scheduledFor}</td>
+                            <td class="py-2"><span class="text-dark fw-bold">${bc.total_recipients||0}</span>${bc.sent_count>0?` <span class="badge bg-success-subtle text-success text-xxs">${bc.sent_count} sent</span>`:''} ${bc.failed_count>0?`<span class="badge bg-danger-subtle text-danger text-xxs">${bc.failed_count} failed</span>`:''}</td>
+                            <td class="py-2"><div class="d-flex gap-1 flex-wrap">${imgC>0?`<span class="badge bg-primary-subtle text-primary text-xxs border"><i class="fas fa-image me-1"></i>${imgC}</span>`:''}${docC>0?`<span class="badge bg-secondary-subtle text-secondary text-xxs border"><i class="fas fa-file me-1"></i>${docC}</span>`:''}${urlC>0?`<span class="badge bg-success-subtle text-success text-xxs border"><i class="fas fa-link me-1"></i>${urlC}</span>`:''}${conC>0?`<span class="badge bg-warning-subtle text-dark text-xxs border"><i class="fas fa-address-card me-1"></i>${conC}</span>`:''}${(imgC+docC+urlC+conC)===0?'<span class="text-muted text-xxs">Text only</span>':''}</div></td>
+                            <td class="py-2"><span class="badge border text-xxs px-2 py-1 ${sc[0]}"><i class="fas ${sc[1]} me-1"></i>${bc.status.charAt(0).toUpperCase()+bc.status.slice(1)}</span></td>
+                            <td class="text-end pe-3 py-2"><div class="d-flex justify-content-end gap-1">${actBtns}</div></td>
+                        </tr>`;
+                    }).join('');
+                })
+                .catch(() => { if (icon) icon.className = 'fas fa-sync-alt me-1'; });
+            };
+
+            window.sendQueueNow = function(id) {
+                if (!confirm('Send this broadcast immediately now?')) return;
+                fetch(`{{ url('admin/whatsapp/scheduled') }}/${id}/send-now`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' }
+                }).then(r => r.json()).then(data => {
+                    alert(data.message || (data.success ? 'Queued for immediate dispatch!' : 'Failed.'));
+                    refreshScheduledQueue();
+                }).catch(() => alert('Network error.'));
+            };
+
+            window.cancelQueueItem = function(id) {
+                if (!confirm('Cancel this scheduled broadcast?')) return;
+                fetch(`{{ url('admin/whatsapp/scheduled') }}/${id}/cancel`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' }
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        const row = document.getElementById('queueRow-' + id);
+                        if (row) row.style.opacity = '0.5';
+                        setTimeout(() => refreshScheduledQueue(), 600);
+                    } else {
+                        alert(data.message || 'Failed to cancel.');
+                    }
+                }).catch(() => alert('Network error.'));
+            };
+
+            window.deleteQueueItem = function(id) {
+                if (!confirm('Permanently delete this broadcast record?')) return;
+                fetch(`{{ url('admin/whatsapp/scheduled') }}/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json' }
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        document.getElementById('queueRow-' + id)?.remove();
+                    } else {
+                        alert(data.message || 'Failed to delete.');
+                    }
+                }).catch(() => alert('Network error.'));
+            };
+
+            // Hook renderExecContactQuickAdd into syncFavoritesUI
+            const _origSync = syncFavoritesUI;
+            function syncFavoritesUIExtended() {
+                _origSync();
+                renderExecContactQuickAdd();
+            }
+            // Override with extended version
+            window._syncFavoritesUI = syncFavoritesUIExtended;
 
             // ── Admin Test Message Dispatch Logic ──
             const formAdminTest = document.getElementById('formAdminTestMessage');

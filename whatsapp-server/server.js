@@ -810,6 +810,88 @@ app.post('/send/file', authenticate, async (req, res) => {
     }
 });
 
+// Send Contact / vCard
+app.post('/send/contact', authenticate, async (req, res) => {
+    if (connectionState !== 'connected' || !sock) {
+        logEvent('error', 'WARNING', `Cannot dispatch contact: Gateway not connected (State: ${connectionState})`);
+        return res.status(503).json({
+            success: false,
+            error: 'WhatsApp device is not connected. Current state: ' + connectionState
+        });
+    }
+
+    const { to, name, phone, role } = req.body;
+    if (!to || !name || !phone) {
+        return res.status(400).json({
+            success: false,
+            error: 'Parameters "to", "name", and "phone" are required.'
+        });
+    }
+
+    try {
+        const jid = formatJid(to);
+        const cleanPhone = phone.replace(/[^0-9+]/g, '');
+        const waid = cleanPhone.replace(/[^0-9]/g, '');
+        const org = role ? `PMCC-UK - ${role}` : 'PMCC-UK Executive Committee';
+
+        const vcard = 'BEGIN:VCARD\n'
+            + 'VERSION:3.0\n'
+            + `FN:${name}\n`
+            + `ORG:${org};\n`
+            + `TITLE:${role || 'Executive Member'}\n`
+            + `TEL;type=CELL;type=VOICE;waid=${waid}:${cleanPhone}\n`
+            + 'END:VCARD';
+
+        const result = await sock.sendMessage(jid, {
+            contacts: {
+                displayName: name,
+                contacts: [{ vcard }]
+            }
+        });
+
+        if (result?.key?.id && result.message) {
+            storeMessage(result.key.id, result.message);
+        }
+
+        logEvent('outbound', 'SUCCESS', `Contact card "${name}" (${cleanPhone}) dispatched to ${jid}`, {
+            to: jid,
+            contactName: name,
+            contactPhone: cleanPhone,
+            messageId: result?.key?.id
+        });
+
+        res.json({
+            success: true,
+            messageId: result?.key?.id,
+            to: jid
+        });
+    } catch (err) {
+        logEvent('error', 'ERROR', `Send contact error to ${to}: ${err.message}`, { error: err.message });
+        res.status(500).json({
+            success: false,
+            error: err.message
+        });
+    }
+});
+
+// Autonomous 60-second background ticker to process due scheduled broadcasts
+setInterval(() => {
+    try {
+        const phpBinary = fs.existsSync('/home/u601819832/bin/php') ? '/home/u601819832/bin/php' : 'php';
+        const projectDir = path.resolve(__dirname, '..');
+        const artisanPath = path.join(projectDir, 'artisan');
+
+        if (fs.existsSync(artisanPath)) {
+            const { exec } = require('child_process');
+            exec(`"${phpBinary}" "${artisanPath}" whatsapp:process-scheduled`, { cwd: projectDir }, (error, stdout, stderr) => {
+                if (stdout && stdout.trim().length > 0 && !stdout.includes('No scheduled')) {
+                    logEvent('system', 'INFO', `Scheduled broadcasts processed: ${stdout.trim()}`);
+                }
+            });
+        }
+    } catch (e) {}
+}, 60000);
+
 // Start Daemon Server
 app.listen(PORT, '0.0.0.0', () => {
     logEvent('system', 'INFO', `PMCC-UK WhatsApp Daemon initialized on port ${PORT}`);
