@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Event;
 use App\Models\EventBooking;
 use App\Models\Member;
 use App\Models\SponsorOffer;
 use App\Services\OpenWaService;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -46,10 +48,10 @@ class WhatsAppWebhookController extends Controller
         $upperText = ltrim($rawUpper, '/#!.');
         Log::info("[WhatsApp Inbound] Received '{$upperText}' (raw: '{$messageText}') from {$fromJid} (Phone: {$phone}, PushName: {$pushName})");
 
-        // Check for explicit membership ID or booking reference inside the text (e.g. "CARD PMCC-104", "PMCC-104", "BOOK-102")
+        // Check for explicit membership ID or booking reference inside the text (e.g. "CARD PMCC-105", "PMCC-105", "BOOK-102")
         $explicitRef = null;
-        if (preg_match('/(PMCC-?\d+|BOOK-?\d+|\b\d{6,13}\b)/i', $messageText, $matches)) {
-            $explicitRef = trim($matches[0]);
+        if (preg_match('/(PMCC-?\s*\d+|BOOK-?\s*\d+)/i', $messageText, $matches)) {
+            $explicitRef = strtoupper(preg_replace('/\s+/', '', trim($matches[0])));
         }
 
         // 🛡️ 1. INTENT GATE: Only respond if the message is an intentional bot command
@@ -105,27 +107,87 @@ class WhatsAppWebhookController extends Controller
         }
 
         // ── 3. Member Verification for Restricted Services ──
-        $lookupTarget = $explicitRef ?: $phone;
-        $member = OpenWaService::findMemberByPhone($lookupTarget);
+        // ZERO-TRUST SECURITY: Member identity is strictly verified from the caller's actual phone number.
+        // Explicit reference IDs are NEVER trusted as caller identity to prevent enumeration/harvesting attacks!
+        $member = !empty($phone) ? OpenWaService::findMemberByPhone($phone) : null;
 
-        // If the sender specifically requested a member service (CARD, TICKET, OFFERS) but is not registered:
-        $isMemberServiceRequest = str_starts_with($upperText, 'CARD')
+        // ── 4. Member Service Execution ──
+
+        // CARD / ID -> Deliver Digital Membership Card
+        $isCardRequest = str_starts_with($upperText, 'CARD')
             || str_starts_with($upperText, 'ID')
             || in_array($upperText, ['MY CARD', 'MEMBERSHIP', 'MEMBERSHIP CARD', 'DIGITAL ID'])
-            || str_starts_with($upperText, 'TICKET')
-            || str_starts_with($upperText, 'PASS')
-            || in_array($upperText, ['TICKETS', 'BOOKING', 'MY TICKET', 'EVENT PASS'])
-            || in_array($upperText, ['OFFERS', 'OFFER', 'SPONSORS', 'SPONSOR', 'DISCOUNTS', 'DISCOUNT']);
+            || (!empty($explicitRef) && preg_match('/^PMCC-?\d+$/i', $explicitRef));
 
-        if (!$member && $isMemberServiceRequest) {
-            Log::warning("[WhatsApp Bot] Member feature requested by unregistered sender: {$fromJid} (Phone: {$phone}, PushName: {$pushName})");
+        if ($isCardRequest) {
+            // Case A: Verified active member
+            if ($member) {
+                // If caller requested a specific membership reference, verify it strictly belongs to them
+                if (!empty($explicitRef) && preg_match('/^PMCC-?\d+$/i', $explicitRef)) {
+                    $reqNormalized = strtoupper(str_replace(['-', ' '], '', $explicitRef));
+                    $ownNormalized = strtoupper(str_replace(['-', ' '], '', (string)$member->membership_id_assigned));
 
+                    if ($reqNormalized !== $ownNormalized) {
+                        Log::warning("[WhatsApp Security] Cross-member card access blocked: Member {$member->full_name} ({$member->membership_id_assigned}, Phone: {$phone}) attempted to fetch card for [{$explicitRef}]");
+                        try {
+                            ActivityLog::create([
+                                'user_type' => 'member',
+                                'action' => 'cross_member_card_blocked',
+                                'details' => "Security Block: Member {$member->full_name} ({$member->membership_id_assigned}, Phone: {$phone}) attempted unauthorized access to Member ID [{$explicitRef}].",
+                                'ip_address' => $request->ip() ?: 'WhatsApp Gateway'
+                            ]);
+                        } catch (\Throwable $e) {}
+
+                        OpenWaService::sendText($fromJid, "⛔ *Unauthorized Access Blocked*\n\nYou are verified as member *{$member->full_name}* ({$member->membership_id_assigned}). You are only authorized to retrieve your own official membership ID card.\n\nReply *CARD* to receive your membership card.");
+                        return response()->json(['status' => 'cross_member_card_blocked']);
+                    }
+                }
+
+                OpenWaService::sendText($fromJid, "🔍 Verified active membership for *{$member->full_name}* ({$member->membership_id_assigned}). Sending your official digital ID card now!");
+                OpenWaService::notifyMemberIdCard($member, null, $fromJid);
+                return response()->json(['status' => 'card_dispatched']);
+            }
+
+            // Case B: Unverified / unregistered phone number
+            // If an unregistered caller specifically attempted to harvest another member's card (e.g. "Card PMCC-105"):
+            if (!empty($explicitRef) && preg_match('/^PMCC-?\d+$/i', $explicitRef)) {
+                Log::warning("[WhatsApp Security] Unauthorized card harvesting attempt blocked: Caller Phone {$phone} (PushName: {$pushName}, JID: {$fromJid}) targeted [{$explicitRef}]");
+
+                try {
+                    ActivityLog::create([
+                        'user_type' => 'unauthorized_sender',
+                        'action' => 'id_card_harvesting_blocked',
+                        'details' => "Security Threat Blocked: Unregistered sender Phone: {$phone} (PushName: {$pushName}, JID: {$fromJid}) attempted to harvest ID Card for [{$explicitRef}]. Dispatched zero-trust block.",
+                        'ip_address' => $request->ip() ?: 'WhatsApp Gateway'
+                    ]);
+                } catch (\Throwable $e) {}
+
+                try {
+                    TelegramService::sendMessage(
+                        "🚨 <b>PMCC Security Alert: Unauthorized ID Card Harvest Blocked</b>\n\n" .
+                        "📱 <b>Attacker/Caller Phone:</b> +{$phone}\n" .
+                        "👤 <b>PushName:</b> " . htmlspecialchars($pushName) . "\n" .
+                        "🎯 <b>Target Membership Ref:</b> <code>{$explicitRef}</code>\n" .
+                        "🛑 <b>Action:</b> Zero-trust defense triggered. Identity details and card PDF withheld."
+                    );
+                } catch (\Throwable $e) {}
+
+                $securityMsg = "⛔ *Security Verification Failed*\n\n" .
+                    "The WhatsApp number you are messaging from is *not registered* as the verified contact for membership *{$explicitRef}*.\n\n" .
+                    "🔒 *Data Protection Notice:* PMCC-UK digital ID cards and member credentials are strictly dispatched only to the member's verified WhatsApp number on file.\n\n" .
+                    "👉 If you are the registered member and updated your mobile number, please contact PMCC-UK Administration to verify your profile:\n" .
+                    "🌐 https://pmccuk.org/contact";
+
+                OpenWaService::sendText($fromJid, $securityMsg);
+                return response()->json(['status' => 'harvesting_blocked']);
+            }
+
+            // Generic "CARD" request from an unregistered number
             $formattedPhone = $phone ? OpenWaService::formatPhoneDisplay($phone) : 'your WhatsApp account';
             $denialMessage = "⚠️ *PMCC-UK WhatsApp Automated Gateway*\n\n" .
                 "Your WhatsApp number ({$formattedPhone}) is not registered with an active PMCC-UK membership.\n\n" .
                 "The automated interactive bot and community services (Digital ID Cards, QR Event Passes, Member Discounts) are strictly reserved for registered members.\n\n" .
-                "👉 *Already a member?* Reply with your registered Membership ID:\n" .
-                "*(Example: CARD PMCC-104)*\n\n" .
+                "🔒 *Security Notice:* Digital ID Cards are strictly delivered only to the verified mobile number registered in each member's profile.\n\n" .
                 "👉 *Not registered yet?* Join our community online:\n" .
                 "🌐 https://pmccuk.org/membership";
 
@@ -133,42 +195,67 @@ class WhatsAppWebhookController extends Controller
             return response()->json(['status' => 'unregistered_rejected']);
         }
 
-        // ── 4. Member Service Execution ──
+        // TICKET / PASS -> Deliver Upcoming Event Pass (Zero-Trust Phone Authentication)
+        $isTicketRequest = str_starts_with($upperText, 'TICKET')
+            || str_starts_with($upperText, 'PASS')
+            || in_array($upperText, ['TICKETS', 'BOOKING', 'MY TICKET', 'EVENT PASS'])
+            || (!empty($explicitRef) && preg_match('/^BOOK-?\d+$/i', $explicitRef));
 
-        // CARD / ID -> Deliver Digital Membership Card
-        if (str_starts_with($upperText, 'CARD') || str_starts_with($upperText, 'ID') || in_array($upperText, ['MY CARD', 'MEMBERSHIP', 'MEMBERSHIP CARD', 'DIGITAL ID']) || (!empty($explicitRef) && preg_match('/^PMCC-?\d+$/i', $explicitRef))) {
-            if ($member) {
-                OpenWaService::sendText($fromJid, "🔍 Verified active membership for *{$member->full_name}* ({$member->membership_id_assigned}). Sending your official digital ID card now!");
-                OpenWaService::notifyMemberIdCard($member, null, $fromJid);
-                return response()->json(['status' => 'card_dispatched']);
-            }
-        }
-
-        // TICKET / PASS -> Deliver Upcoming Event Pass
-        if (str_starts_with($upperText, 'TICKET') || str_starts_with($upperText, 'PASS') || in_array($upperText, ['TICKETS', 'BOOKING', 'MY TICKET', 'EVENT PASS']) || (!empty($explicitRef) && preg_match('/^BOOK-?\d+$/i', $explicitRef))) {
+        if ($isTicketRequest) {
             $booking = null;
 
-            // Tier 1: Search by explicit booking reference
-            if ($explicitRef) {
+            // Tier 1: Explicit booking reference provided -> verify phone or member ownership
+            if (!empty($explicitRef) && preg_match('/^BOOK-?\d+$/i', $explicitRef)) {
                 $booking = EventBooking::where(function ($q) use ($explicitRef) {
                     $q->where('reference', 'LIKE', "%{$explicitRef}%")
-                      ->orWhere('id', $explicitRef)
-                      ->orWhere('phone', 'LIKE', "%{$explicitRef}%");
+                      ->orWhere('id', $explicitRef);
                 })->where('booking_status', 'approved')->orderBy('id', 'desc')->first();
+
+                if ($booking) {
+                    // Strict verification: caller phone or verified member profile must match booking
+                    $isOwner = false;
+                    if (!empty($phone) && OpenWaService::phonesMatch($booking->phone, $phone)) {
+                        $isOwner = true;
+                    } elseif ($member && !empty($booking->email) && strtolower($booking->email) === strtolower($member->email)) {
+                        $isOwner = true;
+                    } elseif ($member && OpenWaService::phonesMatch($booking->phone, $member->mobile_number)) {
+                        $isOwner = true;
+                    }
+
+                    if (!$isOwner) {
+                        Log::warning("[WhatsApp Security] Unauthorized ticket retrieval blocked: Caller {$phone} ({$pushName}) targeted Booking Ref [{$explicitRef}]");
+                        try {
+                            ActivityLog::create([
+                                'user_type' => 'unauthorized_sender',
+                                'action' => 'ticket_harvesting_blocked',
+                                'details' => "Security Threat Blocked: Caller Phone {$phone} ({$pushName}, JID: {$fromJid}) attempted to retrieve Event Ticket [{$explicitRef}]. Caller phone does not match booking contact.",
+                                'ip_address' => $request->ip() ?: 'WhatsApp Gateway'
+                            ]);
+                        } catch (\Throwable $e) {}
+
+                        OpenWaService::sendText($fromJid, "⛔ *Security Verification Failed*\n\nThe WhatsApp number you are messaging from does not match the contact details for booking reference *{$explicitRef}*.\n\n🔒 For data protection, event admission passes can only be delivered to the verified phone number or registered member account used during booking.");
+                        return response()->json(['status' => 'ticket_harvesting_blocked']);
+                    }
+
+                    OpenWaService::sendText($fromJid, "🎟️ Found your confirmed booking (Ref: {$booking->reference}) for {$booking->full_name}. Generating your QR pass now!");
+                    OpenWaService::notifyEventTicket($booking, null, $fromJid);
+                    return response()->json(['status' => 'ticket_dispatched']);
+                }
             }
 
-            // Tier 2: Search by verified member's phone number or email
-            if (!$booking && $member) {
-                $mPhone = OpenWaService::formatPhone($member->mobile_number);
-                $cleanPn = preg_replace('/[^0-9]/', '', $mPhone ?: $phone);
+            // Tier 2: Search by caller's verified phone number or member profile
+            if (!$booking && !empty($phone)) {
+                $cleanPn = preg_replace('/[^0-9]/', '', $phone);
                 $last10 = substr($cleanPn, -10);
 
-                $booking = EventBooking::where(function ($q) use ($cleanPn, $last10, $member) {
-                    $q->where('phone', 'LIKE', "%{$cleanPn}%")
-                      ->orWhere('phone', 'LIKE', "%{$last10}%")
-                      ->orWhere('email', $member->email)
-                      ->orWhere('full_name', 'LIKE', "%{$member->full_name}%");
-                })->where('booking_status', 'approved')->orderBy('id', 'desc')->first();
+                $booking = EventBooking::where('booking_status', 'approved')
+                    ->where(function ($q) use ($cleanPn, $last10, $member) {
+                        $q->where('phone', 'LIKE', "%{$cleanPn}%")
+                          ->orWhere('phone', 'LIKE', "%{$last10}%");
+                        if ($member && !empty($member->email)) {
+                            $q->orWhere('email', $member->email);
+                        }
+                    })->orderBy('id', 'desc')->first();
             }
 
             if ($booking) {
@@ -177,7 +264,8 @@ class WhatsAppWebhookController extends Controller
                 return response()->json(['status' => 'ticket_dispatched']);
             } else {
                 $mName = $member ? " ({$member->full_name})" : "";
-                OpenWaService::sendText($fromJid, "⚠️ No approved event bookings were found for your profile{$mName}.\n\n👉 If you booked under a different reference or phone, please reply:\n*TICKET <booking ref or phone>*\n_(Example: *TICKET BOOK-1052* or *TICKET 07901296858*)_\n\nOr book tickets online: https://pmccuk.org/events");
+                $formattedPhone = $phone ? OpenWaService::formatPhoneDisplay($phone) : 'your phone number';
+                OpenWaService::sendText($fromJid, "⚠️ No approved event bookings were found for {$formattedPhone}{$mName}.\n\n👉 To book event tickets, please visit:\n🌐 https://pmccuk.org/events");
                 return response()->json(['status' => 'booking_not_found']);
             }
         }

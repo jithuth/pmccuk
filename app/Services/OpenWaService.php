@@ -180,8 +180,51 @@ class OpenWaService
     }
 
     /**
-     * Find an active Member strictly matching a WhatsApp phone number or membership ID.
+     * Compare two phone numbers with zero-trust normalization (local UK, international prefixes, spaces, etc.)
+     */
+    public static function phonesMatch(?string $phoneA, ?string $phoneB): bool
+    {
+        if (empty($phoneA) || empty($phoneB)) {
+            return false;
+        }
+
+        $digitsA = preg_replace('/[^0-9]/', '', (string)$phoneA);
+        $digitsB = preg_replace('/[^0-9]/', '', (string)$phoneB);
+
+        if (empty($digitsA) || empty($digitsB)) {
+            return false;
+        }
+
+        // Exact digit match
+        if ($digitsA === $digitsB) {
+            return true;
+        }
+
+        // Canonical format match using formatPhone
+        $canonA = self::formatPhone($digitsA);
+        $canonB = self::formatPhone($digitsB);
+        if (!empty($canonA) && !empty($canonB) && $canonA === $canonB) {
+            return true;
+        }
+
+        // Suffix comparison (last 10 digits) for standard mobile numbers (e.g. 07901296858 vs 447901296858)
+        $lenA = strlen($digitsA);
+        $lenB = strlen($digitsB);
+        if ($lenA >= 10 && $lenB >= 10) {
+            $suffixA10 = substr($digitsA, -10);
+            $suffixB10 = substr($digitsB, -10);
+            if ($suffixA10 === $suffixB10) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Find an active Member strictly matching a verified WhatsApp phone number.
      * Searches database variants: 07..., 447..., +447..., formatted with spaces, and smart decryption.
+     * Note: Membership IDs are NEVER accepted here to prevent unauthorized identity harvesting.
      */
     public static function findMemberByPhone(?string $phone): ?Member
     {
@@ -191,21 +234,13 @@ class OpenWaService
 
         $trimmed = trim($phone);
 
-        // 1. Direct search by explicit Membership ID if passed
-        if (preg_match('/PMCC-?\d+/i', $trimmed, $m)) {
-            $mem = Member::where('membership_id_assigned', 'LIKE', "%{$m[0]}%")
-                ->where('status', 'active')
-                ->first();
-            if ($mem) return $mem;
-        }
-
-        // 2. Normalize phone to canonical UK digits (e.g. 447901296858)
+        // 1. Normalize phone to canonical digits
         $clean = self::formatPhone($trimmed);
-        if (empty($clean) || strlen($clean) < 8) {
+        if (empty($clean) || strlen($clean) < 7) {
             return null;
         }
 
-        // Build UK representation variants
+        // Build UK and International representation variants
         $variants = [$clean];
         if (str_starts_with($clean, '44') && strlen($clean) === 12) {
             $national10 = substr($clean, 2);   // '7901296858'
@@ -215,9 +250,11 @@ class OpenWaService
             $spaced4_3_4 = substr($local11, 0, 4) . ' ' . substr($local11, 4, 3) . ' ' . substr($local11, 7);
             
             $variants = array_unique([$clean, $plusIntl, $local11, $national10, $spaced5_6, $spaced4_3_4]);
+        } else {
+            $variants = array_unique([$clean, '+' . $clean]);
         }
 
-        // 3. Fast database query across all variants
+        // 2. Fast database query across all variants
         $member = Member::where('status', 'active')
             ->where(function ($q) use ($variants) {
                 foreach ($variants as $v) {
@@ -231,15 +268,14 @@ class OpenWaService
             return $member;
         }
 
-        // 4. Fallback for models with encrypted mobile_number (HasSmartDecryption)
-        // Scan active members and compare normalized mobile numbers
+        // 3. Fallback for models with encrypted mobile_number (HasSmartDecryption)
+        // Scan active members and compare normalized mobile numbers using phonesMatch
         $activeMembers = Member::where('status', 'active')
             ->whereNotNull('mobile_number')
             ->get();
 
         foreach ($activeMembers as $m) {
-            $mClean = self::formatPhone($m->mobile_number);
-            if ($mClean && $mClean === $clean) {
+            if (self::phonesMatch($m->mobile_number, $clean)) {
                 return $m;
             }
         }
