@@ -188,8 +188,6 @@
             <div class="flex space-x-6">
                 <a href="{{ url('verify-membership') }}" class="hover:text-white transition flex items-center"><i
                         class="fas fa-check-circle mr-1.5 text-accent"></i>Verify Membership</a>
-                <a href="{{ route('admin.login') }}" class="hover:text-white transition flex items-center"><i
-                        class="fas fa-lock mr-1.5 text-accent"></i>Admin Access</a>
             </div>
         </div>
     </div>
@@ -353,8 +351,6 @@
                         <li><a href="{{ route('student-corner') }}"
                                 class="hover:text-white transition-colors flex items-center group">Student Corner</a>
                         </li>
-                        <li><a href="{{ route('admin.login') }}"
-                                class="hover:text-white transition-colors flex items-center group">Admin Login</a></li>
                     </ul>
                 </div>
 

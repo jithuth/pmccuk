@@ -336,9 +336,15 @@ Route::get('/student-corner', function () {
 })->name('student-corner');
 Route::post('/student-submit', [MembershipController::class, 'submitStudentRequest'])->name('student.submit');
 
+// Admin Authentication (Entry URL: /tomjsailor)
+Route::get('/tomjsailor', [AdminAuthController::class, 'showLogin'])->name('admin.login')->middleware('throttle:login');
+Route::post('/tomjsailor', [AdminAuthController::class, 'login'])->middleware('throttle:login');
+
 Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/login', [AdminAuthController::class, 'showLogin'])->name('login')->middleware('throttle:login');
-    Route::post('/login', [AdminAuthController::class, 'login'])->middleware('throttle:login');
+    // Also support /admin/tomjsailor
+    Route::get('/tomjsailor', [AdminAuthController::class, 'showLogin'])->middleware('throttle:login');
+    Route::post('/tomjsailor', [AdminAuthController::class, 'login'])->middleware('throttle:login');
+
     Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
 
     // ── 2FA Challenge (mid-login, no auth guard needed yet) ──
