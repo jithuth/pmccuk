@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -13,21 +13,35 @@ const {
     fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
 
+// ── Memory & Retry Cache ──
+let NodeCacheModule = null;
+try {
+    NodeCacheModule = require('node-cache');
+} catch (e) {
+    NodeCacheModule = null;
+}
+
+const msgRetryCounterCache = NodeCacheModule
+    ? new NodeCacheModule({ stdTTL: 7200, checkperiod: 300 })
+    : new Map();
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const PORT = parseInt(process.env.PORT || '8085', 10);
-const API_KEY = process.env.API_KEY || 'pmcc_wa_sec_key_2026_x9';
+const API_KEY = (process.env.API_KEY || 'pmcc_wa_sec_key_2026_x9').trim();
 const SESSION_DIR = path.resolve(process.env.SESSION_DIR || path.join(__dirname, 'session_auth'));
 const LOGS_DIR = path.resolve(__dirname, 'logs');
 const LOG_FILE = path.join(LOGS_DIR, 'whatsapp.log');
 
+if (!fs.existsSync(SESSION_DIR)) {
+    try { fs.mkdirSync(SESSION_DIR, { recursive: true }); } catch (e) {}
+}
+
 if (!fs.existsSync(LOGS_DIR)) {
-    try {
-        fs.mkdirSync(LOGS_DIR, { recursive: true });
-    } catch (e) {}
+    try { fs.mkdirSync(LOGS_DIR, { recursive: true }); } catch (e) {}
 }
 
 // ── State tracking ──
@@ -38,17 +52,101 @@ let currentQrImage = null;
 let currentUser = null;
 let isLoggingOut = false;
 
-// ── In-Memory Retry Message Store (Fixes "Waiting for this message. This may take a while") ──
-const msgRetryStore = new Map();
+// ── Persistent LID <-> Phone Mapping ──
+// Avoids "Waiting for this message" when communicating with devices using Linked Identity (LID)
+const LID_MAPPINGS_FILE = path.join(SESSION_DIR, 'lid_mappings.json');
 const lidToPhone = new Map();
+const phoneToLid = new Map();
+
+function loadPersistentMappings() {
+    try {
+        if (fs.existsSync(LID_MAPPINGS_FILE)) {
+            const data = JSON.parse(fs.readFileSync(LID_MAPPINGS_FILE, 'utf8'));
+            if (data.lidToPhone) {
+                for (const [k, v] of Object.entries(data.lidToPhone)) lidToPhone.set(k, v);
+            }
+            if (data.phoneToLid) {
+                for (const [k, v] of Object.entries(data.phoneToLid)) phoneToLid.set(k, v);
+            }
+        }
+    } catch (e) {}
+}
+
+function savePersistentMappings() {
+    try {
+        const lidObj = {};
+        const phoneObj = {};
+        for (const [k, v] of lidToPhone.entries()) lidObj[k] = v;
+        for (const [k, v] of phoneToLid.entries()) phoneObj[k] = v;
+        fs.writeFileSync(LID_MAPPINGS_FILE, JSON.stringify({ lidToPhone: lidObj, phoneToLid: phoneObj }), 'utf8');
+    } catch (e) {}
+}
+
+function recordLidPhoneMapping(rawLid, rawPn) {
+    if (!rawLid || !rawPn) return;
+    rawLid = String(rawLid).split('@')[0].split(':')[0];
+    rawPn = String(rawPn).split('@')[0].split(':')[0];
+    
+    lidToPhone.set(rawLid, rawPn);
+    phoneToLid.set(rawPn, rawLid);
+
+    // Normalize UK representations (447... <-> 07...)
+    if (rawPn.startsWith('44')) {
+        const local = '0' + rawPn.substring(2);
+        phoneToLid.set(local, rawLid);
+        phoneToLid.set(rawPn.substring(2), rawLid); // 10-digit national
+    } else if (rawPn.startsWith('0')) {
+        const intl = '44' + rawPn.substring(1);
+        phoneToLid.set(intl, rawLid);
+        phoneToLid.set(rawPn.substring(1), rawLid);
+    }
+
+    savePersistentMappings();
+}
+
+// ── Persistent LRU Message Store (Fixes "Waiting for this message. This may take a while") ──
+// Retains messages on disk so Baileys can always answer WhatsApp peer retry requests across restarts
+const MESSAGE_STORE_FILE = path.join(SESSION_DIR, 'message_store.json');
+const msgRetryStore = new Map();
+
+function loadPersistentMessages() {
+    try {
+        if (fs.existsSync(MESSAGE_STORE_FILE)) {
+            const data = JSON.parse(fs.readFileSync(MESSAGE_STORE_FILE, 'utf8'));
+            for (const [k, v] of Object.entries(data)) {
+                msgRetryStore.set(k, v);
+            }
+        }
+    } catch (e) {}
+}
+
+let saveMsgTimeout = null;
+function scheduleSaveMessages() {
+    if (saveMsgTimeout) return;
+    saveMsgTimeout = setTimeout(() => {
+        saveMsgTimeout = null;
+        try {
+            const obj = {};
+            for (const [k, v] of msgRetryStore.entries()) obj[k] = v;
+            fs.writeFileSync(MESSAGE_STORE_FILE, JSON.stringify(obj), 'utf8');
+        } catch (e) {}
+    }, 2000);
+}
 
 function storeMessage(keyId, message) {
     if (!keyId || !message) return;
-    msgRetryStore.set(keyId, message);
+    const clean = message.message || message;
+    msgRetryStore.set(keyId, clean);
     if (msgRetryStore.size > 2000) {
         const oldestKey = msgRetryStore.keys().next().value;
         msgRetryStore.delete(oldestKey);
     }
+    scheduleSaveMessages();
+}
+
+function getStoredMessage(keyId) {
+    if (!keyId) return undefined;
+    return msgRetryStore.get(keyId);
 }
 
 // ── Real-Time Gateway Log Store ──
@@ -59,8 +157,8 @@ function logEvent(type, level, message, details = null) {
     const entry = {
         id: logCounter++,
         timestamp: new Date().toISOString(),
-        type: type || 'system',     // 'inbound' | 'bot_reply' | 'outbound' | 'system' | 'qr' | 'auth' | 'error' | 'warn'
-        level: level || 'INFO',     // 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR'
+        type: type || 'system',
+        level: level || 'INFO',
         message: String(message),
         details: details || null
     };
@@ -120,13 +218,22 @@ function formatJid(target) {
     // Format UK numbers starting with 07 to 447
     if (clean.startsWith('0') && clean.length === 11) {
         clean = '44' + clean.substring(1);
-    } else if (clean.startsWith('440')) {
+    } else if (clean.startsWith('440') && clean.length === 13) {
         clean = '44' + clean.substring(3);
+    } else if (clean.startsWith('0044')) {
+        clean = clean.substring(2);
+    } else if (clean.length === 10) {
+        // Without country code (e.g. 7901296858): add 44
+        clean = '44' + clean;
     }
 
-    // Format Indian numbers 10 digits to 91xxx
-    if (clean.length === 10 && ['6', '7', '8', '9'].includes(clean[0])) {
-        clean = '91' + clean;
+    // 🛡️ DYNAMIC LID ROUTING:
+    // If we have an active mapped LID for this recipient, route directly to their @lid!
+    // This uses the recipient's existing, active Signal encryption session, completely preventing
+    // "Waiting for this message. This may take a while" on outbound dispatches!
+    if (phoneToLid.has(clean)) {
+        const lid = phoneToLid.get(clean);
+        return `${lid}@lid`;
     }
 
     return `${clean}@s.whatsapp.net`;
@@ -134,9 +241,8 @@ function formatJid(target) {
 
 // ── Initialize WhatsApp Socket ──
 async function initWhatsApp() {
-    if (!fs.existsSync(SESSION_DIR)) {
-        fs.mkdirSync(SESSION_DIR, { recursive: true });
-    }
+    loadPersistentMappings();
+    loadPersistentMessages();
 
     try {
         const { state, saveCreds } = await useMultiFileAuthState(SESSION_DIR);
@@ -156,12 +262,16 @@ async function initWhatsApp() {
             emitOwnEvents: false,
             markOnlineOnConnect: true,
             syncFullHistory: false,
+            // 🛡️ Cache for tracking retry counts on WhatsApp multi-device
+            msgRetryCounterCache,
             // 🛡️ CRUCIAL: Handler for answering WhatsApp peer retry requests
             // Solves the "Waiting for this message. This may take a while" error
             getMessage: async (key) => {
-                if (key && key.id && msgRetryStore.has(key.id)) {
-                    const stored = msgRetryStore.get(key.id);
-                    return stored?.message || stored || undefined;
+                if (key && key.id) {
+                    const stored = getStoredMessage(key.id);
+                    if (stored) {
+                        return stored;
+                    }
                 }
                 return undefined;
             }
@@ -172,19 +282,15 @@ async function initWhatsApp() {
         // ── Contact & Phone Number Sharing (LID to Phone mapping) ──
         sock.ev.on('chats.phoneNumberShare', ({ lid, jid }) => {
             if (lid && jid) {
-                const rawLid = lid.split('@')[0].split(':')[0];
-                const rawPn = jid.split('@')[0].split(':')[0];
-                lidToPhone.set(rawLid, rawPn);
-                logEvent('system', 'INFO', `Linked LID ${rawLid} -> Phone ${rawPn}`);
+                recordLidPhoneMapping(lid, jid);
+                logEvent('system', 'INFO', `Linked LID ${lid} -> Phone ${jid}`);
             }
         });
 
         sock.ev.on('contacts.upsert', (contacts) => {
             for (const c of contacts) {
                 if (c.lid && c.id) {
-                    const rawLid = c.lid.split('@')[0].split(':')[0];
-                    const rawPn = c.id.split('@')[0].split(':')[0];
-                    lidToPhone.set(rawLid, rawPn);
+                    recordLidPhoneMapping(c.lid, c.id);
                 }
             }
         });
@@ -192,9 +298,7 @@ async function initWhatsApp() {
         sock.ev.on('contacts.update', (updates) => {
             for (const c of updates) {
                 if (c.lid && c.id) {
-                    const rawLid = c.lid.split('@')[0].split(':')[0];
-                    const rawPn = c.id.split('@')[0].split(':')[0];
-                    lidToPhone.set(rawLid, rawPn);
+                    recordLidPhoneMapping(c.lid, c.id);
                 }
             }
         });
@@ -290,6 +394,9 @@ async function initWhatsApp() {
                     } else if (remoteJid.includes('@lid')) {
                         const rawLid = remoteJid.split('@')[0].split(':')[0];
                         senderPn = msg.key.senderPn || msg.key.participantPn || lidToPhone.get(rawLid) || null;
+                        if (senderPn) {
+                            recordLidPhoneMapping(rawLid, senderPn);
+                        }
                     }
 
                     const pushName = msg.pushName || 'Member';
@@ -345,6 +452,7 @@ app.get('/', (req, res) => {
         status: 'running',
         whatsapp_state: connectionState,
         cached_messages: msgRetryStore.size,
+        mapped_lids: lidToPhone.size,
         log_entries: systemLogs.length,
         timestamp: new Date().toISOString()
     });
@@ -412,6 +520,7 @@ app.post('/session/logout', authenticate, async (req, res) => {
         currentUser = null;
         msgRetryStore.clear();
         lidToPhone.clear();
+        phoneToLid.clear();
         isLoggingOut = false;
 
         logEvent('system', 'SUCCESS', 'WhatsApp session credentials unlinked. Restarting socket for fresh QR...');
@@ -469,6 +578,7 @@ app.post('/session/revoke', authenticate, async (req, res) => {
         currentUser = null;
         msgRetryStore.clear();
         lidToPhone.clear();
+        phoneToLid.clear();
         isLoggingOut = false;
 
         logEvent('system', 'SUCCESS', 'Session credentials completely wiped. Generating fresh QR code...');
@@ -493,7 +603,7 @@ app.post('/session/revoke', authenticate, async (req, res) => {
 // Get Live Gateway & Bot Logs
 app.get('/logs', authenticate, (req, res) => {
     const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
-    const type = req.query.type; // 'all' | 'inbound' | 'outbound' | 'error' | 'system' | 'bot'
+    const type = req.query.type;
     const sinceId = req.query.since_id ? parseInt(req.query.since_id, 10) : null;
     const search = req.query.search ? String(req.query.search).toLowerCase() : null;
 
@@ -566,9 +676,9 @@ app.post('/send/text', authenticate, async (req, res) => {
         const jid = formatJid(to);
         const result = await sock.sendMessage(jid, { text: message });
 
-        // Store outbound message for E2EE retry answering
-        if (result?.key?.id && result.message) {
-            storeMessage(result.key.id, result.message);
+        // Store outbound message for E2EE retry answering (fixes "Waiting for this message")
+        if (result?.key?.id && (result.message || message)) {
+            storeMessage(result.key.id, result.message || { conversation: message });
         }
 
         logEvent('outbound', 'SUCCESS', `Text message dispatched to ${jid}: "${message.substring(0, 80)}"`, {
@@ -584,6 +694,21 @@ app.post('/send/text', authenticate, async (req, res) => {
         });
     } catch (err) {
         logEvent('error', 'ERROR', `Send text error to ${to}: ${err.message}`, { error: err.message });
+        
+        // Auto-recovery: If Bad MAC occurred, purge corrupted session file for this target
+        if (err.message && err.message.includes('Bad MAC')) {
+            try {
+                const cleanPn = to.replace(/[^0-9]/g, '');
+                const files = fs.readdirSync(SESSION_DIR);
+                for (const f of files) {
+                    if (f.startsWith(`session-${cleanPn}`) || (phoneToLid.has(cleanPn) && f.startsWith(`session-${phoneToLid.get(cleanPn)}`))) {
+                        fs.unlinkSync(path.join(SESSION_DIR, f));
+                        logEvent('system', 'WARNING', `Purged corrupted session file: ${f}`);
+                    }
+                }
+            } catch (pErr) {}
+        }
+
         res.status(500).json({
             success: false,
             error: err.message

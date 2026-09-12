@@ -25,7 +25,7 @@ class WhatsAppWebhookController extends Controller
         }
 
         $fromJid = trim((string) $request->input('from')); // e.g. 275767166550158@lid or 447901296858@s.whatsapp.net
-        $messageText = trim((string) $request->input('message'));
+        $messageText = trim((string) ($request->input('message') ?: $request->input('body', '')));
         $pushName = trim((string) $request->input('pushName', 'Member'));
         $detectedPhone = $request->input('phone');
 
@@ -49,61 +49,42 @@ class WhatsAppWebhookController extends Controller
             $explicitRef = trim($matches[0]);
         }
 
-        // ── Command Routing ──
+        // 🛡️ MEMBER REGISTRATION & IDENTITY VERIFICATION GATE:
+        // "fetch the details exactly same from the members data and if the number is without a country code add +44 to them.
+        // If the number is not registered, the whatsapp interactive system should not work."
+        $lookupTarget = $explicitRef ?: $phone;
+        $member = OpenWaService::findMemberByPhone($lookupTarget);
+
+        if (!$member) {
+            Log::warning("[WhatsApp Bot] Access denied for unregistered sender: {$fromJid} (Phone: {$phone}, PushName: {$pushName})");
+
+            $cleanDisplay = $phone ? ('+' . OpenWaService::formatPhone($phone)) : 'your number';
+            $denialMessage = "⚠️ *PMCC-UK WhatsApp Automated Gateway*\n\n" .
+                "Your WhatsApp number ({$cleanDisplay}) is not registered with an active PMCC-UK membership.\n\n" .
+                "The automated interactive bot and community services (Digital ID Cards, QR Event Passes, Member Discounts) are strictly reserved for registered members.\n\n" .
+                "👉 *Already a member?* Reply with your registered Membership ID:\n" .
+                "*(Example: CARD PMCC-104)*\n\n" .
+                "👉 *Not registered yet?* Join our community online:\n" .
+                "🌐 https://pmccuk.org/membership";
+
+            OpenWaService::sendText($fromJid, $denialMessage);
+            return response()->json(['status' => 'unregistered_rejected']);
+        }
+
+        // ── Command Routing for Registered Member ──
 
         // 1. CARD / ID -> Deliver Digital Membership Card
         if (str_starts_with($upperText, 'CARD') || str_starts_with($upperText, 'ID') || in_array($upperText, ['MY CARD', 'MEMBERSHIP', 'MEMBERSHIP CARD'])) {
-            $member = null;
-
-            // Tier 1: Search by explicit reference in message
-            if ($explicitRef) {
-                $cleanRef = preg_replace('/[^0-9]/', '', $explicitRef);
-                $member = Member::where(function ($q) use ($explicitRef, $cleanRef) {
-                    $q->where('membership_id_assigned', 'LIKE', "%{$explicitRef}%")
-                      ->orWhere('id', $explicitRef)
-                      ->orWhere('mobile_number', 'LIKE', "%{$cleanRef}%");
-                })->where('status', 'active')->first();
-            }
-
-            // Tier 2: Search by detected phone number
-            if (!$member && !empty($phone)) {
-                $cleanPn = preg_replace('/[^0-9]/', '', $phone);
-                $last10 = substr($cleanPn, -10);
-                $member = Member::where(function ($q) use ($cleanPn, $last10) {
-                    $q->where('mobile_number', 'LIKE', "%{$cleanPn}%")
-                      ->orWhere('mobile_number', 'LIKE', "%{$last10}%");
-                })->where('status', 'active')->first();
-            }
-
-            // Tier 3: Search by WhatsApp display name (pushName)
-            if (!$member && !empty($pushName) && strtolower($pushName) !== 'member') {
-                $cleanPush = trim(preg_replace('/[^a-zA-Z0-9\s]/', '', $pushName));
-                if (strlen($cleanPush) >= 3) {
-                    $words = array_filter(explode(' ', $cleanPush), fn($w) => strlen($w) >= 3);
-                    $member = Member::where(function ($q) use ($cleanPush, $words) {
-                        $q->where('full_name', 'LIKE', "%{$cleanPush}%");
-                        foreach ($words as $w) {
-                            $q->orWhere('full_name', 'LIKE', "%{$w}%");
-                        }
-                    })->where('status', 'active')->first();
-                }
-            }
-
-            if ($member) {
-                OpenWaService::sendText($fromJid, "🔍 Looking up your active membership profile... Sending your official digital ID card now!");
-                OpenWaService::notifyMemberIdCard($member, null, $fromJid);
-                return response()->json(['status' => 'card_dispatched']);
-            } else {
-                OpenWaService::sendText($fromJid, "⚠️ We could not automatically match this chat with an active PMCC-UK membership.\n\n👉 Please reply with your Membership ID or registered mobile:\n*CARD <your ID or phone>*\n_(Example: *CARD PMCC-104* or *CARD 07901296858*)_\n\nOr register online: https://pmccuk.org/membership");
-                return response()->json(['status' => 'member_not_found']);
-            }
+            OpenWaService::sendText($fromJid, "🔍 Verified active membership for *{$member->full_name}* ({$member->membership_id_assigned}). Sending your official digital ID card now!");
+            OpenWaService::notifyMemberIdCard($member, null, $fromJid);
+            return response()->json(['status' => 'card_dispatched']);
         }
 
         // 2. TICKET / PASS -> Deliver Upcoming Event Pass
         if (str_starts_with($upperText, 'TICKET') || str_starts_with($upperText, 'PASS') || in_array($upperText, ['TICKETS', 'BOOKING', 'MY TICKET'])) {
             $booking = null;
 
-            // Tier 1: Search by explicit reference
+            // Tier 1: Search by explicit booking reference
             if ($explicitRef) {
                 $booking = EventBooking::where(function ($q) use ($explicitRef) {
                     $q->where('reference', 'LIKE', "%{$explicitRef}%")
@@ -112,33 +93,26 @@ class WhatsAppWebhookController extends Controller
                 })->where('booking_status', 'approved')->orderBy('id', 'desc')->first();
             }
 
-            // Tier 2: Search by detected phone
-            if (!$booking && !empty($phone)) {
-                $cleanPn = preg_replace('/[^0-9]/', '', $phone);
+            // Tier 2: Search by verified member's phone number or email
+            if (!$booking && $member) {
+                $mPhone = OpenWaService::formatPhone($member->mobile_number);
+                $cleanPn = preg_replace('/[^0-9]/', '', $mPhone ?: $phone);
                 $last10 = substr($cleanPn, -10);
-                $booking = EventBooking::where(function ($q) use ($cleanPn, $last10) {
+
+                $booking = EventBooking::where(function ($q) use ($cleanPn, $last10, $member) {
                     $q->where('phone', 'LIKE', "%{$cleanPn}%")
-                      ->orWhere('phone', 'LIKE', "%{$last10}%");
+                      ->orWhere('phone', 'LIKE', "%{$last10}%")
+                      ->orWhere('email', $member->email)
+                      ->orWhere('full_name', 'LIKE', "%{$member->full_name}%");
                 })->where('booking_status', 'approved')->orderBy('id', 'desc')->first();
             }
 
-            // Tier 3: Search by pushName
-            if (!$booking && !empty($pushName) && strtolower($pushName) !== 'member') {
-                $cleanPush = trim(preg_replace('/[^a-zA-Z0-9\s]/', '', $pushName));
-                if (strlen($cleanPush) >= 3) {
-                    $booking = EventBooking::where('full_name', 'LIKE', "%{$cleanPush}%")
-                        ->where('booking_status', 'approved')
-                        ->orderBy('id', 'desc')
-                        ->first();
-                }
-            }
-
             if ($booking) {
-                OpenWaService::sendText($fromJid, "🎟️ Fetching your confirmed booking pass... Generating ticket with QR code!");
+                OpenWaService::sendText($fromJid, "🎟️ Found your confirmed booking (Ref: {$booking->reference}) for {$booking->full_name}. Generating your QR pass now!");
                 OpenWaService::notifyEventTicket($booking, null, $fromJid);
                 return response()->json(['status' => 'ticket_dispatched']);
             } else {
-                OpenWaService::sendText($fromJid, "⚠️ No approved event bookings were found.\n\n👉 Please reply with your Booking Reference:\n*TICKET <booking ref or phone>*\n_(Example: *TICKET BOOK-1052* or *TICKET 07901296858*)_\n\nOr book tickets here: https://pmccuk.org/events");
+                OpenWaService::sendText($fromJid, "⚠️ No approved event bookings were found for your membership profile ({$member->full_name}).\n\n👉 If you booked under a different reference or phone, please reply:\n*TICKET <booking ref or phone>*\n_(Example: *TICKET BOOK-1052* or *TICKET 07901296858*)_\n\nOr book tickets online: https://pmccuk.org/events");
                 return response()->json(['status' => 'booking_not_found']);
             }
         }
@@ -210,8 +184,9 @@ class WhatsAppWebhookController extends Controller
         }
 
         // 6. DEFAULT / HELP MENU
+        $displayName = $member->full_name ?: $pushName;
         $menu = "🌟 *Welcome to PMCC-UK Interactive WhatsApp!* 🇬🇧\n\n" .
-            "Hello *{$pushName}*, reply with any keyword below for instant assistance:\n\n" .
+            "Hello *{$displayName}* (Member: *{$member->membership_id_assigned}*), reply with any keyword below for instant assistance:\n\n" .
             "👉 *CARD* - Download your Digital Membership Card (PDF)\n" .
             "👉 *TICKET* - Retrieve your Event Admission Ticket (QR Pass)\n" .
             "👉 *EVENTS* - View upcoming community festivals & bookings\n" .

@@ -62,6 +62,7 @@ class OpenWaService
 
     /**
      * Format a phone number to standard international format (UK: 447...)
+     * Handles numbers starting with 0, +44, 44, or without country code.
      */
     public static function formatPhone(?string $phone): ?string
     {
@@ -82,19 +83,89 @@ class OpenWaService
             return null;
         }
 
-        // UK Local 07xxx -> 447xxx
+        // UK Local: 07xxxxxxxxx (11 digits) -> 447xxxxxxxxx
         if (str_starts_with($clean, '0') && strlen($clean) === 11) {
             $clean = '44' . substr($clean, 1);
-        } elseif (str_starts_with($clean, '440')) {
+        } elseif (str_starts_with($clean, '440') && strlen($clean) === 13) {
+            // Accidentally typed 4407xxxxxxxxx -> 447xxxxxxxxx
             $clean = '44' . substr($clean, 3);
-        }
-
-        // Indian numbers 10 digits -> 91xxx
-        if (strlen($clean) === 10 && in_array(substr($clean, 0, 1), ['6', '7', '8', '9'])) {
-            $clean = '91' . $clean;
+        } elseif (str_starts_with($clean, '0044')) {
+            // 00447xxxxxxxxx -> 447xxxxxxxxx
+            $clean = substr($clean, 2);
+        } elseif (strlen($clean) === 10) {
+            // Number entered without country code (e.g. 7901296858): add +44
+            $clean = '44' . $clean;
         }
 
         return $clean;
+    }
+
+    /**
+     * Find an active Member strictly matching a WhatsApp phone number or membership ID.
+     * Searches database variants: 07..., 447..., +447..., formatted with spaces, and smart decryption.
+     */
+    public static function findMemberByPhone(?string $phone): ?Member
+    {
+        if (empty($phone)) {
+            return null;
+        }
+
+        $trimmed = trim($phone);
+
+        // 1. Direct search by explicit Membership ID if passed
+        if (preg_match('/PMCC-?\d+/i', $trimmed, $m)) {
+            $mem = Member::where('membership_id_assigned', 'LIKE', "%{$m[0]}%")
+                ->where('status', 'active')
+                ->first();
+            if ($mem) return $mem;
+        }
+
+        // 2. Normalize phone to canonical UK digits (e.g. 447901296858)
+        $clean = self::formatPhone($trimmed);
+        if (empty($clean) || strlen($clean) < 8) {
+            return null;
+        }
+
+        // Build UK representation variants
+        $variants = [$clean];
+        if (str_starts_with($clean, '44') && strlen($clean) === 12) {
+            $national10 = substr($clean, 2);   // '7901296858'
+            $local11 = '0' . $national10;       // '07901296858'
+            $plusIntl = '+' . $clean;           // '+447901296858'
+            $spaced5_6 = substr($local11, 0, 5) . ' ' . substr($local11, 5); // '07901 296858'
+            $spaced4_3_4 = substr($local11, 0, 4) . ' ' . substr($local11, 4, 3) . ' ' . substr($local11, 7);
+            
+            $variants = array_unique([$clean, $plusIntl, $local11, $national10, $spaced5_6, $spaced4_3_4]);
+        }
+
+        // 3. Fast database query across all variants
+        $member = Member::where('status', 'active')
+            ->where(function ($q) use ($variants) {
+                foreach ($variants as $v) {
+                    $q->orWhere('mobile_number', $v)
+                      ->orWhere('mobile_number', 'LIKE', "%{$v}%");
+                }
+            })
+            ->first();
+
+        if ($member) {
+            return $member;
+        }
+
+        // 4. Fallback for models with encrypted mobile_number (HasSmartDecryption)
+        // Scan active members and compare normalized mobile numbers
+        $activeMembers = Member::where('status', 'active')
+            ->whereNotNull('mobile_number')
+            ->get();
+
+        foreach ($activeMembers as $m) {
+            $mClean = self::formatPhone($m->mobile_number);
+            if ($mClean && $mClean === $clean) {
+                return $m;
+            }
+        }
+
+        return null;
     }
 
     /**
