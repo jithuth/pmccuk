@@ -337,6 +337,7 @@
                     <li class="nav-header">System</li>
                     <li class="nav-item"><a href="{{ route('admin.2fa.setup') }}" class="nav-link {{ Route::is('admin.2fa.*') ? 'active' : '' }}"><i class="nav-icon fas fa-qrcode ic-green"></i><p>2FA Security</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.email-settings') }}" class="nav-link {{ Route::is('admin.email-settings') ? 'active' : '' }}"><i class="nav-icon fas fa-at ic-slate"></i><p>Email Settings</p></a></li>
+                    <li class="nav-item"><a href="{{ route('admin.whatsapp.index') }}" class="nav-link {{ Route::is('admin.whatsapp.*') ? 'active' : '' }}"><i class="nav-icon fab fa-whatsapp ic-green"></i><p>WhatsApp Hub</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.config.settings') }}" class="nav-link {{ Route::is('admin.config.settings') ? 'active' : '' }}"><i class="nav-icon fas fa-cog ic-slate"></i><p>Global Settings</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.security-audit') }}" class="nav-link {{ Route::is('admin.security-audit') ? 'active' : '' }}"><i class="nav-icon fas fa-shield-alt ic-slate"></i><p>Security Audit</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.access-control') }}" class="nav-link {{ Route::is('admin.access-control') ? 'active' : '' }}"><i class="nav-icon fas fa-user-lock ic-slate"></i><p>Access Control</p></a></li>

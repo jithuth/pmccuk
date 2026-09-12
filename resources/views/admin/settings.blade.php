@@ -36,6 +36,11 @@
                                 <i class="fab fa-telegram-plane me-2"></i> TELEGRAM ALERTS
                             </button>
                         </li>
+                        <li class="nav-item">
+                            <button type="button" class="nav-link fw-bold py-3" data-bs-toggle="pill" data-bs-target="#whatsappTab">
+                                <i class="fab fa-whatsapp me-2 text-success"></i> WHATSAPP
+                            </button>
+                        </li>
                     </ul>
                 </div>
 
@@ -223,6 +228,102 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- WHATSAPP AUTOMATION -->
+                        <div class="tab-pane fade" id="whatsappTab">
+                            <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                                <div>
+                                    <h6 class="fw-bold mb-1 text-success text-uppercase small italic">
+                                        <i class="fab fa-whatsapp me-1"></i> Open-WA / Baileys Service Configuration
+                                    </h6>
+                                    <p class="text-muted small mb-0">Configure the local Node.js WhatsApp daemon connection and toggle automated notification events.</p>
+                                </div>
+                                <a href="{{ route('admin.whatsapp.index') }}" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                                    <i class="fas fa-qrcode me-1"></i> Open WhatsApp Hub & QR Scan
+                                </a>
+                            </div>
+
+                            <!-- Master Enable Switch -->
+                            <div class="card bg-light border-0 rounded-3 p-4 mb-4">
+                                <div class="form-check form-switch d-flex align-items-center justify-content-between ps-0">
+                                    <div>
+                                        <label class="form-check-label fw-bold h6 mb-1 d-block" for="whatsapp_enabled">Enable WhatsApp Automation</label>
+                                        <span class="text-muted small">When turned on, the system will automatically send member cards, tickets, and OTPs via WhatsApp.</span>
+                                    </div>
+                                    <input type="hidden" name="whatsapp_enabled" value="0">
+                                    <input class="form-check-input ms-3" type="checkbox" role="switch" name="whatsapp_enabled" id="whatsapp_enabled" value="1" style="width:3.2em; height:1.7em;" {{ ($settings['whatsapp_enabled'] ?? '0') === '1' ? 'checked' : '' }}>
+                                </div>
+                            </div>
+
+                            <!-- Gateway Settings -->
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Daemon Microservice URL</label>
+                                    <input type="text" name="whatsapp_server_url" class="form-control form-control-lg bg-light border-0" value="{{ $settings['whatsapp_server_url'] ?? 'http://127.0.0.1:8085' }}" placeholder="http://127.0.0.1:8085">
+                                    <div class="form-text mt-1 text-muted">The internal address where the Node.js WhatsApp daemon process is running.</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">API Secret Key (Bearer Token)</label>
+                                    <input type="text" name="whatsapp_api_key" class="form-control form-control-lg bg-light border-0" value="{{ $settings['whatsapp_api_key'] ?? 'pmcc_wa_sec_key_2026_x9' }}" placeholder="Enter secret API token">
+                                    <div class="form-text mt-1 text-muted">Must match the API_KEY defined in whatsapp-server/.env.</div>
+                                </div>
+                            </div>
+
+                            <!-- Feature Toggles -->
+                            <h6 class="fw-bold mb-3 border-bottom pb-2 text-primary uppercase small italic">Notification Dispatch Rules</h6>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <div class="border rounded-3 p-3 bg-white h-100 d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <div class="fw-bold text-sm mb-0"><i class="fas fa-id-card text-primary me-2"></i> Send Member ID Cards</div>
+                                            <small class="text-muted text-xs">Deliver Member ID Card PDF automatically upon application approval.</small>
+                                        </div>
+                                        <input type="hidden" name="whatsapp_notify_id_card" value="0">
+                                        <input class="form-check-input" type="checkbox" name="whatsapp_notify_id_card" value="1" {{ ($settings['whatsapp_notify_id_card'] ?? '1') === '1' ? 'checked' : '' }}>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="border rounded-3 p-3 bg-white h-100 d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <div class="fw-bold text-sm mb-0"><i class="fas fa-ticket-alt text-warning me-2"></i> Send Event Ticket PDFs</div>
+                                            <small class="text-muted text-xs">Deliver event admission pass and QR code upon booking confirmation.</small>
+                                        </div>
+                                        <input type="hidden" name="whatsapp_notify_event_ticket" value="0">
+                                        <input class="form-check-input" type="checkbox" name="whatsapp_notify_event_ticket" value="1" {{ ($settings['whatsapp_notify_event_ticket'] ?? '1') === '1' ? 'checked' : '' }}>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="border rounded-3 p-3 bg-white h-100 d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <div class="fw-bold text-sm mb-0"><i class="fas fa-key text-info me-2"></i> Send Verification OTPs</div>
+                                            <small class="text-muted text-xs">Deliver 6-digit registration / booking OTP to mobile via WhatsApp.</small>
+                                        </div>
+                                        <input type="hidden" name="whatsapp_notify_otp" value="0">
+                                        <input class="form-check-input" type="checkbox" name="whatsapp_notify_otp" value="1" {{ ($settings['whatsapp_notify_otp'] ?? '1') === '1' ? 'checked' : '' }}>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="border rounded-3 p-3 bg-white h-100 d-flex align-items-center justify-content-between">
+                                        <div>
+                                            <div class="fw-bold text-sm mb-0"><i class="fas fa-shield-alt text-danger me-2"></i> Admin Security Alerts</div>
+                                            <small class="text-muted text-xs">Dispatch urgent intrusion / failed login alerts to admin numbers.</small>
+                                        </div>
+                                        <input type="hidden" name="whatsapp_notify_admin_security" value="0">
+                                        <input class="form-check-input" type="checkbox" name="whatsapp_notify_admin_security" value="1" {{ ($settings['whatsapp_notify_admin_security'] ?? '0') === '1' ? 'checked' : '' }}>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Admin Alert Recipient Numbers -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Admin Mobile Number(s) for Security Alerts</label>
+                                <input type="text" name="whatsapp_admin_numbers" class="form-control bg-light border-0" value="{{ $settings['whatsapp_admin_numbers'] ?? '' }}" placeholder="e.g. 07123456789, +447987654321">
+                                <div class="form-text text-muted">Comma-separated mobile numbers that should receive admin security alerts.</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -272,6 +373,9 @@
             if (el) bootstrap.Tab.getOrCreateInstance(el).show();
         } else if (tab === 'notifications') {
             const el = document.querySelector('[data-bs-target="#notificationsTab"]');
+            if (el) bootstrap.Tab.getOrCreateInstance(el).show();
+        } else if (tab === 'whatsapp' || window.location.hash === '#tab-whatsapp') {
+            const el = document.querySelector('[data-bs-target="#whatsappTab"]');
             if (el) bootstrap.Tab.getOrCreateInstance(el).show();
         }
     });

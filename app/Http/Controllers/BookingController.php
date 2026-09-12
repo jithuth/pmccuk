@@ -103,6 +103,7 @@ class BookingController extends Controller
 
     public function sendOTP(Request $request)
     {
+        $phone = null;
         // For members, we use their registered email
         if ($request->has('membership_id') && !empty($request->membership_id)) {
             $id = strtoupper(trim($request->membership_id));
@@ -112,10 +113,12 @@ class BookingController extends Controller
             $member = Member::where('membership_id_assigned', $id)->first();
             if (!$member) return response()->json(['success' => false, 'message' => 'Member not found']);
             $email = $member->email;
+            $phone = $member->mobile_number;
         } else {
             // For guests
             $request->validate(['email' => 'required|email']);
             $email = $request->email;
+            $phone = $request->input('phone');
         }
         
         $otp = rand(100000, 999999);
@@ -128,6 +131,14 @@ class BookingController extends Controller
                     ->subject('Event Booking OTP Verification');
             });
             \Illuminate\Support\Facades\Log::info("OTP sent successfully to: " . $email);
+
+            if (!empty($phone)) {
+                try {
+                    \App\Services\OpenWaService::sendOtp($phone, $otp, 'PMCC Event Booking Verification');
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Booking WhatsApp OTP Failure: " . $e->getMessage());
+                }
+            }
             
             // Mask Email for UI privacy
             $parts = explode("@", $email);

@@ -14,6 +14,7 @@ use App\Http\Controllers\GalleryController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\Admin\EventBookingController;
+use App\Http\Controllers\Admin\WhatsAppController;
 
 // 🚨 SYSTEM-LEVEL ASSET FAILSAFE (MUST BE TOP)
 Route::get('/img', function () {
@@ -483,6 +484,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
             Route::get('/email-settings', [DashboardController::class, 'emailSettings'])->name('email-settings');
             Route::post('/email-settings', [DashboardController::class, 'updateEmailSettings'])->name('email-settings.update');
+
+            // WhatsApp Automation Hub
+            Route::prefix('whatsapp')->name('whatsapp.')->group(function () {
+                Route::get('/', [WhatsAppController::class, 'index'])->name('index');
+                Route::get('/status', [WhatsAppController::class, 'status'])->name('status');
+                Route::get('/qr', [WhatsAppController::class, 'qr'])->name('qr');
+                Route::post('/send-test', [WhatsAppController::class, 'sendTest'])->name('send-test');
+                Route::post('/logout', [WhatsAppController::class, 'logout'])->name('logout');
+            });
             Route::post('/email-settings/test', [DashboardController::class, 'testEmailConnection'])->name('email-settings.test');
         });
 

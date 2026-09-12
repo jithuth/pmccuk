@@ -454,7 +454,10 @@
         btn.innerText = 'Sending...';
         msg.classList.add('hidden');
 
-        let payload = { email: email };
+        let payload = { 
+            email: email,
+            phone: document.getElementById('phone') ? document.getElementById('phone').value.trim() : ''
+        };
         if (isMember) payload.membership_id = fullNo;
 
         fetch(`{{ route('event.send-otp') }}`, {

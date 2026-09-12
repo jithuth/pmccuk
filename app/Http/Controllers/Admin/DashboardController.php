@@ -258,6 +258,13 @@ class DashboardController extends Controller
             }
         }
 
+        // WhatsApp Notification
+        try {
+            \App\Services\OpenWaService::notifyMemberIdCard($member);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("ID Card WhatsApp Failed on Renewal: " . $e->getMessage());
+        }
+
         // Record financial transaction
         FinancialTransaction::create([
             'type' => 'income',
@@ -559,10 +566,17 @@ class DashboardController extends Controller
 
         try {
             Mail::to($member->email)->send(new MemberIdCardEmail($member));
-            return back()->with('success', 'ID Card email sent successfully!');
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to send email: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error("Failed to send ID Card email: " . $e->getMessage());
         }
+
+        try {
+            \App\Services\OpenWaService::notifyMemberIdCard($member);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to send ID Card WhatsApp: " . $e->getMessage());
+        }
+
+        return back()->with('success', 'ID Card dispatched successfully via Email & WhatsApp!');
     }
 
     public function approveMember(Request $request, $id)
@@ -626,6 +640,13 @@ class DashboardController extends Controller
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error("ID Card Mail Failed on New Approval: " . $e->getMessage());
             }
+        }
+
+        // WhatsApp Notification
+        try {
+            \App\Services\OpenWaService::notifyMemberIdCard($member);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("ID Card WhatsApp Failed on New Approval: " . $e->getMessage());
         }
 
         return redirect()->back()->with('success', 'Member approved successfully.');

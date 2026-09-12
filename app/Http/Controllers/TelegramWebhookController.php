@@ -386,6 +386,12 @@ class TelegramWebhookController extends Controller
             }
         }
 
+        try {
+            \App\Services\OpenWaService::notifyMemberIdCard($member);
+        } catch (\Exception $e) {
+            Log::error("WhatsApp ID Card dispatch failed during Telegram member approval: " . $e->getMessage());
+        }
+
         TelegramService::answerCallbackQuery($callbackId, "✅ Approved {$member->full_name} ({$assignedNo})!", true);
 
         $newText = "✅ <b>MEMBER APPROVED VIA TELEGRAM</b>\n\n" .
@@ -457,6 +463,12 @@ class TelegramWebhookController extends Controller
                 try {
                     Mail::to($member->email)->send(new MemberIdCardEmail($member));
                 } catch (\Exception $e) {}
+            }
+
+            try {
+                \App\Services\OpenWaService::notifyMemberIdCard($member);
+            } catch (\Exception $e) {
+                Log::error("WhatsApp ID Card dispatch failed during Telegram renewal approval: " . $e->getMessage());
             }
         }
 
@@ -611,6 +623,12 @@ class TelegramWebhookController extends Controller
                 "👤 <b>Attendee:</b> " . htmlspecialchars($booking->full_name) . "\n" .
                 "🎟️ <b>Ticket Ref:</b> <code>{$refNo}</code>"
             );
+
+            try {
+                \App\Services\OpenWaService::notifyEventTicket($booking, $tempPath);
+            } catch (\Exception $e) {
+                Log::error("WhatsApp Event Ticket dispatch failed during Telegram booking approval: " . $e->getMessage());
+            }
 
             if (file_exists($tempPath)) unlink($tempPath);
         } catch (\Exception $e) {}

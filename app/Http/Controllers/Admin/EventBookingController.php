@@ -172,11 +172,18 @@ class EventBookingController extends Controller
                 'ref_no' => "EVT-{$booking->id}"
             ]);
 
-            // 2. Send Ticket
+            // 2. Send Ticket via Email
             try {
                 \Illuminate\Support\Facades\Mail::to($booking->email)->send(new \App\Mail\EventTicketMail($booking));
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Event Ticket Email Error: ' . $e->getMessage());
+            }
+
+            // 3. Send Ticket via WhatsApp
+            try {
+                \App\Services\OpenWaService::notifyEventTicket($booking);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Event Ticket WhatsApp Error: ' . $e->getMessage());
             }
         }
 
@@ -189,10 +196,17 @@ class EventBookingController extends Controller
 
         try {
             \Illuminate\Support\Facades\Mail::to($booking->email)->send(new \App\Mail\EventTicketMail($booking));
-            return back()->with('success', 'Ticket email has been resent to ' . $booking->email);
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to resend email: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Failed to resend ticket email: ' . $e->getMessage());
         }
+
+        try {
+            \App\Services\OpenWaService::notifyEventTicket($booking);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to resend ticket via WhatsApp: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Ticket has been resent to ' . $booking->email . ' and WhatsApp.');
     }
 
     public function edit($id)

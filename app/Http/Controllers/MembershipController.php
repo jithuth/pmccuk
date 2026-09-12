@@ -73,6 +73,14 @@ class MembershipController extends Controller
         try {
             Mail::to($email)->send(new OtpMail($member->full_name, $otp));
 
+            if (!empty($member->mobile_number)) {
+                try {
+                    \App\Services\OpenWaService::sendOtp($member->mobile_number, $otp, 'Membership Renewal Verification');
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Renewal WhatsApp OTP Error: " . $e->getMessage());
+                }
+            }
+
             // Mask email for UI privacy
             $parts = explode("@", $email);
             $user_part = $parts[0];
