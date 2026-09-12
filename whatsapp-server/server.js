@@ -421,13 +421,19 @@ async function initWhatsApp() {
                     // Extract actual phone number if sender is using LID
                     let senderPn = null;
                     if (remoteJid.includes('@s.whatsapp.net')) {
-                        senderPn = remoteJid.split('@')[0].split(':')[0];
+                        senderPn = remoteJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
                     } else if (remoteJid.includes('@lid')) {
                         const rawLid = remoteJid.split('@')[0].split(':')[0];
-                        senderPn = msg.key.senderPn || msg.key.participantPn || lidToPhone.get(rawLid) || null;
-                        if (senderPn) {
-                            recordLidPhoneMapping(rawLid, senderPn);
+                        let candidate = msg.key.senderPn || msg.key.participantPn || lidToPhone.get(rawLid) || null;
+                        if (candidate && typeof candidate === 'string') {
+                            senderPn = candidate.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+                            if (senderPn) {
+                                recordLidPhoneMapping(rawLid, senderPn);
+                            }
                         }
+                    }
+                    if (senderPn && typeof senderPn === 'string') {
+                        senderPn = senderPn.replace(/[^0-9]/g, '');
                     }
 
                     const pushName = msg.pushName || 'Member';

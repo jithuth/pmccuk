@@ -102,6 +102,84 @@ class OpenWaService
     }
 
     /**
+     * Extract only pure numeric digits from any phone or WhatsApp JID string.
+     */
+    public static function extractDigits(?string $phone): ?string
+    {
+        if (empty($phone)) {
+            return null;
+        }
+
+        $cleaned = explode('@', trim((string) $phone))[0];
+        $cleaned = explode(':', $cleaned)[0];
+        $digits = preg_replace('/[^0-9]/', '', $cleaned);
+
+        return !empty($digits) ? $digits : null;
+    }
+
+    /**
+     * Format a phone number cleanly for human display (e.g. +44 7900 191079)
+     * Strips JID suffixes, handles international prefixes, and adds standard spacing.
+     */
+    public static function formatPhoneDisplay(?string $phone): string
+    {
+        if (empty($phone)) {
+            return '';
+        }
+
+        // If it's a raw LID (internal WhatsApp 15-digit identifier, not a real phone), don't format as phone
+        if (str_contains((string) $phone, '@lid') || (strlen(preg_replace('/[^0-9]/', '', (string)$phone)) >= 14 && !str_starts_with((string)$phone, '+'))) {
+            // Check if it has a real phone or return generic
+            $digits = preg_replace('/[^0-9]/', '', explode('@', (string) $phone)[0]);
+            if (strlen($digits) >= 15) {
+                return 'your WhatsApp account';
+            }
+        }
+
+        $digits = self::extractDigits($phone);
+        if (empty($digits)) {
+            return (string) $phone;
+        }
+
+        // UK Local: 07xxxxxxxxx (11 digits) -> +44 7xxx xxxxxx
+        if (str_starts_with($digits, '0') && strlen($digits) === 11) {
+            return '+44 ' . substr($digits, 1, 4) . ' ' . substr($digits, 5);
+        }
+
+        // UK International: 447xxxxxxxxx (12 digits) -> +44 7xxx xxxxxx
+        if (str_starts_with($digits, '44') && strlen($digits) === 12) {
+            return '+44 ' . substr($digits, 2, 4) . ' ' . substr($digits, 6);
+        }
+
+        // India: 91xxxxxxxxxx (12 digits) -> +91 xxxxx xxxxx
+        if (str_starts_with($digits, '91') && strlen($digits) === 12) {
+            return '+91 ' . substr($digits, 2, 5) . ' ' . substr($digits, 7);
+        }
+
+        // US / Canada: 1xxxxxxxxxx (11 digits) -> +1 (xxx) xxx-xxxx
+        if (str_starts_with($digits, '1') && strlen($digits) === 11) {
+            return '+1 ' . substr($digits, 1, 3) . ' ' . substr($digits, 4, 3) . ' ' . substr($digits, 7);
+        }
+
+        // Kuwait: 965xxxxxxxx (11 digits) -> +965 xxxx xxxx
+        if (str_starts_with($digits, '965') && strlen($digits) === 11) {
+            return '+965 ' . substr($digits, 3, 4) . ' ' . substr($digits, 7);
+        }
+
+        // UAE: 971xxxxxxxxx (11 or 12 digits) -> +971 xx xxx xxxx
+        if (str_starts_with($digits, '971') && strlen($digits) >= 11) {
+            return '+971 ' . substr($digits, 3, 2) . ' ' . substr($digits, 5, 3) . ' ' . substr($digits, 8);
+        }
+
+        // Fallback for general international numbers
+        if (strlen($digits) >= 11) {
+            return '+' . substr($digits, 0, 2) . ' ' . substr($digits, 2, 4) . ' ' . substr($digits, 6);
+        }
+
+        return '+' . $digits;
+    }
+
+    /**
      * Find an active Member strictly matching a WhatsApp phone number or membership ID.
      * Searches database variants: 07..., 447..., +447..., formatted with spaces, and smart decryption.
      */
