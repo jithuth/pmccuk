@@ -1599,9 +1599,19 @@
                                         </td>
                                         <td class="text-end pe-3 py-2">
                                             <div class="d-flex justify-content-end gap-1">
+                                                <button type="button" class="btn btn-xs btn-outline-info rounded-pill px-2 text-xxs fw-bold"
+                                                    onclick="viewBroadcastDetails({{ $bc->id }})" title="View Delivery Audit Report & Recipient Breakdown">
+                                                    <i class="fas fa-clipboard-list"></i>
+                                                </button>
+                                                @if(in_array($bc->status, ['processing', 'pending']))
+                                                <button type="button" class="btn btn-xs btn-primary rounded-pill px-2 text-xxs fw-bold"
+                                                    onclick="resumeInteractiveBroadcast({{ $bc->id }})" title="Resume Interactive Batch Dispatch">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                                @endif
                                                 @if(in_array($bc->status, ['pending', 'failed', 'cancelled']))
                                                 <button type="button" class="btn btn-xs btn-success rounded-pill px-2 text-xxs fw-bold"
-                                                    onclick="sendQueueNow({{ $bc->id }})" title="Send Now">
+                                                    onclick="sendQueueNow({{ $bc->id }})" title="Send Now (Background Cron)">
                                                     <i class="fas fa-bolt"></i>
                                                 </button>
                                                 @endif
@@ -1971,6 +1981,195 @@
                     </span>
                     <button type="button" class="btn btn-light btn-sm text-xs rounded-pill px-3"
                         data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── MODAL: LIVE BATCH BROADCAST PROGRESS ── -->
+    <div class="modal fade" id="modalBroadcastLiveProgress" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header text-white p-3.5 d-flex justify-content-between align-items-center"
+                     style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <div class="p-2 rounded-circle bg-success bg-opacity-20 text-success">
+                            <i class="fas fa-broadcast-tower fs-5" id="liveBcHeaderIcon"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title fw-bold text-white fs-6 mb-0 d-flex align-items-center gap-2">
+                                <span id="liveBcTitle">Mass Broadcast Dispatcher</span>
+                                <span class="badge bg-light text-dark font-monospace text-xxs" id="liveBcIdBadge">#--</span>
+                            </h5>
+                            <span class="text-white-50 text-xxs">Zero-timeout client batching engine (3 recipients per chunk)</span>
+                        </div>
+                    </div>
+                    <span id="liveBcStateBadge" class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 text-xxs rounded-pill">
+                        <i class="fas fa-spinner fa-spin me-1"></i> Running
+                    </span>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <!-- Progress Bar & Percentage -->
+                    <div class="card border-0 shadow-sm rounded-3 p-3 mb-3 bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-1.5">
+                            <span class="text-xs fw-bold text-muted text-uppercase tracking-wider">Overall Progress</span>
+                            <span class="text-xs font-monospace fw-bold text-dark" id="liveBcProgressText">0 / 0 (0%)</span>
+                        </div>
+                        <div class="progress" style="height: 16px; border-radius: 8px; background-color: #e2e8f0;">
+                            <div id="liveBcProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                                 role="progressbar" style="width: 0%; font-size: 10px; font-weight: bold;">0%</div>
+                        </div>
+                    </div>
+
+                    <!-- 4 Live Counters -->
+                    <div class="row g-2 mb-3 text-center">
+                        <div class="col-3">
+                            <div class="card border-0 shadow-sm rounded-3 p-2 bg-white">
+                                <div class="text-xxs text-muted text-uppercase fw-bold">Total</div>
+                                <div class="fs-5 fw-bold text-dark font-monospace" id="liveBcStatTotal">0</div>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="card border-0 shadow-sm rounded-3 p-2 bg-white">
+                                <div class="text-xxs text-success text-uppercase fw-bold">Sent</div>
+                                <div class="fs-5 fw-bold text-success font-monospace" id="liveBcStatSent">0</div>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="card border-0 shadow-sm rounded-3 p-2 bg-white">
+                                <div class="text-xxs text-danger text-uppercase fw-bold">Failed</div>
+                                <div class="fs-5 fw-bold text-danger font-monospace" id="liveBcStatFailed">0</div>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="card border-0 shadow-sm rounded-3 p-2 bg-white">
+                                <div class="text-xxs text-warning text-uppercase fw-bold">Pending</div>
+                                <div class="fs-5 fw-bold text-warning font-monospace" id="liveBcStatPending">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Delivery Activity Feed -->
+                    <div class="card border-0 shadow-sm rounded-3 overflow-hidden bg-white">
+                        <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
+                            <span class="text-xxs fw-bold text-muted text-uppercase">
+                                <i class="fas fa-list-ul text-primary me-1"></i> Live Activity Feed
+                            </span>
+                            <span class="text-xxs text-muted font-monospace" id="liveBcCurrentAction">Ready</span>
+                        </div>
+                        <div id="liveBcLogContainer" class="p-2.5 font-monospace text-xxs" style="height: 180px; overflow-y: auto; background-color: #0f172a; color: #f8fafc; line-height: 1.6;">
+                            <div class="text-muted fst-italic">[System] Ready to dispatch micro-batches...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white p-3 border-top d-flex justify-content-between align-items-center">
+                    <div class="text-xxs text-muted">
+                        <i class="fas fa-shield-alt text-success me-1"></i> Safe: Every recipient state is persisted immediately to database.
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" id="btnLiveBcPauseResume" class="btn btn-warning btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm" onclick="togglePauseLiveBroadcast()">
+                            <i class="fas fa-pause me-1"></i> Pause
+                        </button>
+                        <button type="button" id="btnLiveBcClose" class="btn btn-outline-secondary btn-sm rounded-pill text-xs px-3" onclick="closeLiveBroadcastModal()">
+                            Close / Background
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── MODAL: BROADCAST DELIVERY AUDIT REPORT ── -->
+    <div class="modal fade" id="modalBroadcastReport" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="modal-header text-white p-3.5 d-flex justify-content-between align-items-center"
+                     style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <div class="p-2 rounded-circle bg-info bg-opacity-20 text-info">
+                            <i class="fas fa-clipboard-list fs-5"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title fw-bold text-white fs-6 mb-0 d-flex align-items-center gap-2">
+                                <span id="reportBcTitle">Delivery Audit Report</span>
+                                <span class="badge bg-light text-dark font-monospace text-xxs" id="reportBcIdBadge">#--</span>
+                            </h5>
+                            <span class="text-white-50 text-xxs" id="reportBcMeta">Audience details &amp; timestamps</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 bg-light">
+                    <!-- Top Metric Cards -->
+                    <div class="row g-2 mb-3 text-center">
+                        <div class="col-sm-3 col-6">
+                            <div class="card border-0 shadow-sm rounded-3 p-2 bg-white">
+                                <div class="text-xxs text-muted text-uppercase fw-bold">Total Recipients</div>
+                                <div class="fs-5 fw-bold text-dark font-monospace" id="reportStatTotal">0</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3 col-6">
+                            <div class="card border-0 shadow-sm rounded-3 p-2 bg-white">
+                                <div class="text-xxs text-success text-uppercase fw-bold">Successfully Sent</div>
+                                <div class="fs-5 fw-bold text-success font-monospace" id="reportStatSent">0</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3 col-6">
+                            <div class="card border-0 shadow-sm rounded-3 p-2 bg-white">
+                                <div class="text-xxs text-danger text-uppercase fw-bold">Failed Deliveries</div>
+                                <div class="fs-5 fw-bold text-danger font-monospace" id="reportStatFailed">0</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-3 col-6">
+                            <div class="card border-0 shadow-sm rounded-3 p-2 bg-white">
+                                <div class="text-xxs text-warning text-uppercase fw-bold">Remaining / Pending</div>
+                                <div class="fs-5 fw-bold text-warning font-monospace" id="reportStatPending">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Controls: Search & Status Filters -->
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <div class="d-flex gap-1.5 align-items-center" id="reportFilterButtons">
+                            <button type="button" class="btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn active btn-dark" data-filter="all" onclick="filterReportTable('all')">All</button>
+                            <button type="button" class="btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn btn-outline-success" data-filter="sent" onclick="filterReportTable('sent')">Sent</button>
+                            <button type="button" class="btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn btn-outline-danger" data-filter="failed" onclick="filterReportTable('failed')">Failed</button>
+                            <button type="button" class="btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn btn-outline-warning" data-filter="pending" onclick="filterReportTable('pending')">Pending</button>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="reportSearchInput" class="form-control form-control-sm text-xxs rounded-pill px-3"
+                                   placeholder="Filter by name or phone..." oninput="handleReportSearch(this.value)" style="max-width: 240px;">
+                        </div>
+                    </div>
+
+                    <!-- Recipient Audit Table -->
+                    <div class="card border-0 shadow-sm rounded-3 overflow-hidden bg-white">
+                        <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                            <table class="table table-hover align-middle mb-0 text-xs">
+                                <thead class="table-light text-xxs text-uppercase text-muted border-bottom sticky-top">
+                                    <tr>
+                                        <th class="ps-3 py-2" style="width: 40px;">#</th>
+                                        <th class="py-2">Recipient Name</th>
+                                        <th class="py-2">Phone Number</th>
+                                        <th class="py-2">Delivery Status</th>
+                                        <th class="py-2">Processed At</th>
+                                        <th class="py-2 pe-3">Notes / Error</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reportTableBody">
+                                    <tr><td colspan="6" class="text-center py-4 text-muted text-xs">Loading recipient logs...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-white p-3 border-top d-flex justify-content-between align-items-center">
+                    <div id="reportActionsLeft" class="d-flex gap-2">
+                        <!-- Dynamic Resume & Retry Failed Buttons injected here -->
+                    </div>
+                    <button type="button" class="btn btn-light btn-sm rounded-pill text-xs px-3" data-bs-dismiss="modal">
+                        Close
+                    </button>
                 </div>
             </div>
         </div>
@@ -3103,13 +3302,23 @@
                             : '<i class="fas fa-paper-plane text-success" id="broadcastBtnIcon"></i> <span id="broadcastBtnText">Launch Safe Community Broadcast</span>';
 
                         if (data.success) {
-                            const alertEl = document.getElementById('broadcastAlert');
-                            if (alertEl) {
-                                alertEl.className = 'alert alert-success text-xs border-0 bg-success-subtle text-success p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm mt-2';
-                                alertEl.innerHTML = `<i class="fas fa-check-circle fs-5"></i> <div><strong>${scheduleMode === 'scheduled' ? 'Scheduled!' : 'Broadcast Completed!'}</strong> ${data.message}</div>`;
-                            }
-                            if (scheduleMode === 'scheduled') {
-                                setTimeout(() => refreshScheduledQueue(), 1500);
+                            if (data.interactive) {
+                                const alertEl = document.getElementById('broadcastAlert');
+                                if (alertEl) {
+                                    alertEl.className = 'alert alert-success text-xs border-0 bg-success-subtle text-success p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm mt-2';
+                                    alertEl.innerHTML = `<i class="fas fa-check-circle fs-5"></i> <div><strong>Broadcast Prepared!</strong> ${data.message} Starting interactive batching...</div>`;
+                                }
+                                startLiveBroadcastBatching(data.broadcast_id, data.total, data.title || 'Live Community Broadcast');
+                                setTimeout(() => refreshScheduledQueue(), 1000);
+                            } else {
+                                const alertEl = document.getElementById('broadcastAlert');
+                                if (alertEl) {
+                                    alertEl.className = 'alert alert-success text-xs border-0 bg-success-subtle text-success p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm mt-2';
+                                    alertEl.innerHTML = `<i class="fas fa-check-circle fs-5"></i> <div><strong>${scheduleMode === 'scheduled' ? 'Scheduled!' : 'Broadcast Completed!'}</strong> ${data.message}</div>`;
+                                }
+                                if (scheduleMode === 'scheduled') {
+                                    setTimeout(() => refreshScheduledQueue(), 1500);
+                                }
                             }
                         } else {
                             const alertEl = document.getElementById('broadcastAlert');
@@ -3164,7 +3373,9 @@
                         const sc = statusMap[bc.status] || ['bg-light text-muted', 'fa-question'];
                         const imgC = (att.images||[]).length, docC = (att.documents||[]).length, urlC = (att.urls||[]).length, conC = (att.contacts||[]).length;
                         const actBtns = [
-                            (['pending','failed','cancelled'].includes(bc.status)) ? `<button class="btn btn-xs btn-success rounded-pill px-2 text-xxs fw-bold" onclick="sendQueueNow(${bc.id})" title="Send Now"><i class="fas fa-bolt"></i></button>` : '',
+                            `<button class="btn btn-xs btn-outline-info rounded-pill px-2 text-xxs fw-bold" onclick="viewBroadcastDetails(${bc.id})" title="View Audit Report & Recipient Logs"><i class="fas fa-clipboard-list"></i></button>`,
+                            (['processing','pending'].includes(bc.status)) ? `<button class="btn btn-xs btn-primary rounded-pill px-2 text-xxs fw-bold" onclick="resumeInteractiveBroadcast(${bc.id})" title="Resume Interactive Dispatch"><i class="fas fa-play"></i></button>` : '',
+                            (['pending','failed','cancelled'].includes(bc.status)) ? `<button class="btn btn-xs btn-success rounded-pill px-2 text-xxs fw-bold" onclick="sendQueueNow(${bc.id})" title="Send Now (Background Cron)"><i class="fas fa-bolt"></i></button>` : '',
                             (bc.status === 'pending') ? `<button class="btn btn-xs btn-outline-warning rounded-pill px-2 text-xxs fw-bold" onclick="cancelQueueItem(${bc.id})" title="Cancel"><i class="fas fa-ban"></i></button>` : '',
                             `<button class="btn btn-xs btn-outline-danger rounded-pill px-2 text-xxs" onclick="deleteQueueItem(${bc.id})" title="Delete"><i class="fas fa-trash-alt"></i></button>`
                         ].join('');
@@ -3183,6 +3394,390 @@
                     }).join('');
                 })
                 .catch(() => { if (icon) icon.className = 'fas fa-sync-alt me-1'; });
+            };
+
+            // ── Interactive Batch Broadcast Engine & Audit Report ──
+            let liveBcModalInstance = null;
+            let reportBcModalInstance = null;
+            let currentLiveBroadcastId = null;
+            let currentReportBroadcastId = null;
+            let currentReportRecipients = [];
+            let currentReportFilter = 'all';
+            let isLiveRunning = false;
+            let isLivePaused = false;
+            let liveTotal = 0;
+            let liveSent = 0;
+            let liveFailed = 0;
+            let livePending = 0;
+
+            function formatLogTimestamp() {
+                const now = new Date();
+                return now.toTimeString().split(' ')[0];
+            }
+
+            function appendLiveLog(html) {
+                const container = document.getElementById('liveBcLogContainer');
+                if (!container) return;
+                const line = document.createElement('div');
+                line.innerHTML = html;
+                container.appendChild(line);
+                container.scrollTop = container.scrollHeight;
+            }
+
+            window.startLiveBroadcastBatching = function(broadcastId, total, title) {
+                currentLiveBroadcastId = broadcastId;
+                isLiveRunning = true;
+                isLivePaused = false;
+                liveTotal = parseInt(total) || 0;
+                liveSent = 0;
+                liveFailed = 0;
+                livePending = liveTotal;
+
+                document.getElementById('liveBcTitle').textContent = title || 'Mass Broadcast Dispatcher';
+                document.getElementById('liveBcIdBadge').textContent = '#' + broadcastId;
+                document.getElementById('liveBcStatTotal').textContent = liveTotal;
+                document.getElementById('liveBcStatSent').textContent = '0';
+                document.getElementById('liveBcStatFailed').textContent = '0';
+                document.getElementById('liveBcStatPending').textContent = liveTotal;
+                document.getElementById('liveBcProgressText').textContent = `0 / ${liveTotal} (0%)`;
+                
+                const pBar = document.getElementById('liveBcProgressBar');
+                if (pBar) {
+                    pBar.style.width = '0%';
+                    pBar.textContent = '0%';
+                    pBar.className = 'progress-bar progress-bar-striped progress-bar-animated bg-success';
+                }
+
+                const stateBadge = document.getElementById('liveBcStateBadge');
+                if (stateBadge) {
+                    stateBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 text-xxs rounded-pill';
+                    stateBadge.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Running';
+                }
+
+                const btnPause = document.getElementById('btnLiveBcPauseResume');
+                if (btnPause) {
+                    btnPause.disabled = false;
+                    btnPause.className = 'btn btn-warning btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm';
+                    btnPause.innerHTML = '<i class="fas fa-pause me-1"></i> Pause';
+                }
+
+                const logContainer = document.getElementById('liveBcLogContainer');
+                if (logContainer) {
+                    logContainer.innerHTML = `<div class="text-info fw-bold">[${formatLogTimestamp()}] Initialized batch dispatch for Broadcast #${broadcastId} (${liveTotal} recipients). Starting micro-batches...</div>`;
+                }
+
+                const modalEl = document.getElementById('modalBroadcastLiveProgress');
+                if (!liveBcModalInstance && window.bootstrap) {
+                    liveBcModalInstance = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+                }
+                liveBcModalInstance?.show();
+
+                dispatchNextBatch();
+            };
+
+            function dispatchNextBatch() {
+                if (!isLiveRunning || isLivePaused || !currentLiveBroadcastId) return;
+
+                const actEl = document.getElementById('liveBcCurrentAction');
+                if (actEl) actEl.textContent = 'Sending micro-batch (up to 3 recipients)...';
+
+                fetch(`{{ url('admin/whatsapp/broadcast') }}/${currentLiveBroadcastId}/dispatch-batch`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ batch_size: 3 })
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        appendLiveLog(`<div class="text-danger">[${formatLogTimestamp()}] ⚠ Batch Error: ${escapeHtml(data.message || 'Server error')}</div>`);
+                        // Retry in 3 seconds
+                        if (isLiveRunning && !isLivePaused) {
+                            setTimeout(dispatchNextBatch, 3000);
+                        }
+                        return;
+                    }
+
+                    // Update metrics
+                    liveTotal = data.total_recipients || liveTotal;
+                    liveSent = data.sent_count || 0;
+                    liveFailed = data.failed_count || 0;
+                    livePending = data.pending_count || 0;
+
+                    document.getElementById('liveBcStatTotal').textContent = liveTotal;
+                    document.getElementById('liveBcStatSent').textContent = liveSent;
+                    document.getElementById('liveBcStatFailed').textContent = liveFailed;
+                    document.getElementById('liveBcStatPending').textContent = livePending;
+
+                    const processed = liveSent + liveFailed;
+                    const pct = liveTotal > 0 ? Math.min(100, Math.round((processed / liveTotal) * 100)) : 100;
+
+                    document.getElementById('liveBcProgressText').textContent = `${processed} / ${liveTotal} (${pct}%)`;
+                    const pBar = document.getElementById('liveBcProgressBar');
+                    if (pBar) {
+                        pBar.style.width = pct + '%';
+                        pBar.textContent = pct + '%';
+                    }
+
+                    // Log each recipient in this batch
+                    if (data.batch && data.batch.length > 0) {
+                        data.batch.forEach(rec => {
+                            const nameStr = escapeHtml(rec.name || 'Member');
+                            const phoneStr = escapeHtml(rec.formatted_phone || rec.phone || '');
+                            if (rec.status === 'sent') {
+                                appendLiveLog(`<div class="text-success">[${formatLogTimestamp()}] <i class="fas fa-check-circle me-1"></i><strong>${nameStr}</strong> (${phoneStr}) &rarr; SENT</div>`);
+                            } else {
+                                appendLiveLog(`<div class="text-danger">[${formatLogTimestamp()}] <i class="fas fa-times-circle me-1"></i><strong>${nameStr}</strong> (${phoneStr}) &rarr; FAILED: ${escapeHtml(rec.error || 'Unknown error')}</div>`);
+                            }
+                        });
+                    }
+
+                    if (data.done) {
+                        isLiveRunning = false;
+                        if (actEl) actEl.textContent = 'All recipients completed!';
+                        const stateBadge = document.getElementById('liveBcStateBadge');
+                        if (stateBadge) {
+                            stateBadge.className = 'badge bg-success text-white px-2.5 py-1 text-xxs rounded-pill';
+                            stateBadge.innerHTML = '<i class="fas fa-check-double me-1"></i> Completed';
+                        }
+                        const pBar = document.getElementById('liveBcProgressBar');
+                        if (pBar) {
+                            pBar.classList.remove('progress-bar-animated');
+                            pBar.classList.remove('progress-bar-striped');
+                        }
+                        const btnPause = document.getElementById('btnLiveBcPauseResume');
+                        if (btnPause) {
+                            btnPause.disabled = true;
+                            btnPause.className = 'btn btn-secondary btn-sm rounded-pill text-xs px-3 shadow-sm';
+                            btnPause.innerHTML = '<i class="fas fa-check me-1"></i> Done';
+                        }
+                        appendLiveLog(`<div class="text-white bg-success p-2 rounded my-1"><strong>🎉 Broadcast Finished!</strong> Total: ${liveTotal} | Sent: ${liveSent} | Failed: ${liveFailed}</div>`);
+                        refreshScheduledQueue();
+                    } else {
+                        // Pace delay between micro-batches: 500ms
+                        if (isLiveRunning && !isLivePaused) {
+                            setTimeout(dispatchNextBatch, 500);
+                        }
+                    }
+                })
+                .catch(err => {
+                    appendLiveLog(`<div class="text-danger">[${formatLogTimestamp()}] ⚠ Network glitch: ${escapeHtml(err.message || 'Connection timeout')}. Retrying shortly...</div>`);
+                    if (isLiveRunning && !isLivePaused) {
+                        setTimeout(dispatchNextBatch, 3000);
+                    }
+                });
+            }
+
+            window.togglePauseLiveBroadcast = function() {
+                if (!isLiveRunning) return;
+                isLivePaused = !isLivePaused;
+
+                const btnPause = document.getElementById('btnLiveBcPauseResume');
+                const stateBadge = document.getElementById('liveBcStateBadge');
+                const actEl = document.getElementById('liveBcCurrentAction');
+
+                if (isLivePaused) {
+                    if (btnPause) {
+                        btnPause.className = 'btn btn-success btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm';
+                        btnPause.innerHTML = '<i class="fas fa-play me-1"></i> Resume Dispatch';
+                    }
+                    if (stateBadge) {
+                        stateBadge.className = 'badge bg-warning-subtle text-dark border border-warning-subtle px-2.5 py-1 text-xxs rounded-pill';
+                        stateBadge.innerHTML = '<i class="fas fa-pause me-1"></i> Paused';
+                    }
+                    if (actEl) actEl.textContent = 'Paused by user.';
+                    appendLiveLog(`<div class="text-warning">[${formatLogTimestamp()}] ⏸ Batch dispatch paused by user. Progress is preserved in database.</div>`);
+                } else {
+                    if (btnPause) {
+                        btnPause.className = 'btn btn-warning btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm';
+                        btnPause.innerHTML = '<i class="fas fa-pause me-1"></i> Pause';
+                    }
+                    if (stateBadge) {
+                        stateBadge.className = 'badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 text-xxs rounded-pill';
+                        stateBadge.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Running';
+                    }
+                    appendLiveLog(`<div class="text-success">[${formatLogTimestamp()}] ▶ Resuming batch dispatch...</div>`);
+                    dispatchNextBatch();
+                }
+            };
+
+            window.closeLiveBroadcastModal = function() {
+                if (isLiveRunning && !isLivePaused) {
+                    if (!confirm('Broadcast is currently actively sending in this browser tab. Closing this window will stop interactive batching, but you can click Resume or the scheduled background worker will continue. Close anyway?')) {
+                        return;
+                    }
+                    isLiveRunning = false;
+                }
+                liveBcModalInstance?.hide();
+                refreshScheduledQueue();
+            };
+
+            // ── Broadcast Audit Report Modal Logic ──
+            window.viewBroadcastDetails = function(broadcastId) {
+                currentReportBroadcastId = broadcastId;
+                const modalEl = document.getElementById('modalBroadcastReport');
+                if (!reportBcModalInstance && window.bootstrap) {
+                    reportBcModalInstance = new bootstrap.Modal(modalEl);
+                }
+                reportBcModalInstance?.show();
+
+                document.getElementById('reportBcIdBadge').textContent = '#' + broadcastId;
+                document.getElementById('reportBcTitle').textContent = 'Loading Report...';
+                document.getElementById('reportBcMeta').textContent = 'Fetching delivery breakdown...';
+                document.getElementById('reportTableBody').innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted text-xs"><i class="fas fa-spinner fa-spin me-2"></i>Loading recipient audit records...</td></tr>';
+                document.getElementById('reportActionsLeft').innerHTML = '';
+
+                fetch(`{{ url('admin/whatsapp/broadcast') }}/${broadcastId}/details`, {
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.message || 'Could not load broadcast details.');
+                        return;
+                    }
+
+                    const bc = data.broadcast;
+                    document.getElementById('reportBcTitle').textContent = bc.title || 'Mass Broadcast';
+                    document.getElementById('reportBcMeta').textContent = `Audience: ${bc.audience || 'Custom'} | Scheduled: ${bc.scheduled_at || 'Immediate'} | Status: ${bc.status.toUpperCase()}`;
+                    document.getElementById('reportStatTotal').textContent = data.total_recipients || 0;
+                    document.getElementById('reportStatSent').textContent = data.sent_count || 0;
+                    document.getElementById('reportStatFailed').textContent = data.failed_count || 0;
+                    document.getElementById('reportStatPending').textContent = data.pending_count || 0;
+
+                    currentReportRecipients = data.recipients || [];
+                    currentReportFilter = 'all';
+
+                    // Setup filter buttons
+                    document.querySelectorAll('.report-filter-btn').forEach(btn => {
+                        btn.className = 'btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn ' +
+                            (btn.getAttribute('data-filter') === 'all' ? 'active btn-dark' : 'btn-outline-secondary');
+                    });
+                    const searchInp = document.getElementById('reportSearchInput');
+                    if (searchInp) searchInp.value = '';
+
+                    renderReportTable();
+
+                    // Render dynamic action buttons on bottom left
+                    const actContainer = document.getElementById('reportActionsLeft');
+                    let actHtml = '';
+                    if (data.pending_count > 0) {
+                        actHtml += `<button type="button" class="btn btn-primary btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm" onclick="resumeInteractiveBroadcast(${broadcastId})">
+                            <i class="fas fa-play me-1"></i> Resume Live Dispatch (${data.pending_count} Pending)
+                        </button>`;
+                    }
+                    if (data.failed_count > 0) {
+                        actHtml += `<button type="button" class="btn btn-outline-danger btn-sm rounded-pill text-xs fw-bold px-3" onclick="retryFailedRecipients(${broadcastId})">
+                            <i class="fas fa-redo me-1"></i> Retry ${data.failed_count} Failed
+                        </button>`;
+                    }
+                    actContainer.innerHTML = actHtml;
+                })
+                .catch(err => {
+                    document.getElementById('reportTableBody').innerHTML = `<tr><td colspan="6" class="text-center py-4 text-danger text-xs">Error loading audit report: ${escapeHtml(err.message)}</td></tr>`;
+                });
+            };
+
+            function renderReportTable() {
+                const tbody = document.getElementById('reportTableBody');
+                if (!tbody) return;
+
+                const searchVal = (document.getElementById('reportSearchInput')?.value || '').toLowerCase().trim();
+
+                const filtered = currentReportRecipients.filter(r => {
+                    const matchFilter = (currentReportFilter === 'all') || (r.status === currentReportFilter);
+                    const matchSearch = !searchVal || 
+                        (r.name && r.name.toLowerCase().includes(searchVal)) ||
+                        (r.phone && r.phone.toLowerCase().includes(searchVal)) ||
+                        (r.formatted_phone && r.formatted_phone.toLowerCase().includes(searchVal));
+                    return matchFilter && matchSearch;
+                });
+
+                if (filtered.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted text-xs">No recipient records match the selected filter.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = filtered.map((r, idx) => {
+                    let statusBadge = '<span class="badge bg-warning-subtle text-dark border text-xxs px-2 py-1 rounded-pill"><i class="fas fa-clock me-1"></i>Pending</span>';
+                    if (r.status === 'sent') {
+                        statusBadge = '<span class="badge bg-success-subtle text-success border border-success-subtle text-xxs px-2 py-1 rounded-pill"><i class="fas fa-check-circle me-1"></i>Sent</span>';
+                    } else if (r.status === 'failed') {
+                        statusBadge = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle text-xxs px-2 py-1 rounded-pill"><i class="fas fa-times-circle me-1"></i>Failed</span>';
+                    }
+
+                    const phoneDisplay = r.formatted_phone || r.phone || '--';
+                    const timeDisplay = r.sent_at || r.failed_at || '<span class="text-muted text-xxs">&mdash;</span>';
+                    const notesDisplay = r.error ? `<span class="text-danger font-monospace text-xxs">${escapeHtml(r.error)}</span>` : (r.message_id ? `<span class="text-muted text-xxs font-monospace">ID: ${escapeHtml(r.message_id.substring(0,16))}...</span>` : '<span class="text-muted text-xxs">&mdash;</span>');
+
+                    return `<tr>
+                        <td class="ps-3 py-2 text-muted text-xxs font-monospace">${idx + 1}</td>
+                        <td class="py-2 fw-semibold text-dark">${escapeHtml(r.name || 'Member')}</td>
+                        <td class="py-2 font-monospace text-xs text-primary">${escapeHtml(phoneDisplay)}</td>
+                        <td class="py-2">${statusBadge}</td>
+                        <td class="py-2 text-xxs text-muted font-monospace">${timeDisplay}</td>
+                        <td class="py-2 pe-3">${notesDisplay}</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            window.filterReportTable = function(status) {
+                currentReportFilter = status;
+                document.querySelectorAll('.report-filter-btn').forEach(btn => {
+                    const f = btn.getAttribute('data-filter');
+                    if (f === status) {
+                        btn.className = 'btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn active btn-dark';
+                    } else {
+                        btn.className = 'btn btn-xs rounded-pill px-2.5 text-xxs report-filter-btn btn-outline-secondary';
+                    }
+                });
+                renderReportTable();
+            };
+
+            window.handleReportSearch = function(val) {
+                renderReportTable();
+            };
+
+            window.resumeInteractiveBroadcast = function(broadcastId) {
+                if (reportBcModalInstance) {
+                    reportBcModalInstance.hide();
+                }
+                fetch(`{{ url('admin/whatsapp/broadcast') }}/${broadcastId}/resume`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.message || 'Could not resume broadcast.');
+                        return;
+                    }
+                    startLiveBroadcastBatching(broadcastId, data.total_recipients, data.title);
+                })
+                .catch(() => alert('Network error while resuming broadcast.'));
+            };
+
+            window.retryFailedRecipients = function(broadcastId) {
+                if (!confirm('Reset all failed recipients to pending and restart interactive dispatch now?')) return;
+                if (reportBcModalInstance) {
+                    reportBcModalInstance.hide();
+                }
+                fetch(`{{ url('admin/whatsapp/broadcast') }}/${broadcastId}/retry-failed`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.message || 'Could not retry failed recipients.');
+                        return;
+                    }
+                    startLiveBroadcastBatching(broadcastId, data.total_recipients, data.title);
+                })
+                .catch(() => alert('Network error while retrying failed recipients.'));
             };
 
             window.sendQueueNow = function(id) {

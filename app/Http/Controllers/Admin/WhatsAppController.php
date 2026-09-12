@@ -415,7 +415,20 @@ class WhatsAppController extends Controller
             'contacts' => $contacts
         ];
 
-        // 6. Check Scheduling vs Immediate Dispatch
+        // 6. Build per-recipient audit and progress tracking data
+        $recipientsData = [];
+        foreach ($deduped as $idx => $r) {
+            $recipientsData[] = [
+                'id' => $idx + 1,
+                'phone' => $r['phone'],
+                'name' => $r['name'],
+                'status' => 'pending', // 'pending', 'sent', 'failed'
+                'sent_at' => null,
+                'error' => null
+            ];
+        }
+
+        // 7. Check Scheduling vs Immediate Dispatch
         $scheduleMode = $request->input('schedule_mode', 'now');
         $scheduledAtInput = $request->input('scheduled_at');
 
@@ -432,15 +445,18 @@ class WhatsAppController extends Controller
             }
 
             $broadcast = WhatsAppScheduledBroadcast::create([
-                'title' => 'Broadcast to ' . ucfirst($audience) . ' (' . count($deduped) . ' recipients)',
+                'title' => 'Broadcast to ' . ucfirst($audience) . ' (' . count($recipientsData) . ' recipients)',
                 'audience' => $audience,
                 'selected_executives' => $selectedExecs,
                 'custom_numbers' => $request->input('custom_numbers'),
                 'message' => $message,
                 'attachments' => $attachments,
+                'recipients_data' => $recipientsData,
                 'scheduled_at' => $scheduledAt,
                 'status' => 'pending',
-                'total_recipients' => count($deduped),
+                'total_recipients' => count($recipientsData),
+                'sent_count' => 0,
+                'failed_count' => 0,
                 'created_by' => auth()->id()
             ]);
 
@@ -448,62 +464,42 @@ class WhatsAppController extends Controller
                 'success' => true,
                 'scheduled' => true,
                 'broadcast_id' => $broadcast->id,
-                'message' => "Community Broadcast scheduled for " . $scheduledAt->format('d M Y, h:i A') . " UK Time (" . count($deduped) . " recipients).",
+                'message' => "Community Broadcast scheduled for " . $scheduledAt->format('d M Y, h:i A') . " UK Time (" . count($recipientsData) . " recipients).",
                 'broadcast' => $broadcast
             ]);
         }
 
-        // Immediate Dispatch
+        // Immediate Dispatch: initialize record with all recipients pending so it can be dispatched via interactive micro-batches without server timeouts
+        $selectedExecs = $request->input('selected_executives');
+        if (is_string($selectedExecs)) {
+            $selectedExecs = json_decode($selectedExecs, true) ?: [$selectedExecs];
+        }
+
         $broadcast = WhatsAppScheduledBroadcast::create([
-            'title' => 'Broadcast to ' . ucfirst($audience) . ' (' . count($deduped) . ' recipients)',
+            'title' => 'Broadcast to ' . ucfirst($audience) . ' (' . count($recipientsData) . ' recipients)',
             'audience' => $audience,
-            'selected_executives' => is_array($request->input('selected_executives')) ? $request->input('selected_executives') : json_decode($request->input('selected_executives', '[]'), true),
+            'selected_executives' => $selectedExecs,
             'custom_numbers' => $request->input('custom_numbers'),
             'message' => $message,
             'attachments' => $attachments,
+            'recipients_data' => $recipientsData,
             'scheduled_at' => null,
             'executed_at' => Carbon::now(),
-            'status' => 'processing',
-            'total_recipients' => count($deduped),
+            'status' => 'pending',
+            'total_recipients' => count($recipientsData),
+            'sent_count' => 0,
+            'failed_count' => 0,
             'created_by' => auth()->id()
-        ]);
-
-        $sent = 0;
-        $failed = 0;
-        $logs = [];
-
-        foreach ($deduped as $r) {
-            $ok = OpenWaService::dispatchBroadcastBundle(
-                $r['phone'],
-                $r['name'],
-                $message,
-                $attachments
-            );
-
-            if ($ok) {
-                $sent++;
-                $logs[] = "[SUCCESS] Dispatched to {$r['name']} ({$r['phone']})";
-            } else {
-                $failed++;
-                $logs[] = "[FAILED] Failed to dispatch to {$r['name']} ({$r['phone']})";
-            }
-
-            usleep(350000); // 350ms delay
-        }
-
-        $broadcast->update([
-            'status' => $sent > 0 ? 'completed' : 'failed',
-            'sent_count' => $sent,
-            'failed_count' => $failed,
-            'error_log' => implode("\n", array_slice($logs, 0, 100))
         ]);
 
         return response()->json([
             'success' => true,
             'scheduled' => false,
+            'interactive' => true,
             'broadcast_id' => $broadcast->id,
-            'message' => "Broadcast complete! {$sent} dispatched successfully, {$failed} failed.",
-            'stats' => ['sent' => $sent, 'failed' => $failed, 'total' => count($deduped)],
+            'total' => count($recipientsData),
+            'title' => $broadcast->title,
+            'message' => "Broadcast initialized for " . count($recipientsData) . " recipients. Launching live dispatch...",
             'broadcast' => $broadcast
         ]);
     }
@@ -666,6 +662,259 @@ class WhatsAppController extends Controller
             'success' => true,
             'message' => "Broadcast #{$id} triggered for immediate dispatch.",
             'broadcast' => $fresh
+        ]);
+    }
+
+    /**
+     * Dispatch a single micro-batch (e.g. 3 recipients) of a broadcast.
+     * Prevents HTTP timeouts, allows live progress tracking, and survives any interruption.
+     */
+    public function dispatchBatch(Request $request, $id)
+    {
+        $broadcast = WhatsAppScheduledBroadcast::findOrFail($id);
+        $batchSize = max(1, min(10, (int) $request->input('batch_size', 3)));
+
+        $recipients = $broadcast->recipients_data ?: [];
+        if (empty($recipients)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No recipients data found for this broadcast record.'
+            ], 422);
+        }
+
+        // Find next chunk of pending recipients
+        $pendingIndices = [];
+        foreach ($recipients as $idx => $item) {
+            if (($item['status'] ?? 'pending') === 'pending') {
+                $pendingIndices[] = $idx;
+                if (count($pendingIndices) >= $batchSize) {
+                    break;
+                }
+            }
+        }
+
+        if (empty($pendingIndices)) {
+            // All already finished
+            $broadcast->status = ($broadcast->sent_count > 0) ? 'completed' : 'failed';
+            $broadcast->save();
+
+            return response()->json([
+                'success' => true,
+                'broadcast_id' => $broadcast->id,
+                'batch_dispatched' => 0,
+                'batch_results' => [],
+                'total' => count($recipients),
+                'sent' => $broadcast->sent_count,
+                'failed' => $broadcast->failed_count,
+                'remaining' => 0,
+                'progress_percent' => 100,
+                'is_completed' => true,
+                'status' => $broadcast->status
+            ]);
+        }
+
+        $batchResults = [];
+        $now = Carbon::now();
+        if (!$broadcast->executed_at) {
+            $broadcast->executed_at = $now;
+        }
+        $broadcast->status = 'processing';
+
+        $errorLogs = [];
+        if (!empty($broadcast->error_log)) {
+            $errorLogs = explode("\n", $broadcast->error_log);
+        }
+
+        foreach ($pendingIndices as $idx) {
+            $r = $recipients[$idx];
+            $phone = $r['phone'];
+            $name = $r['name'] ?? 'Community Member';
+
+            $ok = OpenWaService::dispatchBroadcastBundle(
+                $phone,
+                $name,
+                $broadcast->message,
+                $broadcast->attachments ?: []
+            );
+
+            if ($ok) {
+                $recipients[$idx]['status'] = 'sent';
+                $recipients[$idx]['sent_at'] = Carbon::now()->toDateTimeString();
+                $recipients[$idx]['error'] = null;
+                $batchResults[] = [
+                    'phone' => $phone,
+                    'formatted_phone' => OpenWaService::formatPhoneDisplay($phone),
+                    'name' => $name,
+                    'status' => 'sent'
+                ];
+                $errorLogs[] = "[SUCCESS " . date('H:i:s') . "] Dispatched to {$name} (" . OpenWaService::formatPhoneDisplay($phone) . ")";
+            } else {
+                $recipients[$idx]['status'] = 'failed';
+                $recipients[$idx]['sent_at'] = Carbon::now()->toDateTimeString();
+                $recipients[$idx]['error'] = 'Dispatch failed from gateway socket';
+                $batchResults[] = [
+                    'phone' => $phone,
+                    'formatted_phone' => OpenWaService::formatPhoneDisplay($phone),
+                    'name' => $name,
+                    'status' => 'failed'
+                ];
+                $errorLogs[] = "[FAILED " . date('H:i:s') . "] Failed dispatch to {$name} (" . OpenWaService::formatPhoneDisplay($phone) . ")";
+            }
+
+            // Small 250ms gap between recipients to give WhatsApp socket room to breathe
+            usleep(250000);
+        }
+
+        // Recompute real-time totals
+        $sent = 0;
+        $failed = 0;
+        $remaining = 0;
+        foreach ($recipients as $item) {
+            $st = $item['status'] ?? 'pending';
+            if ($st === 'sent') $sent++;
+            elseif ($st === 'failed') $failed++;
+            elseif ($st === 'pending') $remaining++;
+        }
+
+        $isCompleted = ($remaining === 0);
+        if ($isCompleted) {
+            $broadcast->status = ($sent > 0) ? 'completed' : 'failed';
+        }
+
+        $broadcast->sent_count = $sent;
+        $broadcast->failed_count = $failed;
+        $broadcast->recipients_data = $recipients;
+        $broadcast->error_log = implode("\n", array_slice($errorLogs, -100));
+        $broadcast->save();
+
+        $totalCount = count($recipients);
+        $percent = $totalCount > 0 ? round((($sent + $failed) / $totalCount) * 100, 1) : 100;
+
+        return response()->json([
+            'success' => true,
+            'broadcast_id' => $broadcast->id,
+            'batch_dispatched' => count($batchResults),
+            'batch_results' => $batchResults,
+            'total' => $totalCount,
+            'sent' => $sent,
+            'failed' => $failed,
+            'remaining' => $remaining,
+            'progress_percent' => $percent,
+            'is_completed' => $isCompleted,
+            'status' => $broadcast->status
+        ]);
+    }
+
+    /**
+     * Retrieve full broadcast recipient details & audit status for tracking modal
+     */
+    public function getBroadcastDetails($id)
+    {
+        $broadcast = WhatsAppScheduledBroadcast::findOrFail($id);
+        $recipients = $broadcast->recipients_data ?: [];
+
+        // Add human-friendly formatted phone to each recipient item
+        $formattedList = [];
+        $sentCount = 0;
+        $failedCount = 0;
+        $pendingCount = 0;
+
+        foreach ($recipients as $item) {
+            $st = $item['status'] ?? 'pending';
+            if ($st === 'sent') $sentCount++;
+            elseif ($st === 'failed') $failedCount++;
+            else $pendingCount++;
+
+            $formattedList[] = [
+                'id' => $item['id'] ?? null,
+                'name' => $item['name'] ?? 'Recipient',
+                'phone' => $item['phone'] ?? '',
+                'formatted_phone' => OpenWaService::formatPhoneDisplay($item['phone'] ?? ''),
+                'status' => $st,
+                'sent_at' => $item['sent_at'] ?? null,
+                'error' => $item['error'] ?? null
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'broadcast' => [
+                'id' => $broadcast->id,
+                'title' => $broadcast->title,
+                'audience' => $broadcast->audience,
+                'status' => $broadcast->status,
+                'total_recipients' => $broadcast->total_recipients,
+                'sent_count' => $sentCount,
+                'failed_count' => $failedCount,
+                'pending_count' => $pendingCount,
+                'created_at' => $broadcast->created_at ? $broadcast->created_at->format('d M Y, h:i A') : '',
+                'executed_at' => $broadcast->executed_at ? $broadcast->executed_at->format('d M Y, h:i A') : '',
+                'scheduled_at' => $broadcast->scheduled_at ? $broadcast->scheduled_at->format('d M Y, h:i A') : null,
+                'message' => $broadcast->message,
+                'attachments' => $broadcast->attachments,
+                'error_log' => $broadcast->error_log
+            ],
+            'recipients' => $formattedList
+        ]);
+    }
+
+    /**
+     * Resume an interrupted or pending broadcast
+     */
+    public function resumeBroadcast(Request $request, $id)
+    {
+        $broadcast = WhatsAppScheduledBroadcast::findOrFail($id);
+        $broadcast->status = 'processing';
+        if (!$broadcast->executed_at) {
+            $broadcast->executed_at = Carbon::now();
+        }
+        $broadcast->save();
+
+        $recipients = $broadcast->recipients_data ?: [];
+        $pending = 0;
+        foreach ($recipients as $item) {
+            if (($item['status'] ?? 'pending') === 'pending') {
+                $pending++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'broadcast_id' => $broadcast->id,
+            'total' => count($recipients),
+            'pending' => $pending,
+            'sent' => $broadcast->sent_count,
+            'failed' => $broadcast->failed_count,
+            'message' => "Broadcast resumed. Ready to dispatch {$pending} remaining recipients."
+        ]);
+    }
+
+    /**
+     * Reset all failed recipients in a broadcast to pending so they can be retried
+     */
+    public function retryFailedRecipients(Request $request, $id)
+    {
+        $broadcast = WhatsAppScheduledBroadcast::findOrFail($id);
+        $recipients = $broadcast->recipients_data ?: [];
+
+        $resetCount = 0;
+        foreach ($recipients as $idx => $item) {
+            if (($item['status'] ?? '') === 'failed') {
+                $recipients[$idx]['status'] = 'pending';
+                $recipients[$idx]['error'] = null;
+                $resetCount++;
+            }
+        }
+
+        $broadcast->recipients_data = $recipients;
+        $broadcast->failed_count = 0;
+        $broadcast->status = 'processing';
+        $broadcast->save();
+
+        return response()->json([
+            'success' => true,
+            'reset_count' => $resetCount,
+            'message' => "Reset {$resetCount} failed recipients to pending. You can now dispatch them."
         ]);
     }
 

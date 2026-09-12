@@ -59,10 +59,26 @@ class ProcessScheduledWhatsAppBroadcasts extends Command
                 'executed_at' => Carbon::now()
             ]);
 
-            $recipients = $this->resolveRecipients($broadcast);
-            $total = count($recipients);
-            $broadcast->update(['total_recipients' => $total]);
+            // Resolve recipients if not pre-populated
+            $recipients = $broadcast->recipients_data ?: [];
+            if (empty($recipients)) {
+                $rawResolved = $this->resolveRecipients($broadcast);
+                foreach ($rawResolved as $idx => $r) {
+                    $recipients[] = [
+                        'id' => $idx + 1,
+                        'phone' => $r['phone'],
+                        'name' => $r['name'],
+                        'status' => 'pending',
+                        'sent_at' => null,
+                        'error' => null
+                    ];
+                }
+                $broadcast->recipients_data = $recipients;
+                $broadcast->total_recipients = count($recipients);
+                $broadcast->save();
+            }
 
+            $total = count($recipients);
             if ($total === 0) {
                 $broadcast->update([
                     'status' => 'failed',
@@ -76,11 +92,24 @@ class ProcessScheduledWhatsAppBroadcasts extends Command
             $failed = 0;
             $logs = [];
 
+            // Calculate existing counts
+            foreach ($recipients as $item) {
+                if (($item['status'] ?? '') === 'sent') $sent++;
+                elseif (($item['status'] ?? '') === 'failed') $failed++;
+            }
+
             foreach ($recipients as $idx => $r) {
+                // If already sent, skip
+                if (($r['status'] ?? '') === 'sent') {
+                    continue;
+                }
+
                 $phone = $r['phone'] ?? null;
                 $name = $r['name'] ?? 'Community Member';
 
                 if (!$phone) {
+                    $recipients[$idx]['status'] = 'failed';
+                    $recipients[$idx]['error'] = 'Missing phone number';
                     $failed++;
                     continue;
                 }
@@ -94,21 +123,41 @@ class ProcessScheduledWhatsAppBroadcasts extends Command
 
                 if ($ok) {
                     $sent++;
-                    $logs[] = "[SUCCESS] Dispatched to {$name} ({$phone})";
+                    $recipients[$idx]['status'] = 'sent';
+                    $recipients[$idx]['sent_at'] = Carbon::now()->toDateTimeString();
+                    $recipients[$idx]['error'] = null;
+                    $logs[] = "[SUCCESS " . date('H:i:s') . "] Dispatched to {$name} (" . OpenWaService::formatPhoneDisplay($phone) . ")";
                 } else {
                     $failed++;
-                    $logs[] = "[FAILED] Delivery failed for {$name} ({$phone})";
+                    $recipients[$idx]['status'] = 'failed';
+                    $recipients[$idx]['sent_at'] = Carbon::now()->toDateTimeString();
+                    $recipients[$idx]['error'] = 'Gateway delivery failed';
+                    $logs[] = "[FAILED " . date('H:i:s') . "] Delivery failed for {$name} (" . OpenWaService::formatPhoneDisplay($phone) . ")";
                 }
 
-                // Batch pacing: 400ms delay between recipients
-                usleep(400000);
+                // Batch pacing: 350ms delay between recipients
+                usleep(350000);
+
+                // Save checkpoint every 5 dispatches for durability
+                if ($idx % 5 === 0) {
+                    $broadcast->recipients_data = $recipients;
+                    $broadcast->sent_count = $sent;
+                    $broadcast->failed_count = $failed;
+                    $broadcast->save();
+                }
+            }
+
+            $remaining = 0;
+            foreach ($recipients as $item) {
+                if (($item['status'] ?? 'pending') === 'pending') $remaining++;
             }
 
             $broadcast->update([
-                'status' => $sent > 0 ? 'completed' : 'failed',
+                'status' => ($remaining === 0) ? ($sent > 0 ? 'completed' : 'failed') : 'processing',
                 'sent_count' => $sent,
                 'failed_count' => $failed,
-                'error_log' => implode("\n", array_slice($logs, 0, 100))
+                'recipients_data' => $recipients,
+                'error_log' => implode("\n", array_slice($logs, -100))
             ]);
 
             $this->info("Broadcast #{$broadcast->id} completed: {$sent} sent, {$failed} failed.");

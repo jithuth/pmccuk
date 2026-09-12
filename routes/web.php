@@ -494,6 +494,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('/send-test', [WhatsAppController::class, 'sendTest'])->name('send-test');
                 Route::post('/test-admin-alert', [WhatsAppController::class, 'testAdminAlert'])->name('test-admin-alert');
                 Route::post('/broadcast', [WhatsAppController::class, 'broadcast'])->name('broadcast');
+                Route::post('/broadcast/{id}/dispatch-batch', [WhatsAppController::class, 'dispatchBatch'])->name('broadcast.dispatch-batch');
+                Route::get('/broadcast/{id}/details', [WhatsAppController::class, 'getBroadcastDetails'])->name('broadcast.details');
+                Route::post('/broadcast/{id}/resume', [WhatsAppController::class, 'resumeBroadcast'])->name('broadcast.resume');
+                Route::post('/broadcast/{id}/retry-failed', [WhatsAppController::class, 'retryFailedRecipients'])->name('broadcast.retry-failed');
                 Route::get('/favorites', [WhatsAppController::class, 'getFavorites'])->name('favorites.get');
                 Route::post('/favorites', [WhatsAppController::class, 'saveFavorite'])->name('favorites.save');
                 Route::delete('/favorites/{id}', [WhatsAppController::class, 'deleteFavorite'])->name('favorites.delete');

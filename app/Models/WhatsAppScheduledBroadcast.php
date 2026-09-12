@@ -19,6 +19,7 @@ class WhatsAppScheduledBroadcast extends Model
         'custom_numbers',
         'message',
         'attachments',
+        'recipients_data',
         'scheduled_at',
         'status',
         'total_recipients',
@@ -32,6 +33,7 @@ class WhatsAppScheduledBroadcast extends Model
     protected $casts = [
         'selected_executives' => 'array',
         'attachments' => 'array',
+        'recipients_data' => 'array',
         'scheduled_at' => 'datetime',
         'executed_at' => 'datetime',
     ];
