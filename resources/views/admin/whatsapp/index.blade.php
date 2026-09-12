@@ -20,6 +20,21 @@
             padding: 0 4px;
         }
 
+        /* ── Input Alignment Fix for Radio/Checkboxes ── */
+        .audience-option input[type="radio"],
+        .audience-option .form-check-input,
+        #executivesListContainer input[type="checkbox"],
+        #executivesListContainer .form-check-input,
+        #scheduleNow,
+        #scheduleDeferred,
+        .exec-select-chk {
+            position: static !important;
+            margin: 0 !important;
+            float: none !important;
+            flex-shrink: 0 !important;
+            cursor: pointer;
+        }
+
         /* ── Command Hero Banner ── */
         .wa-hero-banner {
             background: radial-gradient(circle at top right, rgba(37, 211, 102, 0.15), transparent 50%),
@@ -1064,7 +1079,7 @@
                                             style="cursor:pointer;">
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="radio" name="broadcast_audience" value="members" checked
-                                                    class="form-check-input mt-0">
+                                                    class="form-check-input mt-0" style="position:static; margin:0; flex-shrink:0;">
                                                 <span class="text-xs fw-bold text-dark">Active Members</span>
                                             </div>
                                             <span
@@ -1077,7 +1092,7 @@
                                             style="cursor:pointer;">
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="radio" name="broadcast_audience" value="attendees"
-                                                    class="form-check-input mt-0">
+                                                    class="form-check-input mt-0" style="position:static; margin:0; flex-shrink:0;">
                                                 <span class="text-xs fw-bold text-dark">Event Attendees</span>
                                             </div>
                                             <span
@@ -1090,7 +1105,7 @@
                                             style="cursor:pointer;">
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="radio" name="broadcast_audience" value="students"
-                                                    class="form-check-input mt-0">
+                                                    class="form-check-input mt-0" style="position:static; margin:0; flex-shrink:0;">
                                                 <span class="text-xs fw-bold text-dark">University Students</span>
                                             </div>
                                             <span
@@ -1103,7 +1118,7 @@
                                             style="cursor:pointer;" id="labelAudienceExecutives">
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="radio" name="broadcast_audience" value="executives"
-                                                    class="form-check-input mt-0">
+                                                    class="form-check-input mt-0" style="position:static; margin:0; flex-shrink:0;">
                                                 <span class="text-xs fw-bold text-dark d-flex align-items-center gap-1.5">
                                                     <i class="fas fa-star text-warning"></i> Executive Favorites
                                                 </span>
@@ -1126,7 +1141,7 @@
                                             style="cursor:pointer;">
                                             <div class="d-flex align-items-center gap-2">
                                                 <input type="radio" name="broadcast_audience" value="custom"
-                                                    class="form-check-input mt-0">
+                                                    class="form-check-input mt-0" style="position:static; margin:0; flex-shrink:0;">
                                                 <span class="text-xs fw-bold text-dark">Custom Numbers</span>
                                             </div>
                                             <span
@@ -1311,13 +1326,13 @@
                                 </label>
                                 <div class="d-flex gap-2 flex-wrap">
                                     <label class="d-flex align-items-center gap-2 p-2 border rounded-3 bg-white cursor-pointer flex-grow-1" style="cursor:pointer; min-width:140px;">
-                                        <input type="radio" name="schedule_mode" value="now" id="scheduleNow" class="form-check-input mt-0" checked>
+                                        <input type="radio" name="schedule_mode" value="now" id="scheduleNow" class="form-check-input mt-0" style="position:static; margin:0; flex-shrink:0;" checked>
                                         <span class="text-xs fw-bold text-dark d-flex align-items-center gap-1.5">
                                             <i class="fas fa-bolt text-warning"></i> Send Immediately
                                         </span>
                                     </label>
                                     <label class="d-flex align-items-center gap-2 p-2 border rounded-3 bg-white cursor-pointer flex-grow-1" style="cursor:pointer; min-width:140px;">
-                                        <input type="radio" name="schedule_mode" value="scheduled" id="scheduleDeferred" class="form-check-input mt-0">
+                                        <input type="radio" name="schedule_mode" value="scheduled" id="scheduleDeferred" class="form-check-input mt-0" style="position:static; margin:0; flex-shrink:0;">
                                         <span class="text-xs fw-bold text-dark d-flex align-items-center gap-1.5">
                                             <i class="fas fa-calendar-alt text-info"></i> Schedule for Later
                                         </span>
@@ -2718,7 +2733,7 @@
                 savedFavorites.forEach(item => {
                     html += `
                         <label class="btn btn-sm btn-white border border-light-subtle rounded-3 d-flex align-items-center gap-2 px-2.5 py-2 shadow-sm text-start bg-white" style="cursor:pointer; flex: 1 1 calc(50% - 8px); min-width: 220px;">
-                            <input type="checkbox" class="form-check-input exec-select-chk mt-0 flex-shrink-0" value="${escapeHtml(String(item.id))}" checked>
+                            <input type="checkbox" class="form-check-input exec-select-chk mt-0 flex-shrink-0" style="position:static; margin:0; flex-shrink:0;" value="${escapeHtml(String(item.id))}" checked>
                             <div class="overflow-hidden flex-grow-1">
                                 <div class="d-flex align-items-center justify-content-between gap-1">
                                     <span class="fw-bold text-dark text-xs text-truncate">${escapeHtml(item.name)}</span>
