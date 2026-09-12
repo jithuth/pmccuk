@@ -238,14 +238,21 @@ function formatJid(target) {
 
     let clean = target.replace(/[^0-9]/g, '');
 
-    // Format UK numbers starting with 07 to 447
-    if (clean.startsWith('0') && clean.length === 11) {
-        clean = '44' + clean.substring(1);
-    } else if (clean.startsWith('440') && clean.length === 13) {
-        clean = '44' + clean.substring(3);
-    } else if (clean.startsWith('0044')) {
+    // UK 0044 prefix -> 44...
+    if (clean.startsWith('0044')) {
         clean = clean.substring(2);
-    } else if (clean.length === 10) {
+    }
+
+    // UK 4407... (+44 (0)7...) -> 447...
+    if (clean.startsWith('4407')) {
+        clean = '44' + clean.substring(3);
+    } else if (clean.startsWith('07') && clean.length === 11) {
+        // UK Local Mobile: 07xxxxxxxxx -> 447xxxxxxxxx
+        clean = '44' + clean.substring(1);
+    } else if (clean.startsWith('0') && clean.length === 11) {
+        // UK Local Landline/Other: 01..., 02... -> 441..., 442...
+        clean = '44' + clean.substring(1);
+    } else if (clean.length === 10 && clean.startsWith('7')) {
         // Without country code (e.g. 7901296858): add 44
         clean = '44' + clean;
     }

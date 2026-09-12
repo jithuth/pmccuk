@@ -84,17 +84,22 @@ class OpenWaService
             return null;
         }
 
-        // UK Local: 07xxxxxxxxx (11 digits) -> 447xxxxxxxxx
-        if (str_starts_with($clean, '0') && strlen($clean) === 11) {
-            $clean = '44' . substr($clean, 1);
-        } elseif (str_starts_with($clean, '440') && strlen($clean) === 13) {
-            // Accidentally typed 4407xxxxxxxxx -> 447xxxxxxxxx
-            $clean = '44' . substr($clean, 3);
-        } elseif (str_starts_with($clean, '0044')) {
-            // 00447xxxxxxxxx -> 447xxxxxxxxx
+        // UK 0044 prefix -> 44...
+        if (str_starts_with($clean, '0044')) {
             $clean = substr($clean, 2);
-        } elseif (strlen($clean) === 10) {
-            // Number entered without country code (e.g. 7901296858): add +44
+        }
+
+        // UK 4407... (+44 (0)7...) -> 447...
+        if (str_starts_with($clean, '4407')) {
+            $clean = '44' . substr($clean, 3);
+        } elseif (str_starts_with($clean, '07') && strlen($clean) === 11) {
+            // UK Local Mobile: 07xxxxxxxxx (11 digits) -> 447xxxxxxxxx
+            $clean = '44' . substr($clean, 1);
+        } elseif (str_starts_with($clean, '0') && strlen($clean) === 11) {
+            // UK Local Landline/Other: 01..., 02... -> 441..., 442...
+            $clean = '44' . substr($clean, 1);
+        } elseif (strlen($clean) === 10 && str_starts_with($clean, '7')) {
+            // UK Mobile entered without country code: 7xxxxxxxxx -> 447xxxxxxxxx
             $clean = '44' . $clean;
         }
 
@@ -136,18 +141,19 @@ class OpenWaService
             }
         }
 
-        $digits = self::extractDigits($phone);
+        $canonical = self::formatPhone($phone);
+        $digits = $canonical ?: self::extractDigits($phone);
         if (empty($digits)) {
             return (string) $phone;
         }
 
-        // UK Local: 07xxxxxxxxx (11 digits) -> +44 7xxx xxxxxx
-        if (str_starts_with($digits, '0') && strlen($digits) === 11) {
-            return '+44 ' . substr($digits, 1, 4) . ' ' . substr($digits, 5);
+        // UK Mobile: 447xxxxxxxxx (12 digits) -> +44 7xxx xxxxxx
+        if (str_starts_with($digits, '447') && strlen($digits) === 12) {
+            return '+44 ' . substr($digits, 2, 4) . ' ' . substr($digits, 6);
         }
 
-        // UK International: 447xxxxxxxxx (12 digits) -> +44 7xxx xxxxxx
-        if (str_starts_with($digits, '44') && strlen($digits) === 12) {
+        // UK Landline/Standard: 44xxxxxxxxx (11 or 12 digits) -> +44 xxxx xxxxxx
+        if (str_starts_with($digits, '44') && strlen($digits) >= 11 && strlen($digits) <= 12) {
             return '+44 ' . substr($digits, 2, 4) . ' ' . substr($digits, 6);
         }
 
