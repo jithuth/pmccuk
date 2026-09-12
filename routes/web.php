@@ -378,6 +378,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::delete('/{id}', [DashboardController::class, 'deleteMember'])->name('delete');
                 Route::post('/{id}/restore', [DashboardController::class, 'restoreMember'])->name('restore');
                 Route::post('/{id}/send-card-email', [DashboardController::class, 'sendCardEmail'])->name('send-card-email');
+                Route::post('/{id}/send-card-whatsapp', [DashboardController::class, 'sendCardWhatsApp'])->name('send-card-whatsapp');
                 Route::get('/{id?}/print-card', [DashboardController::class, 'printIdCard'])->name('print-card');
                 Route::get('/verify/{id}/{token}', [DashboardController::class, 'verifyMembership'])->name('verify');
                 Route::get('/import', [DashboardController::class, 'importMembers'])->name('import');
@@ -491,6 +492,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::get('/status', [WhatsAppController::class, 'status'])->name('status');
                 Route::get('/qr', [WhatsAppController::class, 'qr'])->name('qr');
                 Route::post('/send-test', [WhatsAppController::class, 'sendTest'])->name('send-test');
+                Route::post('/broadcast', [WhatsAppController::class, 'broadcast'])->name('broadcast');
                 Route::post('/logout', [WhatsAppController::class, 'logout'])->name('logout');
             });
             Route::post('/email-settings/test', [DashboardController::class, 'testEmailConnection'])->name('email-settings.test');

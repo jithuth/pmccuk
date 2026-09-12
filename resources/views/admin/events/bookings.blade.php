@@ -282,6 +282,10 @@
                                                         class="btn btn-xs btn-info me-1" title="Resend Ticket Email">
                                                         <i class="fas fa-envelope"></i>
                                                     </a>
+                                                    <a href="{{ route('admin.events.bookings.resend', $booking->id) }}"
+                                                        class="btn btn-xs me-1" style="background-color: #25d366; color: #fff; border: none;" title="Beam Ticket via WhatsApp">
+                                                        <i class="fab fa-whatsapp"></i>
+                                                    </a>
                                                 @endif
 
                                                 <a href="{{ route('admin.events.bookings.edit', $booking->id) }}"

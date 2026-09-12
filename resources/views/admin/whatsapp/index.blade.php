@@ -591,6 +591,213 @@ This is a test notification confirming that our WhatsApp automation service is a
 
     </div>
 
+    <!-- ── 4. BROADCAST STUDIO & 2-WAY INTERACTIVE BOT HUB ── -->
+    <div class="row g-4 mb-4">
+        
+        <!-- Column 1: Targeted Community Broadcast Studio -->
+        <div class="col-lg-7">
+            <div class="card wa-elevated-card h-100 p-0 overflow-hidden d-flex flex-column">
+                <div class="card-header bg-white border-bottom border-light p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-black text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="fas fa-bullhorn text-warning fs-5"></i> Targeted Community Broadcast Studio
+                        </h5>
+                        <p class="text-xs text-muted mb-0 mt-0.5">Send festival greetings, urgent weather alerts, or student notices to curated segments</p>
+                    </div>
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2.5 py-1 text-xs fw-bold">Mass Messaging</span>
+                </div>
+
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <form id="formBroadcast" class="d-flex flex-column gap-3">
+                        @csrf
+
+                        <!-- Audience Segment Selector -->
+                        <div>
+                            <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-2 d-block">1. Select Target Audience</label>
+                            <div class="row g-2">
+                                <div class="col-sm-6">
+                                    <label class="p-3 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option" style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <input type="radio" name="broadcast_audience" value="members" checked class="form-check-input mt-0">
+                                            <span class="text-xs fw-bold text-dark">Active Members</span>
+                                        </div>
+                                        <span class="badge bg-success-subtle text-success rounded-pill text-xs px-2">{{ $counts['members'] ?? 0 }}</span>
+                                    </label>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="p-3 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option" style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <input type="radio" name="broadcast_audience" value="attendees" class="form-check-input mt-0">
+                                            <span class="text-xs fw-bold text-dark">Event Attendees</span>
+                                        </div>
+                                        <span class="badge bg-primary-subtle text-primary rounded-pill text-xs px-2">{{ $counts['attendees'] ?? 0 }}</span>
+                                    </label>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="p-3 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option" style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <input type="radio" name="broadcast_audience" value="students" class="form-check-input mt-0">
+                                            <span class="text-xs fw-bold text-dark">University Students</span>
+                                        </div>
+                                        <span class="badge bg-info-subtle text-info rounded-pill text-xs px-2">{{ $counts['students'] ?? 0 }}</span>
+                                    </label>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="p-3 border rounded-3 d-flex align-items-center justify-content-between cursor-pointer w-100 bg-light-subtle audience-option" style="cursor:pointer;">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <input type="radio" name="broadcast_audience" value="custom" class="form-check-input mt-0">
+                                            <span class="text-xs fw-bold text-dark">Custom Numbers</span>
+                                        </div>
+                                        <span class="badge bg-secondary-subtle text-secondary rounded-pill text-xs px-2">Manual</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Custom Numbers Textarea (Hidden by default) -->
+                            <div id="customNumbersWrap" class="mt-2.5 d-none">
+                                <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-1">Enter Phone Numbers (one per line or comma-separated)</label>
+                                <textarea name="custom_numbers" id="broadcastCustomNumbers" rows="2" class="form-control bg-light border-0 text-xs font-monospace" placeholder="07901296858, 447812345678, 919876543210"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Broadcast Templates -->
+                        <div>
+                            <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-1.5 d-block">2. Choose Template or Customize</label>
+                            <div class="d-flex flex-wrap gap-1.5 mb-2">
+                                <span class="preset-chip active bcast-chip" data-bcast="onam">
+                                    🌸 Onam &amp; Vishu
+                                </span>
+                                <span class="preset-chip bcast-chip" data-bcast="xmas">
+                                    🎄 Christmas &amp; New Year
+                                </span>
+                                <span class="preset-chip bcast-chip" data-bcast="weather">
+                                    ⚠️ Urgent Weather Alert
+                                </span>
+                                <span class="preset-chip bcast-chip" data-bcast="student">
+                                    🎓 Student Wing Welcome
+                                </span>
+                            </div>
+
+                            <textarea name="broadcast_message" id="broadcastMessage" rows="5" class="form-control bg-light border-0 rounded-3 text-xs p-3" required style="resize:none;">🌸 Warmest Onam Greetings from PMCC-UK! May this festive season bring immense joy, health, and prosperity to you and your family. Join our grand celebrations: https://pmccuk.org/events</textarea>
+                            <span class="text-xs text-muted mt-1 d-block">💡 Variable <code>{name}</code> is automatically replaced with the recipient's name.</span>
+                        </div>
+
+                        <!-- Progress Alert -->
+                        <div id="broadcastAlert" class="alert d-none text-xs rounded-3 p-3 mb-0"></div>
+
+                        <!-- Dispatch Button -->
+                        <div class="pt-1">
+                            <button type="submit" id="btnSubmitBroadcast" class="btn btn-dark w-100 py-2.5 text-xs fw-bold rounded-pill d-flex align-items-center justify-content-center gap-2 shadow-sm">
+                                <i class="fas fa-paper-plane text-success"></i>
+                                <span>Launch Safe Community Broadcast</span>
+                            </button>
+                            <p class="text-center text-muted mb-0 mt-2" style="font-size:11px;">
+                                <i class="fas fa-shield-alt text-success me-1"></i> Equipped with an anti-spam delay timer between dispatches to comply with WhatsApp Fair Use standards.
+                            </p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Interactive 2-Way Bot Command Center -->
+        <div class="col-lg-5">
+            <div class="card wa-elevated-card h-100 p-0 overflow-hidden d-flex flex-column">
+                <div class="card-header bg-white border-bottom border-light p-4 d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-black text-dark mb-0 d-flex align-items-center gap-2">
+                            <i class="fas fa-robot text-info fs-5"></i> 2-Way Interactive Bot Hub
+                        </h5>
+                        <p class="text-xs text-muted mb-0 mt-0.5">Members can text keywords directly to this WhatsApp number</p>
+                    </div>
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1 text-xs fw-bold">Socket Listener</span>
+                </div>
+
+                <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <div class="d-flex flex-column gap-2.5">
+                        
+                        <!-- Keyword 1: CARD -->
+                        <div class="p-3 rounded-3 border border-light-subtle bg-light d-flex align-items-start gap-3">
+                            <div class="badge bg-primary text-white rounded-circle p-2 mt-0.5" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">
+                                <i class="fas fa-id-card"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center mb-0.5">
+                                    <span class="fw-bold text-dark text-xs font-monospace">"CARD" or "ID"</span>
+                                    <span class="badge bg-success-subtle text-success text-xxs font-monospace">PDF Card</span>
+                                </div>
+                                <p class="text-muted text-xs mb-0">Searches member database by phone and instantly returns the official digital ID card PDF.</p>
+                            </div>
+                        </div>
+
+                        <!-- Keyword 2: TICKET -->
+                        <div class="p-3 rounded-3 border border-light-subtle bg-light d-flex align-items-start gap-3">
+                            <div class="badge bg-success text-white rounded-circle p-2 mt-0.5" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">
+                                <i class="fas fa-ticket-alt"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center mb-0.5">
+                                    <span class="fw-bold text-dark text-xs font-monospace">"TICKET" or "PASS"</span>
+                                    <span class="badge bg-success-subtle text-success text-xxs font-monospace">QR Ticket</span>
+                                </div>
+                                <p class="text-muted text-xs mb-0">Retrieves attendee's confirmed booking and sends the official ticket pass with admission QR.</p>
+                            </div>
+                        </div>
+
+                        <!-- Keyword 3: EVENTS -->
+                        <div class="p-3 rounded-3 border border-light-subtle bg-light d-flex align-items-start gap-3">
+                            <div class="badge bg-warning text-dark rounded-circle p-2 mt-0.5" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center mb-0.5">
+                                    <span class="fw-bold text-dark text-xs font-monospace">"EVENTS"</span>
+                                    <span class="badge bg-warning-subtle text-warning text-xxs font-monospace">Upcoming</span>
+                                </div>
+                                <p class="text-muted text-xs mb-0">Lists all scheduled cultural events, dates, venue locations, and 1-click booking links.</p>
+                            </div>
+                        </div>
+
+                        <!-- Keyword 4: OFFERS -->
+                        <div class="p-3 rounded-3 border border-light-subtle bg-light d-flex align-items-start gap-3">
+                            <div class="badge bg-danger text-white rounded-circle p-2 mt-0.5" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">
+                                <i class="fas fa-tags"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center mb-0.5">
+                                    <span class="fw-bold text-dark text-xs font-monospace">"OFFERS" / "SPONSORS"</span>
+                                    <span class="badge bg-danger-subtle text-danger text-xxs font-monospace">Discounts</span>
+                                </div>
+                                <p class="text-muted text-xs mb-0">Displays exclusive member discount codes from Plymouth partner restaurants and shops.</p>
+                            </div>
+                        </div>
+
+                        <!-- Keyword 5: STUDENT -->
+                        <div class="p-3 rounded-3 border border-light-subtle bg-light d-flex align-items-start gap-3">
+                            <div class="badge bg-info text-white rounded-circle p-2 mt-0.5" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center mb-0.5">
+                                    <span class="fw-bold text-dark text-xs font-monospace">"STUDENT"</span>
+                                    <span class="badge bg-info-subtle text-info text-xxs font-monospace">Orientation</span>
+                                </div>
+                                <p class="text-muted text-xs mb-0">Delivers the student onboarding pack: NHS registration, NI guidance, and WhatsApp group link.</p>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="mt-3 p-3 bg-light rounded-4 border border-light text-center">
+                        <span class="text-xs text-muted d-block mb-1 font-monospace">Incoming Webhook Endpoint:</span>
+                        <code class="text-dark fw-bold text-xs bg-white px-2 py-1 rounded border">POST /api/whatsapp/webhook</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
 </div>
 
 <!-- ── JAVASCRIPT ENGINE ── -->
@@ -802,6 +1009,93 @@ document.addEventListener('DOMContentLoaded', function() {
             btnSubmitTest.innerHTML = '<i class="fab fa-whatsapp fs-5"></i> <span>Send Live WhatsApp Notification</span>';
             testAlert.className = 'alert alert-danger mb-3 text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
             testAlert.innerHTML = `<i class="fas fa-wifi fs-5"></i> <div><strong>Network Error:</strong> ${err}</div>`;
+        });
+    });
+
+    // ── Broadcast Studio Logic ──
+    const formBroadcast = document.getElementById('formBroadcast');
+    const broadcastAlert = document.getElementById('broadcastAlert');
+    const btnSubmitBroadcast = document.getElementById('btnSubmitBroadcast');
+    const broadcastMessage = document.getElementById('broadcastMessage');
+    const customNumbersWrap = document.getElementById('customNumbersWrap');
+    const audienceRadios = document.querySelectorAll('input[name="broadcast_audience"]');
+    const bcastChips = document.querySelectorAll('.bcast-chip');
+
+    // Toggle custom numbers textarea
+    audienceRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                customNumbersWrap.classList.remove('d-none');
+            } else {
+                customNumbersWrap.classList.add('d-none');
+            }
+        });
+    });
+
+    // Broadcast Presets
+    const bcastPresets = {
+        onam: `🌸 Warmest Onam Greetings from PMCC-UK! May this festive season bring immense joy, health, and prosperity to you and your family. Join our grand celebrations: https://pmccuk.org/events`,
+        xmas: `🎄 Merry Christmas & Happy New Year from the Plymouth Malayalee Community Club! Thank you for being a wonderful part of our community. Wishing you peace and happiness in the year ahead.`,
+        weather: `⚠️ PMCC-UK Urgent Announcement: Due to adverse weather warnings, please note that today's event venue has been updated to Plymouth Guildhall. For assistance, visit https://pmccuk.org`,
+        student: `🎓 Welcome to Plymouth, dear Student! PMCC-UK is delighted to welcome you to the UK. Need help with NHS registration, accommodation, or community support? Visit our Student Corner: https://pmccuk.org/student-corner or text STUDENT to this WhatsApp number anytime!`
+    };
+
+    bcastChips.forEach(chip => {
+        chip.addEventListener('click', function() {
+            bcastChips.forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            const bType = this.getAttribute('data-bcast');
+            if (bcastPresets[bType] && broadcastMessage) {
+                broadcastMessage.value = bcastPresets[bType];
+            }
+        });
+    });
+
+    // Form submission
+    formBroadcast?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const audience = document.querySelector('input[name="broadcast_audience"]:checked')?.value || 'members';
+        const msg = broadcastMessage?.value || '';
+        const customNums = document.getElementById('broadcastCustomNumbers')?.value || '';
+
+        if (!confirm('Are you sure you want to launch this broadcast to the selected audience segment?')) {
+            return;
+        }
+
+        btnSubmitBroadcast.disabled = true;
+        btnSubmitBroadcast.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Dispatching Community Broadcast...';
+        broadcastAlert.className = 'alert d-none text-xs';
+
+        fetch('{{ route('admin.whatsapp.broadcast') }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                audience: audience,
+                message: msg,
+                custom_numbers: customNums
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            btnSubmitBroadcast.disabled = false;
+            btnSubmitBroadcast.innerHTML = '<i class="fas fa-paper-plane text-success"></i> <span>Launch Safe Community Broadcast</span>';
+
+            if (data.success) {
+                broadcastAlert.className = 'alert alert-success text-xs border-0 bg-success-subtle text-success p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
+                broadcastAlert.innerHTML = `<i class="fas fa-check-circle fs-5"></i> <div><strong>Broadcast Completed!</strong> ${data.message}</div>`;
+            } else {
+                broadcastAlert.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
+                broadcastAlert.innerHTML = `<i class="fas fa-exclamation-circle fs-5"></i> <div><strong>Failed:</strong> ${data.message || 'Error occurred.'}</div>`;
+            }
+        })
+        .catch(err => {
+            btnSubmitBroadcast.disabled = false;
+            btnSubmitBroadcast.innerHTML = '<i class="fas fa-paper-plane text-success"></i> <span>Launch Safe Community Broadcast</span>';
+            broadcastAlert.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
+            broadcastAlert.innerHTML = `<i class="fas fa-wifi fs-5"></i> <div><strong>Network Error:</strong> ${err}</div>`;
         });
     });
 });

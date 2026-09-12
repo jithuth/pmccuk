@@ -29,7 +29,13 @@ class WhatsAppController extends Controller
             'admin_numbers' => OpenWaService::getSetting('whatsapp_admin_numbers', ''),
         ];
 
-        return view('admin.whatsapp.index', compact('status', 'settings'));
+        $counts = [
+            'members' => \App\Models\Member::where('status', 'active')->whereNotNull('mobile_number')->count(),
+            'attendees' => \App\Models\EventBooking::where('booking_status', 'approved')->whereNotNull('phone')->count(),
+            'students' => \App\Models\StudentRequest::whereNotNull('phone')->count(),
+        ];
+
+        return view('admin.whatsapp.index', compact('status', 'settings', 'counts'));
     }
 
     /**
@@ -101,7 +107,88 @@ class WhatsAppController extends Controller
 
         return response()->json([
             'success' => false,
-            'message' => 'Could not unlink WhatsApp session. Please check daemon connection.'
+            'message' => 'Failed to unlink device. Please check daemon connectivity.'
         ], 500);
+    }
+
+    /**
+     * Dispatch Targeted Community Broadcast
+     */
+    public function broadcast(Request $request)
+    {
+        $request->validate([
+            'audience' => 'required|string|in:members,attendees,students,custom',
+            'message' => 'required|string|max:2000',
+            'custom_numbers' => 'nullable|string'
+        ]);
+
+        $audience = $request->input('audience');
+        $message = $request->input('message');
+        $recipients = [];
+
+        if ($audience === 'members') {
+            $members = \App\Models\Member::where('status', 'active')
+                ->whereNotNull('mobile_number')
+                ->get();
+            foreach ($members as $m) {
+                $recipients[] = [
+                    'phone' => $m->mobile_number,
+                    'name' => $m->full_name
+                ];
+            }
+        } elseif ($audience === 'attendees') {
+            $bookings = \App\Models\EventBooking::where('booking_status', 'approved')
+                ->whereNotNull('phone')
+                ->get();
+            foreach ($bookings as $b) {
+                $recipients[] = [
+                    'phone' => $b->phone,
+                    'name' => $b->full_name
+                ];
+            }
+        } elseif ($audience === 'students') {
+            $students = \App\Models\StudentRequest::whereNotNull('phone')->get();
+            foreach ($students as $s) {
+                $recipients[] = [
+                    'phone' => $s->phone,
+                    'name' => $s->full_name ?? 'Student'
+                ];
+            }
+        } elseif ($audience === 'custom') {
+            $raw = $request->input('custom_numbers', '');
+            $lines = preg_split('/[\r\n,]+/', $raw);
+            foreach ($lines as $line) {
+                $num = trim($line);
+                if (!empty($num)) {
+                    $recipients[] = ['phone' => $num, 'name' => 'Community Member'];
+                }
+            }
+        }
+
+        if (empty($recipients)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No valid recipients found for the selected audience segment.'
+            ], 422);
+        }
+
+        // Deduplicate by phone
+        $unique = [];
+        $deduped = [];
+        foreach ($recipients as $r) {
+            $clean = OpenWaService::formatPhone($r['phone']);
+            if ($clean && !isset($unique[$clean])) {
+                $unique[$clean] = true;
+                $deduped[] = $r;
+            }
+        }
+
+        $res = OpenWaService::sendBroadcast($deduped, $message, null, null, 1);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Broadcast complete! {$res['sent']} dispatched successfully, {$res['failed']} failed.",
+            'stats' => $res
+        ]);
     }
 }

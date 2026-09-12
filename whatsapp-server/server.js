@@ -129,6 +129,49 @@ async function initWhatsApp() {
                 console.log('[WhatsApp Daemon] Connected successfully as:', currentUser);
             }
         });
+
+        // ── Inbound Message Listener for 2-Way Interactive Bot ──
+        sock.ev.on('messages.upsert', async (m) => {
+            try {
+                if (m.type !== 'notify' || !m.messages) return;
+
+                for (const msg of m.messages) {
+                    if (msg.key.fromMe) continue;
+                    if (!msg.message) continue;
+
+                    const remoteJid = msg.key.remoteJid;
+                    if (!remoteJid || remoteJid.includes('@g.us') || remoteJid.includes('status@broadcast')) continue;
+
+                    const text = msg.message.conversation ||
+                                 msg.message.extendedTextMessage?.text ||
+                                 '';
+
+                    if (!text || !text.trim()) continue;
+
+                    console.log(`[WhatsApp Inbound] Message from ${remoteJid}: "${text.trim()}"`);
+
+                    const webhookUrl = process.env.WEBHOOK_URL || 'https://pmccuk.org/api/whatsapp/webhook';
+                    try {
+                        await fetch(webhookUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${API_KEY}`
+                            },
+                            body: JSON.stringify({
+                                from: remoteJid,
+                                message: text.trim(),
+                                pushName: msg.pushName || 'Member'
+                            })
+                        });
+                    } catch (fetchErr) {
+                        console.error('[WhatsApp Inbound] Error posting to webhook:', fetchErr.message);
+                    }
+                }
+            } catch (upsertErr) {
+                console.error('[WhatsApp Inbound] Error processing upsert:', upsertErr.message);
+            }
+        });
     } catch (err) {
         console.error('[WhatsApp Daemon] Init error:', err);
         connectionState = 'disconnected';

@@ -243,6 +243,12 @@
                                             <i class="fas fa-paper-plane"></i>
                                         </button>
                                     </form>
+                                    <form action="{{ route('admin.members.send-card-whatsapp', $m->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="btn" style="background-color: #25d366; color: #fff; border: none;" title="Send ID Card via WhatsApp">
+                                            <i class="fab fa-whatsapp"></i>
+                                        </button>
+                                    </form>
                                 @endif
                                 <!-- DELETE / RESTORE -->
                                 @if($m->trashed())

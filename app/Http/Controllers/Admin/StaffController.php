@@ -44,6 +44,22 @@ class StaffController extends Controller
         $booking->check_in_by = auth('admin')->id();
         $booking->save();
 
+        // Fire Live WhatsApp Gate Check-In Receipt
+        if (!empty($booking->phone)) {
+            try {
+                $eventName = $booking->event ? $booking->event->title : 'PMCC Event';
+                $heads = $booking->adult_count + $booking->child_count + $booking->infant_count + $booking->student_count;
+                $msg = "🎉 *Welcome to {$eventName}!* \n\n" .
+                       "Checked in successfully at *" . $booking->check_in_at->format('h:i A') . "*.\n" .
+                       "👥 **Attendees Admitted:** {$heads} Heads\n" .
+                       "🔖 **Booking Ref:** `{$booking->reference}`\n\n" .
+                       "Enjoy the festivities!\n*PMCC-UK Gate Control*";
+                \App\Services\OpenWaService::sendText($booking->phone, $msg);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[WhatsApp] Gate check-in receipt error: ' . $e->getMessage());
+            }
+        }
+
         return response()->json([
             'success' => true, 
             'message' => 'Check-in successful for ' . $booking->full_name,

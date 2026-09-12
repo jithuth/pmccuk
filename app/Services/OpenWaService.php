@@ -246,7 +246,7 @@ class OpenWaService
     }
 
     /**
-     * 1. Member ID Card Delivery Notification
+     * 1. Member ID Card Delivery Notification (Automated PDF)
      */
     public static function notifyMemberIdCard(Member $member, ?string $pdfPath = null): bool
     {
@@ -261,23 +261,43 @@ class OpenWaService
 
         $caption = "🌟 *Welcome to PMCC-UK Membership!*\n\n" .
             "Dear *{$member->full_name}*,\n\n" .
-            "We are pleased to inform you that your membership for the **Plymouth Malayalee Community Club (PMCC-UK)** has been approved!\n\n" .
+            "We are pleased to inform you that your membership for the **Plymouth Malayalee Community Club (PMCC-UK)** is active!\n\n" .
             "🆔 **Membership No:** `{$member->membership_id_assigned}`\n" .
-            "📅 **Valid Through:** " . date('31 Dec Y') . "\n" .
+            "📅 **Valid Through:** " . ($member->expiry_date ? date('d M Y', strtotime($member->expiry_date)) : date('31 Dec Y')) . "\n" .
             "📍 **Community:** Plymouth & Surrounding Devon Regions\n\n" .
             "Please find your official **PMCC-UK Digital Membership Card** attached.\n\n" .
             "_Thank you for being an esteemed part of our community!_\n" .
             "🌐 https://pmccuk.org";
 
-        if ($pdfPath && file_exists($pdfPath)) {
-            return self::sendFile($phone, $pdfPath, "PMCC_Card_{$member->membership_id_assigned}.pdf", $caption, 'application/pdf');
+        // Auto-generate PDF card if not explicitly provided
+        $tempGenerated = false;
+        if (!$pdfPath || !file_exists($pdfPath)) {
+            try {
+                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.members.pdf_card', compact('member'));
+                $tempPath = storage_path('app/temp_card_' . $member->id . '_' . time() . '.pdf');
+                $pdf->save($tempPath);
+                $pdfPath = $tempPath;
+                $tempGenerated = true;
+            } catch (\Throwable $e) {
+                Log::warning('[WhatsApp] Could not generate member card PDF: ' . $e->getMessage());
+            }
         }
 
-        return self::sendText($phone, $caption);
+        $result = false;
+        if ($pdfPath && file_exists($pdfPath)) {
+            $result = self::sendFile($phone, $pdfPath, "PMCC_Card_{$member->membership_id_assigned}.pdf", $caption, 'application/pdf');
+            if ($tempGenerated && file_exists($pdfPath)) {
+                @unlink($pdfPath);
+            }
+        } else {
+            $result = self::sendText($phone, $caption);
+        }
+
+        return $result;
     }
 
     /**
-     * 2. Event Ticket PDF & Confirmation Notification
+     * 2. Event Ticket PDF & Confirmation Notification (Automated PDF)
      */
     public static function notifyEventTicket(EventBooking $booking, ?string $ticketPdfPath = null): bool
     {
@@ -306,15 +326,88 @@ class OpenWaService
             "_Please present this ticket at the gate control counter for entry scan._\n\n" .
             "Warm regards,\n*PMCC-UK Events Team*";
 
-        if ($ticketPdfPath && file_exists($ticketPdfPath)) {
-            return self::sendFile($phone, $ticketPdfPath, "Ticket_{$booking->reference}.pdf", $caption, 'application/pdf');
+        // Auto-generate PDF ticket if not explicitly provided
+        $tempGenerated = false;
+        if (!$ticketPdfPath || !file_exists($ticketPdfPath)) {
+            try {
+                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('events.pdf_ticket', compact('booking'));
+                $tempPath = storage_path('app/temp_ticket_' . $booking->id . '_' . time() . '.pdf');
+                $pdf->save($tempPath);
+                $ticketPdfPath = $tempPath;
+                $tempGenerated = true;
+            } catch (\Throwable $e) {
+                Log::warning('[WhatsApp] Could not generate event ticket PDF: ' . $e->getMessage());
+            }
         }
 
-        return self::sendText($phone, $caption);
+        $result = false;
+        if ($ticketPdfPath && file_exists($ticketPdfPath)) {
+            $result = self::sendFile($phone, $ticketPdfPath, "Ticket_{$booking->reference}.pdf", $caption, 'application/pdf');
+            if ($tempGenerated && file_exists($ticketPdfPath)) {
+                @unlink($ticketPdfPath);
+            }
+        } else {
+            $result = self::sendText($phone, $caption);
+        }
+
+        return $result;
     }
 
     /**
-     * 3. Send Verification / Login / Registration OTP
+     * 3. 24-Hour Event Reminder & Venue Navigation
+     */
+    public static function notifyEventReminder(EventBooking $booking): bool
+    {
+        $phone = $booking->phone;
+        if (empty($phone)) {
+            return false;
+        }
+
+        $eventTitle = $booking->event ? $booking->event->title : 'PMCC Event';
+        $eventDate = $booking->event && $booking->event->event_date ? date('D, d M Y', strtotime($booking->event->event_date)) : 'Tomorrow';
+        $eventTime = $booking->event && $booking->event->event_time ? date('h:i A', strtotime($booking->event->event_time)) : 'Doors open early';
+        $eventVenue = $booking->event ? ($booking->event->venue ?? 'Plymouth, UK') : 'Plymouth, UK';
+        $mapsUrl = "https://www.google.com/maps/search/?api=1&query=" . urlencode($eventVenue);
+
+        $message = "⏰ *Event Reminder: Tomorrow!*\n\n" .
+            "Dear *{$booking->customer_name}*,\n\n" .
+            "We are excited to welcome you tomorrow for *{$eventTitle}*!\n\n" .
+            "📅 **Date:** {$eventDate}\n" .
+            "🕒 **Time:** {$eventTime}\n" .
+            "📍 **Venue:** {$eventVenue}\n" .
+            "🗺️ **Directions / Map:** {$mapsUrl}\n" .
+            "🔖 **Your Booking Ref:** `{$booking->reference}` (Total: {$booking->total_tickets})\n\n" .
+            "💡 *Tip:* Please have your ticket QR code or booking reference handy for swift admission at our gate counter.\n\n" .
+            "See you tomorrow!\n*PMCC-UK Executive Team*";
+
+        return self::sendText($phone, $message);
+    }
+
+    /**
+     * 4. Annual Renewal Reminder (30-day notice)
+     */
+    public static function notifyRenewalReminder(Member $member): bool
+    {
+        $phone = $member->mobile_number;
+        if (empty($phone)) {
+            return false;
+        }
+
+        $expiry = $member->expiry_date ? date('d M Y', strtotime($member->expiry_date)) : '31 Dec ' . date('Y');
+
+        $message = "🔔 *PMCC-UK Membership Renewal Notice*\n\n" .
+            "Dear *{$member->full_name}*,\n\n" .
+            "Your annual PMCC-UK Membership (`{$member->membership_id_assigned}`) is scheduled to expire on *{$expiry}*.\n\n" .
+            "To retain your member benefits, discounted event ticketing, and community privileges, please renew your membership online:\n\n" .
+            "👉 *Renew Online:* https://pmccuk.org/membership\n\n" .
+            "Thank you for being a vital pillar of our community!\n\n" .
+            "*PMCC-UK Executive Committee*";
+
+        return self::sendText($phone, $message);
+    }
+
+    /**
+     * 5. Send Verification / Login / Registration OTP
      */
     public static function sendOtp(string $phone, string $otp, string $purpose = 'Registration'): bool
     {
@@ -332,7 +425,7 @@ class OpenWaService
     }
 
     /**
-     * 4. Send Security / Intrusion Alert to Administrators
+     * 6. Send Security / Intrusion Alert to Administrators
      */
     public static function sendAdminAlert(string $alertTitle, string $alertDetails): bool
     {
@@ -359,5 +452,57 @@ class OpenWaService
         }
 
         return $sentCount > 0;
+    }
+
+    /**
+     * 7. Targeted Batch Broadcast with Anti-Spam Throttling
+     */
+    public static function sendBroadcast(array $recipients, string $message, ?string $filePath = null, ?string $filename = null, int $delaySeconds = 1): array
+    {
+        $sent = 0;
+        $failed = 0;
+        $total = count($recipients);
+
+        Log::info("[WhatsApp Broadcast] Starting broadcast dispatch to {$total} recipients.");
+
+        foreach ($recipients as $item) {
+            $phone = is_array($item) ? ($item['phone'] ?? null) : $item;
+            if (empty($phone)) {
+                $failed++;
+                continue;
+            }
+
+            // Optional personalizations
+            $personalized = $message;
+            if (is_array($item) && !empty($item['name'])) {
+                $personalized = str_replace('{name}', $item['name'], $personalized);
+            }
+
+            $success = false;
+            if ($filePath && file_exists($filePath)) {
+                $success = self::sendFile($phone, $filePath, $filename ?? 'attachment.pdf', $personalized);
+            } else {
+                $success = self::sendText($phone, $personalized);
+            }
+
+            if ($success) {
+                $sent++;
+            } else {
+                $failed++;
+            }
+
+            // Anti-spam rate limiting interval
+            if ($delaySeconds > 0) {
+                sleep($delaySeconds);
+            }
+        }
+
+        Log::info("[WhatsApp Broadcast] Completed: {$sent} sent, {$failed} failed.");
+
+        return [
+            'total' => $total,
+            'sent' => $sent,
+            'failed' => $failed
+        ];
     }
 }

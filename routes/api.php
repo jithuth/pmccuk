@@ -29,3 +29,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/community/events', [MemberApiController::class, 'events']);
     Route::get('/community/offers', [MemberApiController::class, 'offers']);
 });
+
+// WhatsApp Two-Way Interactive Daemon Webhook
+Route::post('/whatsapp/webhook', [\App\Http\Controllers\WhatsAppWebhookController::class, 'handle'])->name('api.whatsapp.webhook');

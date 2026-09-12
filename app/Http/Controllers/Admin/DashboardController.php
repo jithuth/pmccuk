@@ -579,6 +579,31 @@ class DashboardController extends Controller
         return back()->with('success', 'ID Card dispatched successfully via Email & WhatsApp!');
     }
 
+    public function sendCardWhatsApp($id)
+    {
+        $member = Member::findOrFail($id);
+
+        if (empty($member->guid)) {
+            $member->guid = (string) \Illuminate\Support\Str::uuid();
+            $member->save();
+        }
+
+        if (empty($member->mobile_number)) {
+            return back()->with('error', 'Member does not have a mobile phone number.');
+        }
+
+        try {
+            $success = \App\Services\OpenWaService::notifyMemberIdCard($member);
+            if ($success) {
+                return back()->with('success', 'Digital Membership Card dispatched to ' . $member->mobile_number . ' via WhatsApp!');
+            } else {
+                return back()->with('error', 'WhatsApp dispatch failed. Please ensure the WhatsApp daemon is online.');
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'WhatsApp error: ' . $e->getMessage());
+        }
+    }
+
     public function approveMember(Request $request, $id)
     {
         $member = Member::findOrFail($id);
