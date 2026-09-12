@@ -222,6 +222,117 @@
     .btn-wa-hero:active {
         transform: translateY(0);
     }
+
+    /* ── Terminal Log Console Styling ── */
+    .terminal-window {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 18px;
+        box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.4);
+        overflow: hidden;
+    }
+    .terminal-header {
+        background: #161b22;
+        border-bottom: 1px solid #30363d;
+        padding: 14px 20px;
+    }
+    .terminal-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    .terminal-dot.red { background: #ff5f56; }
+    .terminal-dot.yellow { background: #ffbd2e; }
+    .terminal-dot.green { background: #27c93f; }
+    .terminal-body {
+        background: #0b0f19;
+        color: #e6edf3;
+        font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+        font-size: 12px;
+        line-height: 1.6;
+        height: 400px;
+        overflow-y: auto;
+        padding: 14px 18px;
+    }
+    .terminal-body::-webkit-scrollbar {
+        width: 8px;
+    }
+    .terminal-body::-webkit-scrollbar-track {
+        background: #0d1117;
+    }
+    .terminal-body::-webkit-scrollbar-thumb {
+        background: #30363d;
+        border-radius: 4px;
+    }
+    .terminal-body::-webkit-scrollbar-thumb:hover {
+        background: #484f58;
+    }
+    .log-entry {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 4px 8px;
+        border-radius: 5px;
+        transition: background-color 0.15s;
+    }
+    .log-entry:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .log-ts {
+        color: #8b949e;
+        flex-shrink: 0;
+        user-select: none;
+        font-size: 11px;
+    }
+    .log-badge-pill {
+        font-size: 9.5px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        flex-shrink: 0;
+    }
+    .log-badge-inbound { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+    .log-badge-outbound { background: rgba(52, 211, 153, 0.2); color: #34d399; border: 1px solid rgba(52, 211, 153, 0.3); }
+    .log-badge-system { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+    .log-badge-qr { background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+    .log-badge-auth { background: rgba(244, 63, 94, 0.2); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .log-badge-error { background: rgba(239, 68, 68, 0.25); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .log-badge-warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .log-msg-text {
+        word-break: break-word;
+        flex-grow: 1;
+        color: #e6edf3;
+    }
+    .log-filter-btn {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 11px;
+        border-radius: 20px;
+        border: 1px solid #30363d;
+        background: #161b22;
+        color: #8b949e;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+    .log-filter-btn:hover {
+        color: #e6edf3;
+        border-color: #484f58;
+    }
+    .log-filter-btn.active {
+        background: #238636;
+        color: #ffffff;
+        border-color: #2ea043;
+    }
+    .pulse-dot {
+        animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.3; transform: scale(0.85); }
+    }
 </style>
 @endsection
 
@@ -291,8 +402,8 @@
 
                 <div class="pt-3 border-top d-flex align-items-center justify-content-between text-xs text-muted">
                     <span id="lastUpdatedText"><i class="fas fa-clock me-1 text-muted"></i> Live heartbeat</span>
-                    <button id="btnLogoutSession" class="btn btn-link text-danger p-0 text-xs text-decoration-none fw-bold d-none">
-                        <i class="fas fa-unlink me-1"></i> Disconnect
+                    <button type="button" class="btn btn-outline-danger btn-xs px-2.5 py-1 rounded-pill fw-bold d-inline-flex align-items-center gap-1 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalRevokeSession" id="btnTelemetryRevoke">
+                        <i class="fas fa-shield-alt"></i> Revoke Options
                     </button>
                 </div>
             </div>
@@ -434,9 +545,11 @@
                             </div>
                         </div>
 
-                        <button id="btnUnlinkInside" class="btn btn-outline-danger btn-sm rounded-pill px-4 py-2 text-xs fw-bold">
-                            <i class="fas fa-unlink me-1.5"></i> Disconnect / Unlink Device
-                        </button>
+                        <div class="d-flex justify-content-center gap-2">
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-4 py-2 text-xs fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalRevokeSession">
+                                <i class="fas fa-shield-alt"></i> Revoke &amp; Unlink Session
+                            </button>
+                        </div>
                     </div>
 
                     <!-- STATE B: QR SCANNER (Viewfinder Scanner View) -->
@@ -482,6 +595,12 @@
                                     <span>Scan this QR code to complete pairing</span>
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="mt-3 text-center">
+                            <button type="button" class="btn btn-link text-secondary text-xs text-decoration-none py-1" onclick="openRevokeModal(true)">
+                                <i class="fas fa-redo-alt me-1"></i> Stuck or Stale Session? Force Reset Gateway &amp; Purge Cache
+                            </button>
                         </div>
                     </div>
 
@@ -798,6 +917,148 @@ This is a test notification confirming that our WhatsApp automation service is a
 
     </div>
 
+    <!-- ── 4. LIVE WHATSAPP GATEWAY LOGS & BOT CONSOLE ── -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="terminal-window">
+                <!-- Terminal Header -->
+                <div class="terminal-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="d-flex align-items-center gap-1.5 me-2">
+                            <span class="terminal-dot red"></span>
+                            <span class="terminal-dot yellow"></span>
+                            <span class="terminal-dot green"></span>
+                        </div>
+                        <i class="fas fa-terminal text-success"></i>
+                        <span class="fw-bold text-white text-xs font-monospace">WhatsApp Gateway &amp; Bot Live Stream Console</span>
+                        <span id="logLiveBadge" class="badge bg-success-subtle text-success border border-success-subtle rounded-pill text-xxs px-2 py-0.5 font-monospace">
+                            <i class="fas fa-circle text-success me-1 pulse-dot"></i> <span id="logPollStatusText">LIVE POLLING</span>
+                        </span>
+                        <span id="logTotalBadge" class="badge bg-dark text-muted border border-secondary text-xxs font-monospace">0 events</span>
+                    </div>
+
+                    <!-- Controls & Filters Toolbar -->
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <!-- Filter Pills -->
+                        <div class="d-flex align-items-center gap-1" id="logFilterPills">
+                            <button type="button" class="log-filter-btn active" data-filter="all">All</button>
+                            <button type="button" class="log-filter-btn" data-filter="bot">Bot Messages</button>
+                            <button type="button" class="log-filter-btn" data-filter="outbound">Dispatches</button>
+                            <button type="button" class="log-filter-btn" data-filter="error">Errors &amp; Warnings</button>
+                            <button type="button" class="log-filter-btn" data-filter="system">System</button>
+                        </div>
+
+                        <!-- Search Box -->
+                        <div class="position-relative" style="width:160px;">
+                            <input type="text" id="logSearchInput" placeholder="Filter console..." class="form-control form-control-sm text-light bg-dark border-secondary text-xs font-monospace py-1 ps-2 pe-4" style="height:28px;">
+                            <i class="fas fa-search position-absolute top-50 end-0 translate-middle-y me-2 text-muted" style="font-size:10px;"></i>
+                        </div>
+
+                        <!-- Auto Scroll Toggle -->
+                        <div class="form-check form-switch mb-0 d-flex align-items-center gap-1.5 text-xs text-secondary font-monospace">
+                            <input class="form-check-input mt-0 cursor-pointer" type="checkbox" id="chkAutoScroll" checked style="cursor:pointer;">
+                            <label class="form-check-label cursor-pointer text-xxs text-light" for="chkAutoScroll">Scroll</label>
+                        </div>
+
+                        <!-- Auto Poll Toggle -->
+                        <div class="form-check form-switch mb-0 d-flex align-items-center gap-1.5 text-xs text-secondary font-monospace">
+                            <input class="form-check-input mt-0 cursor-pointer" type="checkbox" id="chkAutoPoll" checked style="cursor:pointer;">
+                            <label class="form-check-label cursor-pointer text-xxs text-light" for="chkAutoPoll">Live</label>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <button type="button" id="btnRefreshLogs" class="btn btn-outline-secondary btn-sm p-1 px-2 text-xxs text-light" title="Refresh Logs Now">
+                            <i class="fas fa-sync-alt" id="iconRefreshLogs"></i>
+                        </button>
+                        <button type="button" id="btnClearLogs" class="btn btn-outline-danger btn-sm p-1 px-2 text-xxs" title="Clear Console Buffer">
+                            <i class="fas fa-trash-alt"></i> Clear
+                        </button>
+                        <button type="button" id="btnDownloadLogs" class="btn btn-outline-success btn-sm p-1 px-2 text-xxs" title="Export Logs to File">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Terminal Body -->
+                <div class="terminal-body" id="terminalBody">
+                    <div class="text-muted text-xxs pb-2 border-bottom border-dark d-flex justify-content-between font-monospace">
+                        <span>PMCC-UK WhatsApp Daemon v1.0.0 (Baileys Multi-Device) // Target: 127.0.0.1:8085</span>
+                        <span id="bufferStatusText">Displaying live log stream</span>
+                    </div>
+                    <div id="logLinesContainer" class="pt-2 d-flex flex-column gap-1">
+                        <div class="text-center text-muted py-5">
+                            <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
+                            <div class="text-xs">Connecting to WhatsApp Daemon log stream...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── 5. REVOKE & SESSION SECURITY MODAL ── -->
+<div class="modal fade" id="modalRevokeSession" tabindex="-1" aria-labelledby="modalRevokeSessionLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-danger-subtle border-bottom border-danger-subtle p-3.5">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="rounded-circle bg-danger text-white p-2" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div>
+                        <h6 class="modal-title fw-black text-danger mb-0" id="modalRevokeSessionLabel">WhatsApp Session Security &amp; Revocation</h6>
+                        <span class="text-xxs text-muted">Manage linked device credentials and daemon lifecycle</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-warning border-0 bg-warning-subtle text-dark p-3 rounded-3 mb-3 text-xs d-flex align-items-start gap-2.5">
+                    <i class="fas fa-exclamation-triangle text-warning fs-5 mt-0.5 flex-shrink-0"></i>
+                    <div>
+                        <strong>Security Notice:</strong> Revoking or resetting the session will unlink the authenticated WhatsApp number. Automated ID card delivery, event passes, and 2-way bot replies will pause until a new device is paired.
+                    </div>
+                </div>
+
+                <div class="d-flex flex-column gap-3">
+                    <!-- Option 1: Standard Unlink -->
+                    <div class="p-3 border rounded-3 bg-light hover-shadow transition">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold text-dark text-xs"><i class="fas fa-unlink text-danger me-1.5"></i> Standard Unlink (Graceful Logout)</span>
+                            <span class="badge bg-secondary-subtle text-secondary text-xxs">Recommended</span>
+                        </div>
+                        <p class="text-muted text-xs mb-2.5">
+                            Gracefully signs out of WhatsApp multi-device. Safely releases the connection while keeping the daemon ready for a new scan.
+                        </p>
+                        <button type="button" id="btnExecuteLogout" class="btn btn-outline-danger btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm">
+                            <i class="fas fa-sign-out-alt me-1"></i> Disconnect WhatsApp
+                        </button>
+                    </div>
+
+                    <!-- Option 2: Force Purge & Hard Reset -->
+                    <div class="p-3 border border-danger-subtle rounded-3 bg-danger-subtle bg-opacity-10 hover-shadow transition">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="fw-bold text-danger text-xs"><i class="fas fa-trash-alt text-danger me-1.5"></i> Force Purge Cache &amp; Regenerate QR</span>
+                            <span class="badge bg-danger text-white text-xxs">Hard Reset</span>
+                        </div>
+                        <p class="text-muted text-xs mb-2.5">
+                            Completely erases corrupted session credentials (<code class="text-danger">session_auth/</code>), drops active socket, and regenerates a brand-new QR code instantly. Best if the connection is stuck or displaying encryption errors.
+                        </p>
+                        <button type="button" id="btnExecuteForcePurge" class="btn btn-danger btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm">
+                            <i class="fas fa-redo-alt me-1"></i> Force Purge &amp; Reset QR
+                        </button>
+                    </div>
+                </div>
+
+                <div id="revokeAlert" class="alert d-none text-xs rounded-3 p-3 mt-3 mb-0"></div>
+            </div>
+            <div class="modal-footer bg-light p-3 border-top">
+                <button type="button" class="btn btn-light btn-sm text-xs rounded-pill px-3" data-bs-dismiss="modal">Close Window</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- ── JAVASCRIPT ENGINE ── -->
@@ -948,13 +1209,200 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchQrAndStatus();
     });
 
-    // Unlink Device Action
-    function doLogout() {
-        if (!confirm('Are you sure you want to unlink and disconnect this WhatsApp account?')) {
+    // ══════════════════════════════════════════════════════════
+    //  LIVE WHATSAPP GATEWAY LOGS & BOT CONSOLE ENGINE
+    // ══════════════════════════════════════════════════════════
+    const terminalBody = document.getElementById('terminalBody');
+    const logLinesContainer = document.getElementById('logLinesContainer');
+    const logTotalBadge = document.getElementById('logTotalBadge');
+    const logLiveBadge = document.getElementById('logLiveBadge');
+    const logPollStatusText = document.getElementById('logPollStatusText');
+    const chkAutoScroll = document.getElementById('chkAutoScroll');
+    const chkAutoPoll = document.getElementById('chkAutoPoll');
+    const logSearchInput = document.getElementById('logSearchInput');
+    const btnRefreshLogs = document.getElementById('btnRefreshLogs');
+    const btnClearLogs = document.getElementById('btnClearLogs');
+    const btnDownloadLogs = document.getElementById('btnDownloadLogs');
+    const iconRefreshLogs = document.getElementById('iconRefreshLogs');
+    const logFilterButtons = document.querySelectorAll('.log-filter-btn');
+
+    let allLogs = [];
+    let currentFilter = 'all';
+    let currentSearch = '';
+    let lastLogId = 0;
+    let isFetchingLogs = false;
+
+    function getBadgeClass(type, level) {
+        if (level === 'ERROR') return 'log-badge-error';
+        if (level === 'WARNING') return 'log-badge-warn';
+        switch (type) {
+            case 'inbound': return 'log-badge-inbound';
+            case 'outbound': return 'log-badge-outbound';
+            case 'bot_reply': return 'log-badge-outbound';
+            case 'qr': return 'log-badge-qr';
+            case 'auth': return 'log-badge-auth';
+            case 'system': return 'log-badge-system';
+            default: return 'log-badge-system';
+        }
+    }
+
+    function formatTime(isoStr) {
+        try {
+            const d = new Date(isoStr);
+            if (isNaN(d.getTime())) return isoStr;
+            return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+        } catch (e) {
+            return isoStr;
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function renderLogs() {
+        if (!logLinesContainer) return;
+
+        let filtered = allLogs;
+
+        // Apply type filter
+        if (currentFilter !== 'all') {
+            if (currentFilter === 'bot') {
+                filtered = filtered.filter(l => l.type === 'inbound' || l.type === 'bot_reply');
+            } else if (currentFilter === 'outbound') {
+                filtered = filtered.filter(l => l.type === 'outbound' || l.type === 'bot_reply');
+            } else if (currentFilter === 'error') {
+                filtered = filtered.filter(l => l.level === 'ERROR' || l.level === 'WARNING' || l.type === 'error');
+            } else if (currentFilter === 'system') {
+                filtered = filtered.filter(l => l.type === 'system' || l.type === 'qr' || l.type === 'auth');
+            }
+        }
+
+        // Apply search filter
+        if (currentSearch.trim()) {
+            const q = currentSearch.toLowerCase();
+            filtered = filtered.filter(l => 
+                (l.message && l.message.toLowerCase().includes(q)) ||
+                (l.type && l.type.toLowerCase().includes(q)) ||
+                (l.level && l.level.toLowerCase().includes(q)) ||
+                (l.details && JSON.stringify(l.details).toLowerCase().includes(q))
+            );
+        }
+
+        if (logTotalBadge) {
+            logTotalBadge.textContent = `${filtered.length} of ${allLogs.length} events`;
+        }
+
+        if (filtered.length === 0) {
+            logLinesContainer.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-terminal fs-4 mb-2 d-block opacity-50"></i>
+                    <div class="text-xs">No console logs match the selected filter.</div>
+                </div>
+            `;
             return;
         }
 
-        fetch('{{ route('admin.whatsapp.logout') }}', {
+        let html = '';
+        for (const log of filtered) {
+            const badgeClass = getBadgeClass(log.type, log.level);
+            const timeStr = formatTime(log.timestamp);
+            const typeLabel = (log.type || 'SYSTEM').toUpperCase();
+            const hasDetails = log.details && Object.keys(log.details).length > 0;
+            const detailsId = `log-details-${log.id}`;
+
+            html += `
+                <div class="log-entry" id="log-row-${log.id}">
+                    <span class="log-ts">[${timeStr}]</span>
+                    <span class="log-badge-pill ${badgeClass}">${typeLabel}</span>
+                    <div class="log-msg-text">
+                        <span>${escapeHtml(log.message)}</span>
+                        ${hasDetails ? `
+                            <button class="btn btn-link p-0 text-secondary text-xxs ms-1.5 text-decoration-none" onclick="document.getElementById('${detailsId}').classList.toggle('d-none')">
+                                <i class="fas fa-code me-0.5"></i>payload
+                            </button>
+                            <pre id="${detailsId}" class="d-none mt-1 p-2 bg-black bg-opacity-50 rounded text-light text-xxs mb-0 font-monospace border border-dark">${escapeHtml(JSON.stringify(log.details, null, 2))}</pre>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        logLinesContainer.innerHTML = html;
+
+        if (chkAutoScroll && chkAutoScroll.checked && terminalBody) {
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+    }
+
+    function fetchLogs(isManual = false) {
+        if (isFetchingLogs) return;
+        isFetchingLogs = true;
+
+        if (isManual && iconRefreshLogs) {
+            iconRefreshLogs.classList.add('fa-spin');
+        }
+
+        const url = new URL('{{ route('admin.whatsapp.logs') }}', window.location.origin);
+        url.searchParams.set('limit', 200);
+
+        fetch(url.toString())
+            .then(res => res.json())
+            .then(data => {
+                if (isManual && iconRefreshLogs) {
+                    iconRefreshLogs.classList.remove('fa-spin');
+                }
+                isFetchingLogs = false;
+
+                if (data && Array.isArray(data.logs)) {
+                    allLogs = data.logs;
+                    if (allLogs.length > 0) {
+                        lastLogId = allLogs[allLogs.length - 1].id;
+                    }
+                    renderLogs();
+                }
+            })
+            .catch(err => {
+                if (isManual && iconRefreshLogs) {
+                    iconRefreshLogs.classList.remove('fa-spin');
+                }
+                isFetchingLogs = false;
+                console.warn('[Log Fetch Error]', err);
+            });
+    }
+
+    // Filter Buttons
+    logFilterButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            logFilterButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentFilter = this.getAttribute('data-filter');
+            renderLogs();
+        });
+    });
+
+    // Search Input
+    logSearchInput?.addEventListener('input', function() {
+        currentSearch = this.value;
+        renderLogs();
+    });
+
+    // Refresh Button
+    btnRefreshLogs?.addEventListener('click', () => fetchLogs(true));
+
+    // Clear Logs Button
+    btnClearLogs?.addEventListener('click', function() {
+        if (!confirm('Are you sure you want to clear the WhatsApp console log buffer?')) {
+            return;
+        }
+
+        fetch('{{ route('admin.whatsapp.logs.clear') }}', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -963,15 +1411,103 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(res => res.json())
         .then(data => {
-            alert(data.message || 'Device unlinked.');
-            countdown = 2;
-            fetchQrAndStatus();
+            allLogs = [];
+            lastLogId = 0;
+            renderLogs();
         })
-        .catch(err => alert('Error unlinking session: ' + err));
+        .catch(err => alert('Failed to clear logs: ' + err));
+    });
+
+    // Download Logs Button
+    btnDownloadLogs?.addEventListener('click', function() {
+        if (allLogs.length === 0) {
+            alert('No logs available to export.');
+            return;
+        }
+
+        const lines = allLogs.map(l => `[${l.timestamp}] [${(l.level || 'INFO').toUpperCase()}] [${(l.type || 'SYSTEM').toUpperCase()}] ${l.message} ${l.details ? JSON.stringify(l.details) : ''}`);
+        const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `pmcc-whatsapp-console-${new Date().toISOString().slice(0,10)}.log`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+    // Initial Log Fetch & Polling Interval (every 3 seconds)
+    fetchLogs();
+    setInterval(function() {
+        if (chkAutoPoll && chkAutoPoll.checked) {
+            fetchLogs();
+        }
+    }, 3000);
+
+    // ══════════════════════════════════════════════════════════
+    //  REVOKE & SESSION SECURITY ENGINE
+    // ══════════════════════════════════════════════════════════
+    const modalRevokeEl = document.getElementById('modalRevokeSession');
+    const revokeAlert = document.getElementById('revokeAlert');
+    const btnExecuteLogout = document.getElementById('btnExecuteLogout');
+    const btnExecuteForcePurge = document.getElementById('btnExecuteForcePurge');
+
+    window.openRevokeModal = function(isForce = false) {
+        if (modalRevokeEl) {
+            const bsModal = bootstrap.Modal.getOrCreateInstance(modalRevokeEl);
+            bsModal.show();
+        }
+    };
+
+    function executeRevoke(force) {
+        const targetBtn = force ? btnExecuteForcePurge : btnExecuteLogout;
+        const originalHtml = targetBtn.innerHTML;
+
+        targetBtn.disabled = true;
+        targetBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1.5"></span> Revoking Session...';
+        revokeAlert.className = 'alert d-none text-xs';
+
+        fetch('{{ route('admin.whatsapp.revoke') }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ force: force })
+        })
+        .then(res => res.json())
+        .then(data => {
+            targetBtn.disabled = false;
+            targetBtn.innerHTML = originalHtml;
+
+            if (data.success) {
+                revokeAlert.className = 'alert alert-success text-xs border-0 bg-success-subtle text-success p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
+                revokeAlert.innerHTML = `<i class="fas fa-check-circle fs-5"></i> <div><strong>Session Revoked!</strong> ${data.message}</div>`;
+                
+                setTimeout(() => {
+                    const bsModal = bootstrap.Modal.getInstance(modalRevokeEl);
+                    if (bsModal) bsModal.hide();
+                    revokeAlert.className = 'alert d-none';
+                    countdown = 2;
+                    fetchQrAndStatus();
+                    fetchLogs(true);
+                }, 1400);
+            } else {
+                revokeAlert.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
+                revokeAlert.innerHTML = `<i class="fas fa-exclamation-circle fs-5"></i> <div><strong>Failed:</strong> ${data.message || 'Could not revoke session.'}</div>`;
+            }
+        })
+        .catch(err => {
+            targetBtn.disabled = false;
+            targetBtn.innerHTML = originalHtml;
+            revokeAlert.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm';
+            revokeAlert.innerHTML = `<i class="fas fa-wifi fs-5"></i> <div><strong>Network Error:</strong> ${err}</div>`;
+        });
     }
 
-    btnLogoutSession?.addEventListener('click', doLogout);
-    document.getElementById('btnUnlinkInside')?.addEventListener('click', doLogout);
+    btnExecuteLogout?.addEventListener('click', () => executeRevoke(false));
+    btnExecuteForcePurge?.addEventListener('click', () => executeRevoke(true));
 
     // Test Message Dispatch
     formSendTest?.addEventListener('submit', function(e) {

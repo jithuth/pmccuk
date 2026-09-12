@@ -494,6 +494,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('/send-test', [WhatsAppController::class, 'sendTest'])->name('send-test');
                 Route::post('/broadcast', [WhatsAppController::class, 'broadcast'])->name('broadcast');
                 Route::post('/logout', [WhatsAppController::class, 'logout'])->name('logout');
+                Route::post('/revoke', [WhatsAppController::class, 'revoke'])->name('revoke');
+                Route::get('/logs', [WhatsAppController::class, 'logs'])->name('logs');
+                Route::post('/logs/clear', [WhatsAppController::class, 'clearLogs'])->name('logs.clear');
             });
             Route::post('/email-settings/test', [DashboardController::class, 'testEmailConnection'])->name('email-settings.test');
         });

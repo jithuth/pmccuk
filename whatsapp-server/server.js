@@ -21,8 +21,16 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 const PORT = parseInt(process.env.PORT || '8085', 10);
 const API_KEY = process.env.API_KEY || 'pmcc_wa_sec_key_2026_x9';
 const SESSION_DIR = path.resolve(process.env.SESSION_DIR || path.join(__dirname, 'session_auth'));
+const LOGS_DIR = path.resolve(__dirname, 'logs');
+const LOG_FILE = path.join(LOGS_DIR, 'whatsapp.log');
 
-// State tracking
+if (!fs.existsSync(LOGS_DIR)) {
+    try {
+        fs.mkdirSync(LOGS_DIR, { recursive: true });
+    } catch (e) {}
+}
+
+// ── State tracking ──
 let sock = null;
 let connectionState = 'disconnected'; // 'disconnected' | 'connecting' | 'qr_ready' | 'connected'
 let currentQrRaw = null;
@@ -41,6 +49,39 @@ function storeMessage(keyId, message) {
         const oldestKey = msgRetryStore.keys().next().value;
         msgRetryStore.delete(oldestKey);
     }
+}
+
+// ── Real-Time Gateway Log Store ──
+let logCounter = 1;
+const systemLogs = []; // In-memory ring buffer (up to 500 entries)
+
+function logEvent(type, level, message, details = null) {
+    const entry = {
+        id: logCounter++,
+        timestamp: new Date().toISOString(),
+        type: type || 'system',     // 'inbound' | 'bot_reply' | 'outbound' | 'system' | 'qr' | 'auth' | 'error' | 'warn'
+        level: level || 'INFO',     // 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR'
+        message: String(message),
+        details: details || null
+    };
+
+    systemLogs.push(entry);
+    if (systemLogs.length > 500) {
+        systemLogs.shift();
+    }
+
+    const consoleStr = `[${entry.timestamp}] [${entry.level}] [${entry.type.toUpperCase()}] ${entry.message}`;
+    if (level === 'ERROR') {
+        console.error(consoleStr);
+    } else if (level === 'WARNING') {
+        console.warn(consoleStr);
+    } else {
+        console.log(consoleStr);
+    }
+
+    try {
+        fs.appendFile(LOG_FILE, JSON.stringify(entry) + '\n', () => {});
+    } catch (e) {}
 }
 
 // ── Authentication Middleware ──
@@ -134,7 +175,7 @@ async function initWhatsApp() {
                 const rawLid = lid.split('@')[0].split(':')[0];
                 const rawPn = jid.split('@')[0].split(':')[0];
                 lidToPhone.set(rawLid, rawPn);
-                console.log(`[WhatsApp Daemon] Linked LID ${rawLid} -> Phone ${rawPn}`);
+                logEvent('system', 'INFO', `Linked LID ${rawLid} -> Phone ${rawPn}`);
             }
         });
 
@@ -173,8 +214,9 @@ async function initWhatsApp() {
                             light: '#ffffff'
                         }
                     });
+                    logEvent('qr', 'INFO', 'New pairing QR code generated. Waiting for administrator scan.');
                 } catch (qrErr) {
-                    console.error('[WhatsApp Daemon] QR Generation error:', qrErr);
+                    logEvent('error', 'ERROR', 'QR Generation error: ' + qrErr.message);
                 }
             }
 
@@ -187,7 +229,7 @@ async function initWhatsApp() {
                 currentQrImage = null;
                 currentUser = null;
 
-                console.log(`[WhatsApp Daemon] Connection closed. Status: ${statusCode}, Reconnect: ${shouldReconnect}`);
+                logEvent('system', 'WARNING', `Connection closed. Status: ${statusCode || 'unknown'}. Reconnect: ${shouldReconnect}`);
 
                 if (shouldReconnect) {
                     connectionState = 'connecting';
@@ -206,7 +248,8 @@ async function initWhatsApp() {
                 currentQrRaw = null;
                 currentQrImage = null;
                 currentUser = sock.user || { id: 'connected' };
-                console.log('[WhatsApp Daemon] Connected successfully as:', currentUser);
+                const devName = currentUser?.name || currentUser?.notify || currentUser?.id || 'Connected WhatsApp Device';
+                logEvent('system', 'SUCCESS', `WhatsApp Gateway connected successfully as: ${devName}`, currentUser);
             }
         });
 
@@ -225,7 +268,12 @@ async function initWhatsApp() {
                     if (!msg.message) continue;
 
                     const remoteJid = msg.key.remoteJid;
-                    if (!remoteJid || remoteJid.includes('@g.us') || remoteJid.includes('status@broadcast')) continue;
+                    if (!remoteJid || 
+                        remoteJid.includes('@g.us') || 
+                        remoteJid.includes('status@broadcast') ||
+                        remoteJid.includes('@newsletter')) {
+                        continue;
+                    }
 
                     const text = msg.message.conversation ||
                                  msg.message.extendedTextMessage?.text ||
@@ -244,11 +292,17 @@ async function initWhatsApp() {
                         senderPn = msg.key.senderPn || msg.key.participantPn || lidToPhone.get(rawLid) || null;
                     }
 
-                    console.log(`[WhatsApp Inbound] Received from ${remoteJid} (Phone: ${senderPn || 'LID'}, PushName: ${msg.pushName}): "${text.trim()}"`);
+                    const pushName = msg.pushName || 'Member';
+                    logEvent('inbound', 'INFO', `Inbound message from ${pushName} (${senderPn ? '+' + senderPn : remoteJid}): "${text.trim().substring(0, 100)}"`, {
+                        from: remoteJid,
+                        phone: senderPn,
+                        pushName,
+                        text: text.trim()
+                    });
 
                     const webhookUrl = process.env.WEBHOOK_URL || 'https://pmccuk.org/api/whatsapp/webhook';
                     try {
-                        await fetch(webhookUrl, {
+                        const response = await fetch(webhookUrl, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -258,19 +312,25 @@ async function initWhatsApp() {
                                 from: remoteJid,          // The exact JID to reply to (preserves @lid or @s.whatsapp.net)
                                 phone: senderPn,          // The detected real phone number
                                 message: text.trim(),
-                                pushName: msg.pushName || 'Member'
+                                pushName: pushName
                             })
                         });
+
+                        if (response.ok) {
+                            logEvent('inbound', 'SUCCESS', `Webhook processed successfully for: "${text.trim().substring(0, 40)}" (HTTP ${response.status})`);
+                        } else {
+                            logEvent('warn', 'WARNING', `Webhook returned HTTP ${response.status} for: "${text.trim().substring(0, 40)}"`);
+                        }
                     } catch (fetchErr) {
-                        console.error('[WhatsApp Inbound] Error posting to webhook:', fetchErr.message);
+                        logEvent('error', 'ERROR', `Webhook dispatch error: ${fetchErr.message}`, { error: fetchErr.message });
                     }
                 }
             } catch (upsertErr) {
-                console.error('[WhatsApp Inbound] Error processing upsert:', upsertErr.message);
+                logEvent('error', 'ERROR', `Error processing upsert: ${upsertErr.message}`, { error: upsertErr.message });
             }
         });
     } catch (err) {
-        console.error('[WhatsApp Daemon] Init error:', err);
+        logEvent('error', 'ERROR', `WhatsApp Daemon init error: ${err.message}`, { error: err.stack });
         connectionState = 'disconnected';
         setTimeout(() => initWhatsApp(), 10000);
     }
@@ -285,6 +345,7 @@ app.get('/', (req, res) => {
         status: 'running',
         whatsapp_state: connectionState,
         cached_messages: msgRetryStore.size,
+        log_entries: systemLogs.length,
         timestamp: new Date().toISOString()
     });
 });
@@ -325,20 +386,46 @@ app.get('/session/qr', authenticate, (req, res) => {
     });
 });
 
-// Session logout
+// Session logout (standard graceful unlink)
 app.post('/session/logout', authenticate, async (req, res) => {
     try {
+        logEvent('auth', 'WARNING', 'Session logout requested by administrator');
         isLoggingOut = true;
         if (sock) {
             try {
-                await sock.logout();
-            } catch (logoutErr) {}
+                await Promise.race([
+                    sock.logout(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Logout timeout')), 3500))
+                ]);
+            } catch (logoutErr) {
+                try { sock.end(undefined); } catch (e) {}
+            }
         }
+
+        try {
+            fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+        } catch (rmErr) {}
+
+        connectionState = 'disconnected';
+        currentQrRaw = null;
+        currentQrImage = null;
+        currentUser = null;
+        msgRetryStore.clear();
+        lidToPhone.clear();
+        isLoggingOut = false;
+
+        logEvent('system', 'SUCCESS', 'WhatsApp session credentials unlinked. Restarting socket for fresh QR...');
+
+        setTimeout(() => {
+            initWhatsApp();
+        }, 1500);
+
         res.json({
             success: true,
-            message: 'WhatsApp session logged out and cleared successfully.'
+            message: 'WhatsApp session logged out and unlinked successfully.'
         });
     } catch (e) {
+        logEvent('error', 'ERROR', 'Session logout error: ' + e.message);
         res.status(500).json({
             success: false,
             error: e.message
@@ -346,9 +433,121 @@ app.post('/session/logout', authenticate, async (req, res) => {
     }
 });
 
+// Session Revoke & Hard Purge (Force reset)
+app.post('/session/revoke', authenticate, async (req, res) => {
+    const force = req.body.force === true || req.body.force === 'true';
+    logEvent('auth', 'WARNING', `Session revoke invoked (Mode: ${force ? 'FORCE PURGE' : 'STANDARD REVOKE'})`);
+
+    try {
+        isLoggingOut = true;
+        if (sock) {
+            try {
+                if (!force) {
+                    await Promise.race([
+                        sock.logout(),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Logout timeout')), 3000))
+                    ]);
+                } else {
+                    sock.end(undefined);
+                }
+            } catch (err) {
+                try { sock.end(undefined); } catch (e) {}
+            }
+        }
+
+        // Wipe session directory
+        try {
+            fs.rmSync(SESSION_DIR, { recursive: true, force: true });
+        } catch (rmErr) {
+            console.warn('[WhatsApp Daemon] Remove session dir error:', rmErr.message);
+        }
+
+        // Reset all in-memory states
+        connectionState = 'disconnected';
+        currentQrRaw = null;
+        currentQrImage = null;
+        currentUser = null;
+        msgRetryStore.clear();
+        lidToPhone.clear();
+        isLoggingOut = false;
+
+        logEvent('system', 'SUCCESS', 'Session credentials completely wiped. Generating fresh QR code...');
+
+        setTimeout(() => {
+            initWhatsApp();
+        }, 1500);
+
+        res.json({
+            success: true,
+            message: 'WhatsApp session successfully revoked and purged. A fresh QR code is being generated.'
+        });
+    } catch (e) {
+        logEvent('error', 'ERROR', 'Session revoke failed: ' + e.message);
+        res.status(500).json({
+            success: false,
+            error: e.message
+        });
+    }
+});
+
+// Get Live Gateway & Bot Logs
+app.get('/logs', authenticate, (req, res) => {
+    const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
+    const type = req.query.type; // 'all' | 'inbound' | 'outbound' | 'error' | 'system' | 'bot'
+    const sinceId = req.query.since_id ? parseInt(req.query.since_id, 10) : null;
+    const search = req.query.search ? String(req.query.search).toLowerCase() : null;
+
+    let filtered = systemLogs;
+
+    if (sinceId !== null) {
+        filtered = filtered.filter(l => l.id > sinceId);
+    }
+
+    if (type && type !== 'all') {
+        if (type === 'bot') {
+            filtered = filtered.filter(l => l.type === 'inbound' || l.type === 'bot_reply');
+        } else if (type === 'error') {
+            filtered = filtered.filter(l => l.level === 'ERROR' || l.level === 'WARNING' || l.type === 'error');
+        } else {
+            filtered = filtered.filter(l => l.type === type);
+        }
+    }
+
+    if (search) {
+        filtered = filtered.filter(l => 
+            l.message.toLowerCase().includes(search) || 
+            (l.details && JSON.stringify(l.details).toLowerCase().includes(search))
+        );
+    }
+
+    const sliced = filtered.slice(-limit);
+
+    res.json({
+        success: true,
+        count: sliced.length,
+        total_available: systemLogs.length,
+        last_id: systemLogs.length > 0 ? systemLogs[systemLogs.length - 1].id : 0,
+        logs: sliced
+    });
+});
+
+// Clear Logs
+app.delete('/logs', authenticate, (req, res) => {
+    systemLogs.length = 0;
+    try {
+        fs.writeFileSync(LOG_FILE, '');
+    } catch (e) {}
+    logEvent('system', 'INFO', 'Log history cleared by administrator');
+    res.json({
+        success: true,
+        message: 'Log buffer and file cleared successfully'
+    });
+});
+
 // Send Text Message
 app.post('/send/text', authenticate, async (req, res) => {
     if (connectionState !== 'connected' || !sock) {
+        logEvent('error', 'WARNING', `Cannot dispatch text: Gateway not connected (State: ${connectionState})`);
         return res.status(503).json({
             success: false,
             error: 'WhatsApp device is not connected. Current state: ' + connectionState
@@ -372,13 +571,19 @@ app.post('/send/text', authenticate, async (req, res) => {
             storeMessage(result.key.id, result.message);
         }
 
+        logEvent('outbound', 'SUCCESS', `Text message dispatched to ${jid}: "${message.substring(0, 80)}"`, {
+            to: jid,
+            messageId: result?.key?.id,
+            snippet: message.substring(0, 120)
+        });
+
         res.json({
             success: true,
             messageId: result?.key?.id,
             to: jid
         });
     } catch (err) {
-        console.error('[WhatsApp Daemon] Send text error:', err);
+        logEvent('error', 'ERROR', `Send text error to ${to}: ${err.message}`, { error: err.message });
         res.status(500).json({
             success: false,
             error: err.message
@@ -389,6 +594,7 @@ app.post('/send/text', authenticate, async (req, res) => {
 // Send File / PDF / Image
 app.post('/send/file', authenticate, async (req, res) => {
     if (connectionState !== 'connected' || !sock) {
+        logEvent('error', 'WARNING', `Cannot dispatch file: Gateway not connected (State: ${connectionState})`);
         return res.status(503).json({
             success: false,
             error: 'WhatsApp device is not connected. Current state: ' + connectionState
@@ -422,6 +628,13 @@ app.post('/send/file', authenticate, async (req, res) => {
             storeMessage(result.key.id, result.message);
         }
 
+        logEvent('outbound', 'SUCCESS', `File document dispatched to ${jid}: ${docName} (${caption ? '"' + caption.substring(0, 60) + '"' : 'no caption'})`, {
+            to: jid,
+            filename: docName,
+            mimetype: resolvedMime,
+            messageId: result?.key?.id
+        });
+
         res.json({
             success: true,
             messageId: result?.key?.id,
@@ -429,7 +642,7 @@ app.post('/send/file', authenticate, async (req, res) => {
             filename: docName
         });
     } catch (err) {
-        console.error('[WhatsApp Daemon] Send file error:', err);
+        logEvent('error', 'ERROR', `Send file error to ${to}: ${err.message}`, { error: err.message });
         res.status(500).json({
             success: false,
             error: err.message
@@ -439,6 +652,7 @@ app.post('/send/file', authenticate, async (req, res) => {
 
 // Start Daemon Server
 app.listen(PORT, '0.0.0.0', () => {
+    logEvent('system', 'INFO', `PMCC-UK WhatsApp Daemon initialized on port ${PORT}`);
     console.log(`====================================================`);
     console.log(`  PMCC-UK WhatsApp Daemon running on port ${PORT}`);
     console.log(`  Session Path: ${SESSION_DIR}`);

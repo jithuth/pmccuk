@@ -112,6 +112,55 @@ class WhatsAppController extends Controller
     }
 
     /**
+     * Revoke WhatsApp Session (Standard Unlink or Force Purge)
+     */
+    public function revoke(Request $request)
+    {
+        $force = $request->boolean('force', false);
+        $result = OpenWaService::revoke($force);
+
+        if ($result['success']) {
+            return response()->json([
+                'success' => true,
+                'message' => $result['message']
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => $result['message']
+        ], 500);
+    }
+
+    /**
+     * Stream or Fetch WhatsApp Gateway & Bot Logs
+     */
+    public function logs(Request $request)
+    {
+        $limit = min((int) $request->input('limit', 100), 500);
+        $type = $request->input('type');
+        $sinceId = $request->has('since_id') ? (int) $request->input('since_id') : null;
+        $search = $request->input('search');
+
+        $data = OpenWaService::getLogs($limit, $type, $sinceId, $search);
+
+        return response()->json($data);
+    }
+
+    /**
+     * Clear WhatsApp Gateway Logs
+     */
+    public function clearLogs()
+    {
+        $success = OpenWaService::clearLogs();
+
+        return response()->json([
+            'success' => $success,
+            'message' => $success ? 'WhatsApp Gateway logs cleared successfully.' : 'Failed to clear daemon logs.'
+        ]);
+    }
+
+    /**
      * Dispatch Targeted Community Broadcast
      */
     public function broadcast(Request $request)

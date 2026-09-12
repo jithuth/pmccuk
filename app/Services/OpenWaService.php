@@ -168,6 +168,146 @@ class OpenWaService
     }
 
     /**
+     * Revoke session and purge credentials (supports force purge)
+     */
+    public static function revoke(bool $force = false): array
+    {
+        try {
+            $response = Http::timeout(8)
+                ->withToken(self::getApiKey())
+                ->post(self::getServerUrl() . '/session/revoke', [
+                    'force' => $force
+                ]);
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'message' => $response->json('message') ?? 'WhatsApp session revoked successfully.'
+                ];
+            }
+
+            return [
+                'success' => false,
+                'message' => $response->json('error') ?? 'Failed to revoke WhatsApp session from daemon.'
+            ];
+        } catch (\Throwable $e) {
+            Log::error('[WhatsApp] Revoke error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Connection error contacting WhatsApp daemon: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Fetch Live Gateway & Bot Logs from daemon, with fallback to Laravel logs
+     */
+    public static function getLogs(int $limit = 100, ?string $type = null, ?int $sinceId = null, ?string $search = null): array
+    {
+        $params = ['limit' => $limit];
+        if ($type) $params['type'] = $type;
+        if ($sinceId !== null) $params['since_id'] = $sinceId;
+        if ($search) $params['search'] = $search;
+
+        try {
+            $response = Http::timeout(4)
+                ->withToken(self::getApiKey())
+                ->get(self::getServerUrl() . '/logs', $params);
+
+            if ($response->successful()) {
+                return $response->json();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[WhatsApp] Daemon log fetch failed, falling back to local logs: ' . $e->getMessage());
+        }
+
+        // Fallback: extract WhatsApp entries from storage/logs/laravel.log
+        return self::getLocalLaravelWhatsAppLogs($limit, $search);
+    }
+
+    /**
+     * Clear daemon and local log buffer
+     */
+    public static function clearLogs(): bool
+    {
+        try {
+            $response = Http::timeout(4)
+                ->withToken(self::getApiKey())
+                ->delete(self::getServerUrl() . '/logs');
+
+            return $response->successful();
+        } catch (\Throwable $e) {
+            Log::error('[WhatsApp] Clear logs error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Parse local Laravel log file for WhatsApp-related entries as fallback
+     */
+    protected static function getLocalLaravelWhatsAppLogs(int $limit = 50, ?string $search = null): array
+    {
+        $logFile = storage_path('logs/laravel.log');
+        if (!file_exists($logFile)) {
+            return ['success' => true, 'count' => 0, 'logs' => []];
+        }
+
+        $lines = @file($logFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!$lines) {
+            return ['success' => true, 'count' => 0, 'logs' => []];
+        }
+
+        $waLines = [];
+        $id = 1;
+        foreach (array_reverse($lines) as $line) {
+            if (str_contains($line, '[WhatsApp') || str_contains($line, 'whatsapp') || str_contains($line, 'WhatsAppWebhookController')) {
+                if ($search && !str_contains(strtolower($line), strtolower($search))) {
+                    continue;
+                }
+
+                $level = 'INFO';
+                if (str_contains($line, '.ERROR')) $level = 'ERROR';
+                elseif (str_contains($line, '.WARNING')) $level = 'WARNING';
+                elseif (str_contains($line, 'sent successfully') || str_contains($line, 'connected')) $level = 'SUCCESS';
+
+                $type = 'system';
+                if (str_contains($line, 'Inbound') || str_contains($line, 'Received')) $type = 'inbound';
+                elseif (str_contains($line, 'sent') || str_contains($line, 'dispatched') || str_contains($line, 'File')) $type = 'outbound';
+
+                // Extract timestamp if present [YYYY-MM-DD HH:MM:SS]
+                $ts = now()->toISOString();
+                if (preg_match('/\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]/', $line, $m)) {
+                    $ts = $m[1];
+                }
+
+                // Extract clean message
+                $msg = preg_replace('/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\].*?(local\.\w+: )?/', '', $line);
+
+                $waLines[] = [
+                    'id' => $id++,
+                    'timestamp' => $ts,
+                    'type' => $type,
+                    'level' => $level,
+                    'message' => trim($msg),
+                    'details' => ['source' => 'laravel.log']
+                ];
+
+                if (count($waLines) >= $limit) {
+                    break;
+                }
+            }
+        }
+
+        return [
+            'success' => true,
+            'count' => count($waLines),
+            'total_available' => count($waLines),
+            'last_id' => count($waLines),
+            'logs' => array_reverse($waLines)
+        ];
+    }
+
+    /**
      * Send Plain Text Message
      */
     public static function sendText(string $phone, string $message): bool
