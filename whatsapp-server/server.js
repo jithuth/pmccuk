@@ -13,6 +13,17 @@ const {
     fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
 
+// ── Suppress noisy libsignal Bad MAC & Session Error spam from PM2 stderr ──
+const origStderrWrite = process.stderr.write.bind(process.stderr);
+process.stderr.write = function (chunk, encoding, callback) {
+    const str = typeof chunk === 'string' ? chunk : (chunk ? chunk.toString('utf8') : '');
+    if (str.includes('Bad MAC') || str.includes('Failed to decrypt message with any known session') || str.includes('MessageCounterError') || str.includes('Session error:')) {
+        if (typeof callback === 'function') callback();
+        return true;
+    }
+    return origStderrWrite(chunk, encoding, callback);
+};
+
 // ── Memory & Retry Cache ──
 let NodeCacheModule = null;
 try {
