@@ -104,20 +104,33 @@
         }
 
         /* ── High-Tech Viewfinder QR Box ── */
+        .viewfinder-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px 0;
+            width: 100%;
+        }
+
         .viewfinder-box {
             position: relative;
             background: #ffffff;
+            width: 276px;
+            height: 276px;
             padding: 16px;
-            border-radius: 24px;
-            box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
-            display: inline-block;
+            border-radius: 26px;
+            box-shadow: 0 16px 40px -10px rgba(37, 211, 102, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
+            margin: 0 auto;
         }
 
         .viewfinder-bracket {
             position: absolute;
-            width: 24px;
-            height: 24px;
+            width: 28px;
+            height: 28px;
             border-color: #25D366;
             border-style: solid;
             pointer-events: none;
@@ -125,41 +138,41 @@
         }
 
         .viewfinder-tl {
-            top: 8px;
-            left: 8px;
-            border-width: 3.5px 0 0 3.5px;
-            border-radius: 8px 0 0 0;
+            top: 10px;
+            left: 10px;
+            border-width: 4px 0 0 4px;
+            border-radius: 10px 0 0 0;
         }
 
         .viewfinder-tr {
-            top: 8px;
-            right: 8px;
-            border-width: 3.5px 3.5px 0 0;
-            border-radius: 0 8px 0 0;
+            top: 10px;
+            right: 10px;
+            border-width: 4px 4px 0 0;
+            border-radius: 0 10px 0 0;
         }
 
         .viewfinder-bl {
-            bottom: 8px;
-            left: 8px;
-            border-width: 0 0 3.5px 3.5px;
-            border-radius: 0 0 0 8px;
+            bottom: 10px;
+            left: 10px;
+            border-width: 0 0 4px 4px;
+            border-radius: 0 0 0 10px;
         }
 
         .viewfinder-br {
-            bottom: 8px;
-            right: 8px;
-            border-width: 0 3.5px 3.5px 0;
-            border-radius: 0 0 8px 0;
+            bottom: 10px;
+            right: 10px;
+            border-width: 0 4px 4px 0;
+            border-radius: 0 0 10px 0;
         }
 
         /* Laser Scanning Line */
         .laser-line {
             position: absolute;
-            left: 12px;
-            right: 12px;
-            height: 2px;
+            left: 16px;
+            right: 16px;
+            height: 2.5px;
             background: linear-gradient(90deg, transparent, #25D366 50%, transparent);
-            box-shadow: 0 0 12px #25D366;
+            box-shadow: 0 0 14px 2px rgba(37, 211, 102, 0.7);
             animation: laser-sweep 2.8s ease-in-out infinite;
             z-index: 4;
             pointer-events: none;
@@ -167,7 +180,7 @@
 
         @keyframes laser-sweep {
             0% {
-                top: 12px;
+                top: 14px;
                 opacity: 0;
             }
 
@@ -180,9 +193,85 @@
             }
 
             100% {
-                top: 250px;
+                top: 258px;
                 opacity: 0;
             }
+        }
+
+        /* ── Redefined Pairing Indication ── */
+        .pairing-guide-card {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid rgba(0, 0, 0, 0.07);
+            border-radius: 20px;
+            padding: 16px 18px;
+            margin: 18px auto 0;
+            max-width: 420px;
+            box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.03);
+            text-align: left;
+        }
+
+        .pairing-step-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .pairing-step-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .pairing-step-row:hover {
+            border-color: rgba(37, 211, 102, 0.4);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            transform: translateY(-1px);
+        }
+
+        .pairing-step-num {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #0f172a;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .pairing-step-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+
+        .pairing-step-text {
+            flex-grow: 1;
+            line-height: 1.35;
+        }
+
+        .pairing-step-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 1px;
+        }
+
+        .pairing-step-desc {
+            font-size: 11px;
+            color: #64748b;
         }
 
         /* ── Live WhatsApp Chat Simulator ── */
@@ -723,7 +812,7 @@
 
                         <!-- STATE B: QR SCANNER (Viewfinder Scanner View) -->
                         <div id="panelQr" class="{{ ($status['connected'] ?? false) ? 'd-none' : '' }}">
-                            <div class="my-2">
+                            <div class="viewfinder-wrapper my-2">
                                 <div class="viewfinder-box">
                                     <span class="viewfinder-bracket viewfinder-tl"></span>
                                     <span class="viewfinder-tr viewfinder-bracket"></span>
@@ -732,57 +821,85 @@
                                     <div class="laser-line" id="laserLine" style="display:none;"></div>
 
                                     <div id="qrContainer"
-                                        class="position-relative d-flex align-items-center justify-content-center"
-                                        style="width:250px; height:250px;">
+                                        style="width: 244px; height: 244px; position: relative; display: flex; align-items: center; justify-content: center; margin: 0 auto; overflow: hidden; border-radius: 14px; background: #ffffff;">
                                         <img id="qrImage" src="" alt="WhatsApp QR Code" class="rounded-3"
-                                            style="width:240px; height:240px; display:none; object-fit:contain;">
+                                            style="width: 240px; height: 240px; display: none; object-fit: contain; margin: auto;">
                                         <div id="qrSpinner"
-                                            style="display: flex; flex-direction: column; align-items: center; justify-content: center; width:100%; height:100%;">
-                                            <div class="spinner-border text-success mb-3"
-                                                style="width:2.5rem; height:2.5rem;" role="status"></div>
-                                            <span class="text-xs fw-bold text-muted">Contacting WhatsApp Daemon...</span>
+                                            style="position: absolute; inset: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #ffffff; z-index: 2; border-radius: 14px;">
+                                            <div class="spinner-border text-success mb-2"
+                                                style="width: 2.4rem; height: 2.4rem;" role="status"></div>
+                                            <span class="text-xs fw-bold text-dark">Generating fresh QR code...</span>
+                                            <span class="text-xxs text-muted mt-1">Multi-Device socket ready</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- 4 Step Guide -->
-                            <div class="bg-light p-3 rounded-4 text-start mx-auto mt-4 border border-light"
-                                style="max-width:400px;">
-                                <div
-                                    class="fw-bold text-xs uppercase tracking-wider text-muted mb-2 d-flex align-items-center gap-1.5">
-                                    <i class="fas fa-mobile-screen-button text-primary"></i> 4 Simple Steps to Pair
+                            <!-- ── Redefined Pairing Indication Stepper Card ── -->
+                            <div class="pairing-guide-card">
+                                <div class="d-flex justify-content-between align-items-center mb-2.5 pb-2 border-bottom border-light">
+                                    <div class="d-flex align-items-center gap-1.5">
+                                        <span class="radar-dot green"></span>
+                                        <span class="fw-bold text-xs uppercase tracking-wider text-dark">Device Pairing Flow</span>
+                                    </div>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 rounded-pill text-xxs fw-bold">
+                                        <i class="fas fa-lock me-1"></i> Multi-Device v2 E2EE
+                                    </span>
                                 </div>
-                                <div class="d-flex flex-column gap-2 text-xs text-secondary">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="badge bg-white text-dark border rounded-circle"
-                                            style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;">1</span>
-                                        <span>Open <strong>WhatsApp</strong> on your mobile phone</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="badge bg-white text-dark border rounded-circle"
-                                            style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;">2</span>
-                                        <span>Go to <strong>Settings</strong> &gt; <strong>Linked Devices</strong></span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="badge bg-white text-dark border rounded-circle"
-                                            style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;">3</span>
-                                        <span>Tap <strong>Link a Device</strong></span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="badge bg-white text-dark border rounded-circle"
-                                            style="width:20px;height:20px;display:flex;align-items:center;justify-content:center;">4</span>
-                                        <span>Scan this QR code to complete pairing</span>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div class="mt-3 text-center">
-                                <button type="button" class="btn btn-link text-secondary text-xs text-decoration-none py-1"
-                                    onclick="openRevokeModal(true)">
-                                    <i class="fas fa-redo-alt me-1"></i> Stuck or Stale Session? Force Reset Gateway &amp;
-                                    Purge Cache
-                                </button>
+                                <div class="pairing-step-row">
+                                    <div class="pairing-step-num">1</div>
+                                    <div class="pairing-step-icon bg-success-subtle text-success">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </div>
+                                    <div class="pairing-step-text">
+                                        <div class="pairing-step-title">Open WhatsApp</div>
+                                        <div class="pairing-step-desc">Launch WhatsApp application on your smartphone</div>
+                                    </div>
+                                </div>
+
+                                <div class="pairing-step-row">
+                                    <div class="pairing-step-num">2</div>
+                                    <div class="pairing-step-icon bg-primary-subtle text-primary">
+                                        <i class="fas fa-mobile-screen"></i>
+                                    </div>
+                                    <div class="pairing-step-text">
+                                        <div class="pairing-step-title">Navigate to Linked Devices</div>
+                                        <div class="pairing-step-desc">Tap <strong>Settings ⚙️</strong> (iPhone) or <strong>Menu ⋮</strong> (Android) &gt; <strong>Linked Devices</strong></div>
+                                    </div>
+                                </div>
+
+                                <div class="pairing-step-row">
+                                    <div class="pairing-step-num">3</div>
+                                    <div class="pairing-step-icon bg-warning-subtle text-warning">
+                                        <i class="fas fa-qrcode"></i>
+                                    </div>
+                                    <div class="pairing-step-text">
+                                        <div class="pairing-step-title">Tap "Link a Device"</div>
+                                        <div class="pairing-step-desc">Authenticate with Face ID, Fingerprint, or PIN</div>
+                                    </div>
+                                </div>
+
+                                <div class="pairing-step-row">
+                                    <div class="pairing-step-num">4</div>
+                                    <div class="pairing-step-icon bg-info-subtle text-info">
+                                        <i class="fas fa-camera"></i>
+                                    </div>
+                                    <div class="pairing-step-text">
+                                        <div class="pairing-step-title">Scan Viewfinder Frame</div>
+                                        <div class="pairing-step-desc">Point camera directly at the green bracketed QR code above</div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-2.5 pt-2 border-top border-light d-flex justify-content-between align-items-center">
+                                    <span class="text-xxs text-muted d-flex align-items-center gap-1">
+                                        <i class="fas fa-bolt text-success"></i> Instant auto-connect upon scan
+                                    </span>
+                                    <button type="button" class="btn btn-link p-0 text-danger text-xxs text-decoration-none fw-semibold"
+                                        onclick="openRevokeModal(true)">
+                                        <i class="fas fa-redo-alt me-0.5"></i> Force Reset Gateway
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -1555,7 +1672,9 @@
             // Timer Loop (15s)
             pollInterval = setInterval(function () {
                 countdown--;
-                if (timerVal) timerVal.textContent = countdown;
+                if (timerVal) {
+                    timerVal.textContent = countdown > 0 ? countdown : '15';
+                }
                 if (countdown <= 0) {
                     countdown = 15;
                     fetchQrAndStatus();
