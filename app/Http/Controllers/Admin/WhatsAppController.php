@@ -92,6 +92,63 @@ class WhatsAppController extends Controller
     }
 
     /**
+     * Dispatch a synchronized Test Admin Alert to both WhatsApp and Telegram
+     */
+    public function testAdminAlert(Request $request)
+    {
+        $rawNumbers = $request->input('phone') ?: OpenWaService::getSetting('whatsapp_admin_numbers', '');
+        
+        if (empty($rawNumbers)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No admin mobile number provided. Please enter an admin phone number in the field.'
+            ], 422);
+        }
+
+        $testAlert = "🛡️ <b>[PMCC-UK ADMIN SECURITY ALERT]</b>\n\n" .
+            "📅 <b>Timestamp:</b> " . now()->format('d M Y, H:i:s') . " UTC\n" .
+            "🌐 <b>Environment:</b> Live Production (pmccuk.org)\n" .
+            "👤 <b>Triggered By:</b> " . (auth()->user()?->name ?? 'Administrator') . "\n" .
+            "⚡ <b>Pipeline:</b> Synchronized WhatsApp & Telegram Admin Alert\n\n" .
+            "📝 <b>Alert Details:</b> This is an official verified test alert confirming that all system errors, intrusions, member activities, and transaction events are instantly delivered to your WhatsApp.";
+
+        // 1. Dispatch to Telegram
+        $telegramSent = false;
+        try {
+            $telegramSent = \App\Services\TelegramService::sendMessage($testAlert);
+        } catch (\Throwable $e) {}
+
+        // 2. Dispatch to WhatsApp
+        $numList = array_filter(array_map('trim', preg_split('/[,\n;]+/', $rawNumbers)));
+        $sentCount = 0;
+        $targets = [];
+
+        foreach ($numList as $n) {
+            $formatted = OpenWaService::formatPhone($n);
+            if ($formatted) {
+                $targets[] = '+' . $formatted;
+                $waMsg = OpenWaService::convertHtmlToWhatsAppMarkdown($testAlert);
+                if (OpenWaService::sendText($n, $waMsg)) {
+                    $sentCount++;
+                }
+            }
+        }
+
+        if ($sentCount > 0) {
+            $tgNote = $telegramSent ? ' and Telegram channel' : '';
+            return response()->json([
+                'success' => true,
+                'message' => "Admin test alert successfully delivered to {$sentCount} WhatsApp admin(s) (" . implode(', ', $targets) . "){$tgNote}!"
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => "Failed to deliver WhatsApp test alert. Please verify your phone number and ensure the WhatsApp daemon is connected."
+        ], 422);
+    }
+
+    /**
      * Logout & Unlink session from daemon
      */
     public function logout()

@@ -446,13 +446,17 @@
                             <span class="badge bg-light text-success border px-2 py-0.5 fw-bold">&lt; 3s Delivery</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center py-0.5">
-                            <span><i class="fas fa-robot text-danger me-2"></i> Telegram Button Approvals</span>
-                            <span class="badge bg-light text-success border px-2 py-0.5 fw-bold">Synchronized</span>
+                            <span><i class="fas fa-shield-alt text-danger me-2"></i> Telegram &amp; WhatsApp Admin Alerts</span>
+                            <span class="badge bg-light text-success border px-2 py-0.5 fw-bold">Live Mirrored</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="pt-3 border-top text-end">
+                <div class="pt-3 border-top d-flex justify-content-between align-items-center">
+                    <button type="button" id="btnTestAdminAlertFromWaHub" class="btn btn-outline-dark btn-xs rounded-pill px-2.5 py-1 text-xxs fw-bold d-inline-flex align-items-center gap-1 shadow-sm">
+                        <i class="fas fa-bell text-warning"></i>
+                        <span>Test Admin Alert</span>
+                    </button>
                     <a href="{{ route('admin.config.settings') }}#tab-whatsapp" class="text-xs text-primary fw-bold text-decoration-none">
                         Manage trigger switches <i class="fas fa-arrow-right ms-1"></i>
                     </a>
@@ -1735,6 +1739,38 @@ document.addEventListener('DOMContentLoaded', function() {
             btnSubmitTest.innerHTML = '<i class="fas fa-paper-plane"></i> <span>Dispatch Test Message</span>';
             testAlert.className = 'alert alert-danger text-xs border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 shadow-sm mt-3';
             testAlert.innerHTML = `<i class="fas fa-wifi fs-5"></i> <div><strong>Network Error:</strong> ${err}</div>`;
+        });
+    });
+
+    // Quick Test Admin Alert Trigger from Telemetry Card
+    const btnTestAdminAlertHub = document.getElementById('btnTestAdminAlertFromWaHub');
+    btnTestAdminAlertHub?.addEventListener('click', function() {
+        if (!confirm('Dispatch a live synchronized Test Admin Security Alert to WhatsApp & Telegram right now?')) {
+            return;
+        }
+
+        btnTestAdminAlertHub.disabled = true;
+        btnTestAdminAlertHub.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Dispatching...';
+
+        fetch('{{ route('admin.whatsapp.test-admin-alert') }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({})
+        })
+        .then(res => res.json())
+        .then(data => {
+            btnTestAdminAlertHub.disabled = false;
+            btnTestAdminAlertHub.innerHTML = '<i class="fas fa-bell text-warning"></i> <span>Test Admin Alert</span>';
+            alert(data.message || (data.success ? 'Delivered!' : 'Failed.'));
+            if (typeof fetchLogs === 'function') fetchLogs();
+        })
+        .catch(err => {
+            btnTestAdminAlertHub.disabled = false;
+            btnTestAdminAlertHub.innerHTML = '<i class="fas fa-bell text-warning"></i> <span>Test Admin Alert</span>';
+            alert('Network error: ' + err);
         });
     });
 });

@@ -371,12 +371,19 @@
 
                             <!-- Admin Alert Recipient Numbers -->
                             <div class="card border rounded-4 p-4 bg-light shadow-sm mb-2">
-                                <label class="form-label fw-bold text-xs uppercase tracking-wider text-muted mb-1.5">Admin Mobile Number(s) for Security Alerts</label>
+                                <div class="d-flex justify-content-between align-items-center mb-1.5">
+                                    <label class="form-label fw-bold text-xs uppercase tracking-wider text-muted mb-0">Admin Mobile Number(s) for Security Alerts</label>
+                                    <button type="button" id="btnTestAdminAlertSettings" class="btn btn-dark btn-xs rounded-pill px-3 py-1.5 fw-bold text-xs d-inline-flex align-items-center gap-1.5 shadow-sm">
+                                        <i class="fab fa-whatsapp text-success"></i>
+                                        <span>Send Test Alert</span>
+                                    </button>
+                                </div>
                                 <div class="input-group">
                                     <span class="input-group-text bg-white border-0 text-muted"><i class="fas fa-phone"></i></span>
-                                    <input type="text" name="whatsapp_admin_numbers" class="form-control form-control-lg bg-white border-0 text-sm fw-bold" value="{{ $settings['whatsapp_admin_numbers'] ?? '' }}" placeholder="e.g. 07123456789, +447987654321">
+                                    <input type="text" name="whatsapp_admin_numbers" id="inputAdminNumbersSettings" class="form-control form-control-lg bg-white border-0 text-sm fw-bold" value="{{ $settings['whatsapp_admin_numbers'] ?? '' }}" placeholder="e.g. 07901296858, +447901296858, 918921569980">
                                 </div>
-                                <div class="form-text text-xs text-muted mt-1.5">Comma-separated mobile numbers that should receive admin security and intrusion notifications.</div>
+                                <div class="form-text text-xs text-muted mt-1.5">Comma-separated mobile numbers that will receive real-time admin intrusion, error, and system alerts identical to Telegram.</div>
+                                <div id="adminAlertSettingsResult" class="alert d-none text-xs rounded-3 p-3 mt-2.5 mb-0"></div>
                             </div>
                         </div>
                     </div>
@@ -487,6 +494,52 @@
             const el = document.querySelector('[data-bs-target="#whatsappTab"]');
             if (el) bootstrap.Tab.getOrCreateInstance(el).show();
         }
+
+        // ── Test Admin Alert Button Handler ──
+        const btnTestAdminAlert = document.getElementById('btnTestAdminAlertSettings');
+        const alertResult = document.getElementById('adminAlertSettingsResult');
+        const inputNumbers = document.getElementById('inputAdminNumbersSettings');
+
+        btnTestAdminAlert?.addEventListener('click', function() {
+            const phone = inputNumbers?.value.trim();
+            if (!phone) {
+                alertResult.className = 'alert alert-warning border-0 bg-warning-subtle text-dark p-3 rounded-3 d-flex align-items-center gap-2 mt-2.5';
+                alertResult.innerHTML = '<i class="fas fa-exclamation-triangle text-warning fs-5"></i> <div>Please enter at least one admin phone number in the field.</div>';
+                return;
+            }
+
+            btnTestAdminAlert.disabled = true;
+            btnTestAdminAlert.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Sending...';
+            alertResult.className = 'alert d-none text-xs';
+
+            fetch('{{ route('admin.whatsapp.test-admin-alert') }}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ phone: phone })
+            })
+            .then(res => res.json())
+            .then(data => {
+                btnTestAdminAlert.disabled = false;
+                btnTestAdminAlert.innerHTML = '<i class="fab fa-whatsapp text-success"></i> <span>Send Test Alert</span>';
+
+                if (data.success) {
+                    alertResult.className = 'alert alert-success border-0 bg-success-subtle text-success p-3 rounded-3 d-flex align-items-center gap-2 mt-2.5 shadow-sm';
+                    alertResult.innerHTML = `<i class="fas fa-check-circle fs-5"></i> <div><strong>Delivered!</strong> ${data.message}</div>`;
+                } else {
+                    alertResult.className = 'alert alert-danger border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 mt-2.5 shadow-sm';
+                    alertResult.innerHTML = `<i class="fas fa-exclamation-circle fs-5"></i> <div><strong>Failed:</strong> ${data.message || 'Error occurred.'}</div>`;
+                }
+            })
+            .catch(err => {
+                btnTestAdminAlert.disabled = false;
+                btnTestAdminAlert.innerHTML = '<i class="fab fa-whatsapp text-success"></i> <span>Send Test Alert</span>';
+                alertResult.className = 'alert alert-danger border-0 bg-danger-subtle text-danger p-3 rounded-3 d-flex align-items-center gap-2 mt-2.5 shadow-sm';
+                alertResult.innerHTML = `<i class="fas fa-wifi fs-5"></i> <div><strong>Network Error:</strong> ${err}</div>`;
+            });
+        });
     });
 </script>
 @endsection

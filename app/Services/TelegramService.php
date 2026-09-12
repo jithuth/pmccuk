@@ -49,6 +49,13 @@ class TelegramService
             }
         }
 
+        // Synchronously mirror admin alert to WhatsApp Administrators
+        try {
+            \App\Services\OpenWaService::sendAdminAlert($message);
+        } catch (\Throwable $waErr) {
+            // Non-blocking
+        }
+
         return $allSuccessful;
     }
 
@@ -249,6 +256,13 @@ class TelegramService
                 Log::error("Telegram sendPhoto Exception for chat ID {$id}: " . $e->getMessage());
                 $allSuccessful = false;
             }
+        }
+
+        // Synchronously mirror admin photo alert to WhatsApp Administrators
+        try {
+            \App\Services\OpenWaService::sendAdminPhotoAlert($photoPath, $caption);
+        } catch (\Throwable $waErr) {
+            // Non-blocking
         }
 
         return $allSuccessful;

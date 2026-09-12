@@ -492,6 +492,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::get('/status', [WhatsAppController::class, 'status'])->name('status');
                 Route::get('/qr', [WhatsAppController::class, 'qr'])->name('qr');
                 Route::post('/send-test', [WhatsAppController::class, 'sendTest'])->name('send-test');
+                Route::post('/test-admin-alert', [WhatsAppController::class, 'testAdminAlert'])->name('test-admin-alert');
                 Route::post('/broadcast', [WhatsAppController::class, 'broadcast'])->name('broadcast');
                 Route::post('/logout', [WhatsAppController::class, 'logout'])->name('logout');
                 Route::post('/revoke', [WhatsAppController::class, 'revoke'])->name('revoke');

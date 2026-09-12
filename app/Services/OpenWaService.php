@@ -14,6 +14,7 @@ class OpenWaService
      * Cache for settings
      */
     protected static ?array $settingsCache = null;
+    protected static bool $isSendingAdminAlert = false;
 
     /**
      * Retrieve a WhatsApp setting with fallback
@@ -643,11 +644,20 @@ class OpenWaService
     }
 
     /**
-     * 6. Send Security / Intrusion Alert to Administrators
+     * 6. Send Security / Intrusion / Event Alert to Administrators (Mirrors Telegram alerts)
      */
-    public static function sendAdminAlert(string $alertTitle, string $alertDetails): bool
+    public static function sendAdminAlert(string $titleOrMessage, ?string $alertDetails = null): bool
     {
-        if ((string) self::getSetting('whatsapp_notify_admin_security', '0') !== '1') {
+        if (self::$isSendingAdminAlert) {
+            return false;
+        }
+
+        if (!self::isEnabled()) {
+            return false;
+        }
+
+        $notifyEnabled = (string) self::getSetting('whatsapp_notify_admin_security', '1') === '1';
+        if (!$notifyEnabled) {
             return false;
         }
 
@@ -656,20 +666,115 @@ class OpenWaService
             return false;
         }
 
-        $numbers = array_filter(array_map('trim', explode(',', $rawNumbers)));
-        $message = "🚨 *PMCC-UK System Alert*\n\n" .
-            "⚠️ *{$alertTitle}*\n\n" .
-            "{$alertDetails}\n\n" .
-            "🕒 " . date('d M Y H:i:s');
+        $numbers = array_filter(array_map('trim', preg_split('/[,\n;]+/', $rawNumbers)));
+        if (empty($numbers)) {
+            return false;
+        }
 
+        if ($alertDetails !== null) {
+            $message = "🚨 *PMCC-UK System Alert*\n\n" .
+                "⚠️ *{$titleOrMessage}*\n\n" .
+                "{$alertDetails}\n\n" .
+                "🕒 " . date('d M Y H:i:s') . " UTC";
+        } else {
+            $message = self::convertHtmlToWhatsAppMarkdown($titleOrMessage);
+        }
+
+        self::$isSendingAdminAlert = true;
         $sentCount = 0;
-        foreach ($numbers as $num) {
-            if (self::sendText($num, $message)) {
-                $sentCount++;
+
+        try {
+            foreach ($numbers as $num) {
+                if (!empty($num)) {
+                    if (self::sendText($num, $message)) {
+                        $sentCount++;
+                    }
+                }
             }
+        } finally {
+            self::$isSendingAdminAlert = false;
         }
 
         return $sentCount > 0;
+    }
+
+    /**
+     * Send Admin Photo Alert (e.g. Webcam Intrusion / Login Capture)
+     */
+    public static function sendAdminPhotoAlert(string $photoPath, string $caption = ''): bool
+    {
+        if (self::$isSendingAdminAlert || !self::isEnabled() || !file_exists($photoPath)) {
+            return false;
+        }
+
+        $notifyEnabled = (string) self::getSetting('whatsapp_notify_admin_security', '1') === '1';
+        if (!$notifyEnabled) {
+            return false;
+        }
+
+        $rawNumbers = (string) self::getSetting('whatsapp_admin_numbers', '');
+        if (empty($rawNumbers)) {
+            return false;
+        }
+
+        $numbers = array_filter(array_map('trim', preg_split('/[,\n;]+/', $rawNumbers)));
+        if (empty($numbers)) {
+            return false;
+        }
+
+        $waCaption = self::convertHtmlToWhatsAppMarkdown($caption);
+        self::$isSendingAdminAlert = true;
+        $sentCount = 0;
+
+        try {
+            foreach ($numbers as $num) {
+                if (!empty($num)) {
+                    if (self::sendFile($num, $photoPath, 'admin_capture.jpg', $waCaption, 'image/jpeg')) {
+                        $sentCount++;
+                    }
+                }
+            }
+        } finally {
+            self::$isSendingAdminAlert = false;
+        }
+
+        return $sentCount > 0;
+    }
+
+    /**
+     * Convert HTML tags (Telegram format) to WhatsApp Markdown
+     */
+    public static function convertHtmlToWhatsAppMarkdown(string $html): string
+    {
+        // 1. Bold: <b>text</b>, <strong>text</strong> -> *text*
+        $text = preg_replace('/<\s*(?:b|strong)\s*>(.*?)<\s*\/\s*(?:b|strong)\s*>/is', '*$1*', $html);
+        
+        // 2. Italic: <i>text</i>, <em>text</em> -> _text_
+        $text = preg_replace('/<\s*(?:i|em)\s*>(.*?)<\s*\/\s*(?:i|em)\s*>/is', '_$1_', $text);
+        
+        // 3. Code: <code>text</code> -> ```text```
+        $text = preg_replace('/<\s*code\s*>(.*?)<\s*\/\s*code\s*>/is', '```$1```', $text);
+        
+        // 4. Pre: <pre>text</pre> -> ```\n...\n```
+        $text = preg_replace('/<\s*pre\s*>(.*?)<\s*\/\s*pre\s*>/is', "```\n$1\n```", $text);
+        
+        // 5. Links: <a href="...">text</a> -> text (...)
+        $text = preg_replace('/<a\s+[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)<\/a>/is', '$2 ($1)', $text);
+        
+        // 6. Breaks & Paragraphs
+        $text = preg_replace('/<\s*br\s*\/?>/i', "\n", $text);
+        $text = preg_replace('/<\s*\/p\s*>/i', "\n\n", $text);
+        
+        // 7. Strip any remaining tags
+        $text = strip_tags($text);
+        
+        // 8. Decode HTML entities
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        
+        // 9. Clean up excess empty lines
+        $text = preg_replace("/\n{3,}/", "\n\n", trim($text));
+
+        return $text;
     }
 
     /**
