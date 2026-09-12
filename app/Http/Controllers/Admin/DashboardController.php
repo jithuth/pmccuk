@@ -31,6 +31,7 @@ use Illuminate\Support\Carbon;
 use App\Models\EventBooking;
 use App\Models\FareRubricItem;
 use Illuminate\Support\Facades\Hash;
+use App\Services\OpenWaService;
 
 class DashboardController extends Controller
 {
@@ -1795,7 +1796,74 @@ class DashboardController extends Controller
         // Get unique log actions for filter dropdown
         $actions = ActivityLog::select('action')->distinct()->pluck('action');
 
-        return view('admin.config.db_logs', compact('activityLogs', 'systemLogs', 'actions'));
+        // 1. Fetch WhatsApp Server Gateway Log (whatsapp.log)
+        $whatsappLogs = [];
+        $whatsappLogFile = base_path('whatsapp-server/logs/whatsapp.log');
+        if (file_exists($whatsappLogFile) && filesize($whatsappLogFile) > 0) {
+            $fileSize = filesize($whatsappLogFile);
+            $readSize = min($fileSize, 250000); // 250KB tail
+            $fh = fopen($whatsappLogFile, 'r');
+            if ($fh) {
+                fseek($fh, -$readSize, SEEK_END);
+                $rawChunk = fread($fh, $readSize);
+                fclose($fh);
+                $lines = explode("\n", $rawChunk);
+                // Discard first partial line if seeked into middle
+                if ($readSize < $fileSize && count($lines) > 1) {
+                    array_shift($lines);
+                }
+                foreach (array_reverse($lines) as $l) {
+                    $trim = trim($l);
+                    if (empty($trim)) continue;
+                    $parsed = json_decode($trim, true);
+                    if ($parsed && is_array($parsed)) {
+                        $whatsappLogs[] = $parsed;
+                    } else {
+                        $whatsappLogs[] = [
+                            'timestamp' => '',
+                            'level' => 'INFO',
+                            'type' => 'raw',
+                            'message' => $trim,
+                            'details' => null
+                        ];
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback: If whatsapp.log is empty, fetch live in-memory logs from daemon
+        if (empty($whatsappLogs)) {
+            $daemonApiLogs = OpenWaService::getLogs(200);
+            if (!empty($daemonApiLogs['logs']) && is_array($daemonApiLogs['logs'])) {
+                $whatsappLogs = array_reverse($daemonApiLogs['logs']);
+            }
+        }
+
+        // 3. Fetch PM2 WhatsApp Daemon Error Logs
+        $whatsappPm2Errors = '';
+        $pm2ErrorPaths = [
+            base_path('../.pm2/logs/pmcc-whatsapp-daemon-error-0.log'),
+            ($_SERVER['HOME'] ?? '') . '/.pm2/logs/pmcc-whatsapp-daemon-error-0.log',
+            '/home/u601819832/.pm2/logs/pmcc-whatsapp-daemon-error-0.log',
+            base_path('whatsapp-server/logs/pm2-error.log')
+        ];
+        foreach ($pm2ErrorPaths as $path) {
+            if (!empty($path) && file_exists($path) && filesize($path) > 0) {
+                $errSize = min(filesize($path), 100000);
+                $fh = fopen($path, 'r');
+                if ($fh) {
+                    fseek($fh, -$errSize, SEEK_END);
+                    $whatsappPm2Errors = fread($fh, $errSize);
+                    fclose($fh);
+                    break;
+                }
+            }
+        }
+
+        // 4. WhatsApp Daemon Status Telemetry
+        $waStatus = OpenWaService::getStatus();
+
+        return view('admin.config.db_logs', compact('activityLogs', 'systemLogs', 'actions', 'whatsappLogs', 'whatsappPm2Errors', 'waStatus'));
     }
 
     public function clearSystemLogs()
@@ -1814,7 +1882,40 @@ class DashboardController extends Controller
                 ]);
             } catch (\Exception $e) {}
         }
-        return back()->with('success', 'Application log file cleared successfully!');
+        return redirect()->route('admin.config.db-logs', ['tab' => 'system'])->with('success', 'Application log file cleared successfully!');
+    }
+
+    public function clearWhatsAppLogs()
+    {
+        $this->ensureSuperAdmin();
+        $whatsappLogFile = base_path('whatsapp-server/logs/whatsapp.log');
+        if (file_exists($whatsappLogFile)) {
+            @file_put_contents($whatsappLogFile, '');
+        }
+
+        $pm2ErrorPaths = [
+            base_path('../.pm2/logs/pmcc-whatsapp-daemon-error-0.log'),
+            ($_SERVER['HOME'] ?? '') . '/.pm2/logs/pmcc-whatsapp-daemon-error-0.log',
+            '/home/u601819832/.pm2/logs/pmcc-whatsapp-daemon-error-0.log'
+        ];
+        foreach ($pm2ErrorPaths as $path) {
+            if (!empty($path) && file_exists($path)) {
+                @file_put_contents($path, '');
+            }
+        }
+
+        OpenWaService::clearLogs();
+
+        try {
+            ActivityLog::create([
+                'user_type' => 'admin',
+                'action' => 'whatsapp_logs_cleared',
+                'details' => 'WhatsApp Server & Gateway logs cleared by SuperAdmin',
+                'ip_address' => request()->ip()
+            ]);
+        } catch (\Exception $e) {}
+
+        return redirect()->route('admin.config.db-logs', ['tab' => 'whatsapp'])->with('success', 'WhatsApp Server logs cleared successfully!');
     }
     public function ipTool()
     {

@@ -478,6 +478,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::get('/legal', [DashboardController::class, 'legal'])->name('legal');
                 Route::get('/db-logs', [DashboardController::class, 'dbLogs'])->name('db-logs');
                 Route::post('/db-logs/clear', [DashboardController::class, 'clearSystemLogs'])->name('db-logs.clear');
+                Route::post('/db-logs/whatsapp-clear', [DashboardController::class, 'clearWhatsAppLogs'])->name('db-logs.whatsapp-clear');
                 Route::get('/ip-tool', [DashboardController::class, 'ipTool'])->name('ip-tool');
                 Route::get('/terminal', [DashboardController::class, 'terminal'])->name('terminal');
                 Route::post('/terminal/run', [DashboardController::class, 'runTerminalCommand'])->name('terminal.run');

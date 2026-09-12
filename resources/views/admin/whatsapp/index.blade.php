@@ -2049,6 +2049,35 @@
                         </div>
                     </div>
 
+                    <!-- Batch Pacing & Anti-Ban Cooldown Card (Batches of 20, 3-min gap) -->
+                    <div id="liveBcCooldownCard" class="card border-warning border-opacity-50 shadow-sm rounded-3 p-3 mb-3 bg-warning bg-opacity-10 d-none">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="p-2 rounded-circle bg-warning text-dark">
+                                    <i class="fas fa-shield-virus fs-5"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark text-xs mb-0">
+                                        <span id="liveBcBatchBadge" class="badge bg-dark text-white rounded-pill px-2 py-0.5 text-xxs me-1">Batch 1 of 4 Completed</span>
+                                        Anti-Ban Safety Cooldown Active (20 Sent)
+                                    </div>
+                                    <span class="text-muted text-xxs">
+                                        WhatsApp socket safety gap (3 mins) to prevent account restriction or rate-limit blocks.
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="text-center px-2.5 py-1 bg-white rounded border shadow-sm">
+                                    <div class="text-xxs text-muted text-uppercase fw-bold">Next Batch In</div>
+                                    <div class="fs-5 fw-bold text-danger font-monospace" id="liveBcCooldownTimer">03:00</div>
+                                </div>
+                                <button type="button" class="btn btn-warning btn-sm rounded-pill text-xs fw-bold px-3 shadow-sm" onclick="skipCooldownNow()">
+                                    <i class="fas fa-forward me-1"></i> Send Next Batch Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Live Delivery Activity Feed -->
                     <div class="card border-0 shadow-sm rounded-3 overflow-hidden bg-white">
                         <div class="card-header bg-white border-bottom py-2 px-3 d-flex justify-content-between align-items-center">
@@ -3410,9 +3439,24 @@
             let liveFailed = 0;
             let livePending = 0;
 
+            // ── Anti-Ban Batching Parameters (20 recipients / 3-minute gap) ──
+            const BATCH_SIZE_LIMIT = 20; // 20 recipients per batch
+            const COOLDOWN_SECONDS_TOTAL = 180; // 3-minute gap (180 seconds)
+            let recipientsInCurrentBatch = 0;
+            let currentBatchIndex = 1;
+            let cooldownTimerId = null;
+            let cooldownRemaining = 0;
+            let isCooldownActive = false;
+
             function formatLogTimestamp() {
                 const now = new Date();
                 return now.toTimeString().split(' ')[0];
+            }
+
+            function formatCooldownTime(sec) {
+                const m = Math.floor(sec / 60);
+                const s = sec % 60;
+                return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
             }
 
             function appendLiveLog(html) {
@@ -3432,6 +3476,17 @@
                 liveSent = 0;
                 liveFailed = 0;
                 livePending = liveTotal;
+
+                // Reset batching & cooldown state
+                recipientsInCurrentBatch = 0;
+                currentBatchIndex = 1;
+                isCooldownActive = false;
+                if (cooldownTimerId) {
+                    clearInterval(cooldownTimerId);
+                    cooldownTimerId = null;
+                }
+                const cdCard = document.getElementById('liveBcCooldownCard');
+                if (cdCard) cdCard.classList.add('d-none');
 
                 document.getElementById('liveBcTitle').textContent = title || 'Mass Broadcast Dispatcher';
                 document.getElementById('liveBcIdBadge').textContent = '#' + broadcastId;
@@ -3461,9 +3516,10 @@
                     btnPause.innerHTML = '<i class="fas fa-pause me-1"></i> Pause';
                 }
 
+                const totalBatches = Math.max(1, Math.ceil(liveTotal / BATCH_SIZE_LIMIT));
                 const logContainer = document.getElementById('liveBcLogContainer');
                 if (logContainer) {
-                    logContainer.innerHTML = `<div class="text-info fw-bold">[${formatLogTimestamp()}] Initialized batch dispatch for Broadcast #${broadcastId} (${liveTotal} recipients). Starting micro-batches...</div>`;
+                    logContainer.innerHTML = `<div class="text-info fw-bold">[${formatLogTimestamp()}] Initialized batch dispatch for Broadcast #${broadcastId} (${liveTotal} total recipients divided into ${totalBatches} batches of 20 with 3-minute anti-ban safety gap). Starting Batch 1...</div>`;
                 }
 
                 const modalEl = document.getElementById('modalBroadcastLiveProgress');
@@ -3476,10 +3532,11 @@
             };
 
             function dispatchNextBatch() {
-                if (!isLiveRunning || isLivePaused || !currentLiveBroadcastId) return;
+                if (!isLiveRunning || isLivePaused || isCooldownActive || !currentLiveBroadcastId) return;
 
+                const totalBatches = Math.max(1, Math.ceil(liveTotal / BATCH_SIZE_LIMIT));
                 const actEl = document.getElementById('liveBcCurrentAction');
-                if (actEl) actEl.textContent = 'Sending micro-batch (up to 3 recipients)...';
+                if (actEl) actEl.textContent = `Batch ${currentBatchIndex}/${totalBatches} (${recipientsInCurrentBatch}/${BATCH_SIZE_LIMIT} sent): Dispatching micro-chunk...`;
 
                 fetch(`{{ url('admin/whatsapp/broadcast') }}/${currentLiveBroadcastId}/dispatch-batch`, {
                     method: 'POST',
@@ -3488,14 +3545,14 @@
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify({ batch_size: 3 })
+                    body: JSON.stringify({ batch_size: 2 })
                 })
                 .then(r => r.json())
                 .then(data => {
                     if (!data.success) {
                         appendLiveLog(`<div class="text-danger">[${formatLogTimestamp()}] ⚠ Batch Error: ${escapeHtml(data.message || 'Server error')}</div>`);
                         // Retry in 3 seconds
-                        if (isLiveRunning && !isLivePaused) {
+                        if (isLiveRunning && !isLivePaused && !isCooldownActive) {
                             setTimeout(dispatchNextBatch, 3000);
                         }
                         return;
@@ -3522,8 +3579,9 @@
                         pBar.textContent = pct + '%';
                     }
 
-                    // Log each recipient in this batch
+                    // Log each recipient in this chunk
                     if (data.batch && data.batch.length > 0) {
+                        recipientsInCurrentBatch += data.batch.length;
                         data.batch.forEach(rec => {
                             const nameStr = escapeHtml(rec.name || 'Member');
                             const phoneStr = escapeHtml(rec.formatted_phone || rec.phone || '');
@@ -3537,6 +3595,9 @@
 
                     if (data.done) {
                         isLiveRunning = false;
+                        if (cooldownTimerId) { clearInterval(cooldownTimerId); cooldownTimerId = null; }
+                        document.getElementById('liveBcCooldownCard')?.classList.add('d-none');
+
                         if (actEl) actEl.textContent = 'All recipients completed!';
                         const stateBadge = document.getElementById('liveBcStateBadge');
                         if (stateBadge) {
@@ -3556,19 +3617,81 @@
                         }
                         appendLiveLog(`<div class="text-white bg-success p-2 rounded my-1"><strong>🎉 Broadcast Finished!</strong> Total: ${liveTotal} | Sent: ${liveSent} | Failed: ${liveFailed}</div>`);
                         refreshScheduledQueue();
+                    } else if (recipientsInCurrentBatch >= BATCH_SIZE_LIMIT && livePending > 0) {
+                        // ── Trigger 3-minute Anti-Ban Cooldown ──
+                        enterBatchCooldown();
                     } else {
-                        // Pace delay between micro-batches: 500ms
-                        if (isLiveRunning && !isLivePaused) {
-                            setTimeout(dispatchNextBatch, 500);
+                        // Pace delay between micro-batches: 600ms
+                        if (isLiveRunning && !isLivePaused && !isCooldownActive) {
+                            setTimeout(dispatchNextBatch, 600);
                         }
                     }
                 })
                 .catch(err => {
                     appendLiveLog(`<div class="text-danger">[${formatLogTimestamp()}] ⚠ Network glitch: ${escapeHtml(err.message || 'Connection timeout')}. Retrying shortly...</div>`);
-                    if (isLiveRunning && !isLivePaused) {
+                    if (isLiveRunning && !isLivePaused && !isCooldownActive) {
                         setTimeout(dispatchNextBatch, 3000);
                     }
                 });
+            }
+
+            function enterBatchCooldown() {
+                isCooldownActive = true;
+                cooldownRemaining = COOLDOWN_SECONDS_TOTAL;
+
+                const totalBatches = Math.max(1, Math.ceil(liveTotal / BATCH_SIZE_LIMIT));
+                const cdCard = document.getElementById('liveBcCooldownCard');
+                const timerEl = document.getElementById('liveBcCooldownTimer');
+                const badgeEl = document.getElementById('liveBcBatchBadge');
+                const actEl = document.getElementById('liveBcCurrentAction');
+
+                if (cdCard) cdCard.classList.remove('d-none');
+                if (badgeEl) badgeEl.textContent = `Batch ${currentBatchIndex} of ${totalBatches} Completed`;
+                if (timerEl) timerEl.textContent = formatCooldownTime(cooldownRemaining);
+                if (actEl) actEl.textContent = `Anti-ban cooldown: Next batch in 03:00...`;
+
+                appendLiveLog(`<div class="text-warning fw-bold my-1.5 p-2.5 rounded" style="background: rgba(234, 179, 8, 0.15); border-left: 3px solid #eab308;">
+                    <i class="fas fa-shield-virus me-1"></i> [Anti-Ban Cooldown] Batch ${currentBatchIndex} (${recipientsInCurrentBatch} messages) completed. Pausing for 3 minutes to keep WhatsApp number safe...
+                </div>`);
+
+                if (cooldownTimerId) clearInterval(cooldownTimerId);
+                cooldownTimerId = setInterval(() => {
+                    if (isLivePaused) return; // If user paused, pause countdown
+
+                    cooldownRemaining--;
+                    if (timerEl) timerEl.textContent = formatCooldownTime(cooldownRemaining);
+                    if (actEl) actEl.textContent = `Anti-ban cooldown: Next batch in ${formatCooldownTime(cooldownRemaining)}...`;
+
+                    if (cooldownRemaining <= 0) {
+                        clearInterval(cooldownTimerId);
+                        cooldownTimerId = null;
+                        exitBatchCooldown();
+                    }
+                }, 1000);
+            }
+
+            window.skipCooldownNow = function() {
+                if (cooldownTimerId) {
+                    clearInterval(cooldownTimerId);
+                    cooldownTimerId = null;
+                }
+                appendLiveLog(`<div class="text-info font-monospace text-xxs">[User Action] Cooldown skipped. Starting next batch of 20 immediately...</div>`);
+                exitBatchCooldown();
+            };
+
+            function exitBatchCooldown() {
+                isCooldownActive = false;
+                recipientsInCurrentBatch = 0;
+                currentBatchIndex++;
+                const cdCard = document.getElementById('liveBcCooldownCard');
+                if (cdCard) cdCard.classList.add('d-none');
+
+                const totalBatches = Math.max(1, Math.ceil(liveTotal / BATCH_SIZE_LIMIT));
+                appendLiveLog(`<div class="text-success fw-bold my-1">[Anti-Ban Safety] Resuming: Starting Batch ${currentBatchIndex} of ${totalBatches}...</div>`);
+
+                if (isLiveRunning && !isLivePaused) {
+                    dispatchNextBatch();
+                }
             }
 
             window.togglePauseLiveBroadcast = function() {
@@ -3600,11 +3723,17 @@
                         stateBadge.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Running';
                     }
                     appendLiveLog(`<div class="text-success">[${formatLogTimestamp()}] ▶ Resuming batch dispatch...</div>`);
-                    dispatchNextBatch();
+                    if (!isCooldownActive) {
+                        dispatchNextBatch();
+                    }
                 }
             };
 
             window.closeLiveBroadcastModal = function() {
+                if (cooldownTimerId) {
+                    clearInterval(cooldownTimerId);
+                    cooldownTimerId = null;
+                }
                 if (isLiveRunning && !isLivePaused) {
                     if (!confirm('Broadcast is currently actively sending in this browser tab. Closing this window will stop interactive batching, but you can click Resume or the scheduled background worker will continue. Close anyway?')) {
                         return;

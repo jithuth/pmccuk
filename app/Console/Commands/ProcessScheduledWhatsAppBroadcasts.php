@@ -98,10 +98,18 @@ class ProcessScheduledWhatsAppBroadcasts extends Command
                 elseif (($item['status'] ?? '') === 'failed') $failed++;
             }
 
+            $batchLimit = 20; // 20 recipients per batch
+            $processedInCurrentBatch = 0;
+
             foreach ($recipients as $idx => $r) {
                 // If already sent, skip
                 if (($r['status'] ?? '') === 'sent') {
                     continue;
+                }
+
+                // If this batch of 20 is complete, pause for 3-minute gap
+                if ($processedInCurrentBatch >= $batchLimit) {
+                    break;
                 }
 
                 $phone = $r['phone'] ?? null;
@@ -111,6 +119,7 @@ class ProcessScheduledWhatsAppBroadcasts extends Command
                     $recipients[$idx]['status'] = 'failed';
                     $recipients[$idx]['error'] = 'Missing phone number';
                     $failed++;
+                    $processedInCurrentBatch++;
                     continue;
                 }
 
@@ -135,8 +144,10 @@ class ProcessScheduledWhatsAppBroadcasts extends Command
                     $logs[] = "[FAILED " . date('H:i:s') . "] Delivery failed for {$name} (" . OpenWaService::formatPhoneDisplay($phone) . ")";
                 }
 
-                // Batch pacing: 350ms delay between recipients
-                usleep(350000);
+                $processedInCurrentBatch++;
+
+                // Pacing: 400ms delay between individual recipients in the batch
+                usleep(400000);
 
                 // Save checkpoint every 5 dispatches for durability
                 if ($idx % 5 === 0) {
@@ -152,16 +163,30 @@ class ProcessScheduledWhatsAppBroadcasts extends Command
                 if (($item['status'] ?? 'pending') === 'pending') $remaining++;
             }
 
-            $broadcast->update([
-                'status' => ($remaining === 0) ? ($sent > 0 ? 'completed' : 'failed') : 'processing',
-                'sent_count' => $sent,
-                'failed_count' => $failed,
-                'recipients_data' => $recipients,
-                'error_log' => implode("\n", array_slice($logs, -100))
-            ]);
-
-            $this->info("Broadcast #{$broadcast->id} completed: {$sent} sent, {$failed} failed.");
-            Log::info("[WhatsApp Broadcast] Scheduled broadcast #{$broadcast->id} finished: {$sent}/{$total} sent.");
+            if ($remaining > 0) {
+                // 3-Minute anti-spam cooldown before next batch of 20
+                $nextBatchAt = Carbon::now()->addMinutes(3);
+                $broadcast->update([
+                    'status' => 'processing',
+                    'scheduled_at' => $nextBatchAt,
+                    'sent_count' => $sent,
+                    'failed_count' => $failed,
+                    'recipients_data' => $recipients,
+                    'error_log' => implode("\n", array_slice($logs, -100))
+                ]);
+                $this->info("Broadcast #{$broadcast->id}: Batch of {$processedInCurrentBatch} processed. Next batch of 20 scheduled in 3 minutes at {$nextBatchAt->format('H:i:s')}. ({$remaining} remaining)");
+                Log::info("[WhatsApp Broadcast] Broadcast #{$broadcast->id}: batch of {$processedInCurrentBatch} sent. Next batch in 3 mins ({$remaining} remaining).");
+            } else {
+                $broadcast->update([
+                    'status' => ($sent > 0 ? 'completed' : 'failed'),
+                    'sent_count' => $sent,
+                    'failed_count' => $failed,
+                    'recipients_data' => $recipients,
+                    'error_log' => implode("\n", array_slice($logs, -100))
+                ]);
+                $this->info("Broadcast #{$broadcast->id} fully completed: {$sent} sent, {$failed} failed.");
+                Log::info("[WhatsApp Broadcast] Scheduled broadcast #{$broadcast->id} finished: {$sent}/{$total} sent.");
+            }
         }
 
         return 0;
