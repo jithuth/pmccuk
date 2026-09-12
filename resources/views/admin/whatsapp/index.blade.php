@@ -423,9 +423,9 @@
                                 <span class="corner-bl"></span>
                                 <span class="corner-br"></span>
                                 
-                                <div id="qrContainer" class="d-flex align-items-center justify-content-center" style="width:250px; height:250px;">
-                                    <img id="qrImage" src="" alt="WhatsApp QR Code" class="img-fluid d-none rounded-3" style="width:240px; height:240px;">
-                                    <div id="qrSpinner" class="d-flex flex-column align-items-center justify-content-center">
+                                <div id="qrContainer" class="position-relative d-flex align-items-center justify-content-center" style="width:250px; height:250px;">
+                                    <img id="qrImage" src="" alt="WhatsApp QR Code" class="rounded-3 shadow-xs" style="width:240px; height:240px; display:none; object-fit:contain;">
+                                    <div id="qrSpinner" class="d-flex flex-column align-items-center justify-content-center" style="width:100%; height:100%;">
                                         <div class="spinner-border text-success mb-3" style="width:2.5rem; height:2.5rem;" role="status"></div>
                                         <span class="text-xs fw-bold text-muted">Streaming Live QR Code...</span>
                                     </div>
@@ -641,16 +641,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     panelConnected.classList.add('d-none');
                     panelQr.classList.remove('d-none');
                     qrImage.src = data.qr;
-                    qrImage.classList.remove('d-none');
-                    qrSpinner.classList.add('d-none');
+                    qrImage.style.display = 'block';
+                    qrSpinner.style.display = 'none';
                     statusBadge.innerHTML = '<span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-1.5 rounded-pill text-xs fw-bold d-inline-flex align-items-center gap-1.5"><span class="pulse-dot pulse-amber"></span> Scan QR</span>';
                     statusText.textContent = 'Pairing Required';
                     subText.textContent = 'Multi-Device socket online. Scan the viewfinder QR code on this page.';
                 } else {
                     panelConnected.classList.add('d-none');
                     panelQr.classList.remove('d-none');
-                    qrImage.classList.add('d-none');
-                    qrSpinner.classList.remove('d-none');
+                    qrImage.style.display = 'none';
+                    qrSpinner.style.display = 'flex';
                     statusBadge.innerHTML = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1.5 rounded-pill text-xs fw-bold d-inline-flex align-items-center gap-1.5"><span class="pulse-dot pulse-red"></span> Offline</span>';
                     statusText.textContent = 'Offline';
                     subText.textContent = 'Contacting daemon service...';
