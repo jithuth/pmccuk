@@ -13,7 +13,14 @@ class NewsController extends Controller
 
     public function show($id)
     {
-        $article = News::findOrFail($id);
-        return view('news_details', compact('article'));
+        $news = News::findOrFail($id);
+        $article = $news;
+        $relatedNews = News::where('status', 'published')
+            ->where('id', '!=', $news->id)
+            ->orderBy('created_at', 'desc')
+            ->take(3)
+            ->get();
+
+        return view('news_details', compact('news', 'article', 'relatedNews'));
     }
 }
