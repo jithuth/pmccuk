@@ -316,13 +316,13 @@
                                                 <i class="fas fa-ticket-alt fs-5"></i>
                                             </div>
                                             <div>
-                                                <div class="fw-bold text-dark text-sm mb-0.5">Send Event Ticket PDFs</div>
-                                                <div class="text-muted text-xs">Deliver event admission pass and QR code upon booking confirmation.</div>
+                                                <div class="fw-bold text-dark text-sm mb-0.5">Send Event Ticket PDFs &amp; QR Passes</div>
+                                                <div class="text-muted text-xs">Deliver event admission pass upon booking confirmation &amp; bot commands. <em>(Keep OFF when no active events)</em></div>
                                             </div>
                                         </div>
                                         <label class="wa-switch">
                                             <input type="hidden" name="whatsapp_notify_event_ticket" value="0">
-                                            <input type="checkbox" name="whatsapp_notify_event_ticket" value="1" {{ ($settings['whatsapp_notify_event_ticket'] ?? '1') === '1' ? 'checked' : '' }}>
+                                            <input type="checkbox" name="whatsapp_notify_event_ticket" value="1" {{ ($settings['whatsapp_notify_event_ticket'] ?? '0') === '1' ? 'checked' : '' }}>
                                             <span class="wa-slider"></span>
                                         </label>
                                     </div>

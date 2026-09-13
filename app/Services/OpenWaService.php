@@ -45,6 +45,16 @@ class OpenWaService
     }
 
     /**
+     * Check if Automated Event Ticket Delivery & Retrieval is enabled.
+     * When disabled (e.g. no active events running), ticket generation and pass
+     * retrieval via WhatsApp are paused with an informative community notice.
+     */
+    public static function isEventTicketsActive(): bool
+    {
+        return (string) self::getSetting('whatsapp_notify_event_ticket', '0') === '1';
+    }
+
+    /**
      * Get Server Base URL (e.g., http://127.0.0.1:8085)
      */
     public static function getServerUrl(): string
@@ -853,7 +863,7 @@ class OpenWaService
      */
     public static function notifyEventTicket(EventBooking $booking, ?string $ticketPdfPath = null, ?string $targetRecipient = null): bool
     {
-        if ((string) self::getSetting('whatsapp_notify_event_ticket', '1') !== '1') {
+        if (!self::isEventTicketsActive()) {
             return false;
         }
 
@@ -910,6 +920,10 @@ class OpenWaService
      */
     public static function notifyEventReminder(EventBooking $booking): bool
     {
+        if (!self::isEventTicketsActive()) {
+            return false;
+        }
+
         $phone = $booking->phone;
         if (empty($phone)) {
             return false;

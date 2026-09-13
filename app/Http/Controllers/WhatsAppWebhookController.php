@@ -80,7 +80,11 @@ class WhatsAppWebhookController extends Controller
                     $reply .= "   📍 {$venue}\n";
                     $reply .= "   🔗 Book: https://pmccuk.org/events/{$ev->id}\n\n";
                 }
-                $reply .= "Reply *TICKET* anytime to retrieve your confirmed passes!\n🌐 https://pmccuk.org";
+                if (OpenWaService::isEventTicketsActive()) {
+                    $reply .= "Reply *TICKET* anytime to retrieve your confirmed passes!\n🌐 https://pmccuk.org";
+                } else {
+                    $reply .= "🌐 Visit https://pmccuk.org/events for registration & event updates!";
+                }
                 OpenWaService::sendText($fromJid, $reply);
                 return response()->json(['status' => 'events_sent']);
             } else {
@@ -202,6 +206,18 @@ class WhatsAppWebhookController extends Controller
             || (!empty($explicitRef) && preg_match('/^BOOK-?\d+$/i', $explicitRef));
 
         if ($isTicketRequest) {
+            // Guard: Check if automated event ticket delivery is currently active
+            if (!OpenWaService::isEventTicketsActive()) {
+                $noActiveEventsMsg = "ℹ️ *PMCC-UK Events & Ticketing Notice*\n\n" .
+                    "There are currently no active event registrations or ticket issuances open at this time.\n\n" .
+                    "Once an active community event is announced, event registrations and pass delivery will be re-enabled.\n\n" .
+                    "🌐 Please stay tuned to our official website for upcoming event announcements:\n" .
+                    "👉 https://pmccuk.org/events";
+
+                OpenWaService::sendText($fromJid, $noActiveEventsMsg);
+                return response()->json(['status' => 'no_active_event_registrations']);
+            }
+
             $booking = null;
 
             // Tier 1: Explicit booking reference provided -> verify phone or member ownership
@@ -295,24 +311,31 @@ class WhatsAppWebhookController extends Controller
 
         // ── 5. HELP / MENU Commands (Explicitly requested) ──
         if (in_array($upperText, ['HELP', 'MENU', 'START', 'BOT', 'COMMANDS', 'INFO'])) {
+            $isTicketActive = OpenWaService::isEventTicketsActive();
             if ($member) {
                 $displayName = $member->full_name ?: $pushName;
+                $ticketOption = $isTicketActive
+                    ? "👉 *TICKET* - Retrieve your Event Admission Ticket (QR Pass)\n"
+                    : "👉 *TICKET* - Event Admission Pass _(Currently closed - no active events)_\n";
                 $menu = "🌟 *Welcome to PMCC-UK Interactive WhatsApp!* 🇬🇧\n\n" .
                     "Hello *{$displayName}* (Member: *{$member->membership_id_assigned}*), reply with any keyword below for instant assistance:\n\n" .
                     "👉 *CARD* - Download your Digital Membership Card (PDF)\n" .
-                    "👉 *TICKET* - Retrieve your Event Admission Ticket (QR Pass)\n" .
+                    $ticketOption .
                     "👉 *EVENTS* - View upcoming community festivals & bookings\n" .
                     "👉 *OFFERS* - Explore member discounts at Plymouth restaurants & shops\n" .
                     "👉 *STUDENT* - Student Wing orientation & university support\n" .
                     "👉 *HELP* - View this quick menu\n\n" .
                     "🌐 Official Website: https://pmccuk.org";
             } else {
+                $ticketOption = $isTicketActive
+                    ? "👉 *TICKET* - Retrieve Event Admission Ticket (Approved bookings)\n"
+                    : "👉 *TICKET* - Event Admission Pass _(Currently closed - no active events)_\n";
                 $menu = "🌟 *Welcome to PMCC-UK WhatsApp Assistant!* 🇬🇧\n\n" .
                     "Reply with any keyword below:\n\n" .
                     "👉 *EVENTS* - View upcoming community festivals & bookings\n" .
                     "👉 *STUDENT* - Student Wing orientation & university support\n" .
                     "👉 *CARD* - Retrieve Digital Membership Card (Registered members)\n" .
-                    "👉 *TICKET* - Retrieve Event Admission Ticket (Approved bookings)\n\n" .
+                    $ticketOption . "\n" .
                     "👉 *Join PMCC-UK Online:*\n" .
                     "🌐 https://pmccuk.org/membership\n\n" .
                     "🌐 Official Website: https://pmccuk.org";

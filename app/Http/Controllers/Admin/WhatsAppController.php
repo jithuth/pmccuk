@@ -26,7 +26,7 @@ class WhatsAppController extends Controller
             'enabled' => $isEnabled,
             'server_url' => $serverUrl,
             'notify_id_card' => (string) OpenWaService::getSetting('whatsapp_notify_id_card', '1') === '1',
-            'notify_event_ticket' => (string) OpenWaService::getSetting('whatsapp_notify_event_ticket', '1') === '1',
+            'notify_event_ticket' => OpenWaService::isEventTicketsActive(),
             'notify_otp' => (string) OpenWaService::getSetting('whatsapp_notify_otp', '1') === '1',
             'notify_admin_security' => (string) OpenWaService::getSetting('whatsapp_notify_admin_security', '0') === '1',
             'admin_numbers' => OpenWaService::getSetting('whatsapp_admin_numbers', ''),

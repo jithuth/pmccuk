@@ -690,7 +690,11 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center py-0.5">
                                 <span><i class="fas fa-ticket-alt text-warning me-2"></i> Event Ticket Passes</span>
-                                <span class="badge bg-light text-success border px-2 py-0.5 fw-bold">Auto-QR</span>
+                                @if(!empty($settings['notify_event_ticket']))
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fw-bold">Active (Auto-QR)</span>
+                                @else
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5 fw-bold"><i class="fas fa-pause-circle me-1 text-warning"></i> Paused (No Active Events)</span>
+                                @endif
                             </div>
                             <div class="d-flex justify-content-between align-items-center py-0.5">
                                 <span><i class="fas fa-key text-info me-2"></i> Booking &amp; Renewal OTPs</span>
