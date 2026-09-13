@@ -33,9 +33,9 @@
         </header>
 
         <!-- Main Banner -->
-        <div class="rounded-[3.5rem] overflow-hidden shadow-2xl mb-16 border-8 border-slate-50">
+        <div class="rounded-3xl md:rounded-[3rem] overflow-hidden shadow-2xl mb-16 border-4 md:border-8 border-slate-50 bg-slate-50 flex items-center justify-center">
             <img src="{{ !empty($item->image_url) ? (str_starts_with($item->image_url, 'http') ? $item->image_url : asset('storage/'.$item->image_url)) : asset('assets/img/pmcc_logo.png') }}" 
-                 class="w-full h-auto object-cover aspect-video" alt="{{ $item->title }}">
+                 class="w-full h-auto max-h-[85vh] object-contain block mx-auto" alt="{{ $item->title }}">
         </div>
 
         <!-- Content -->
