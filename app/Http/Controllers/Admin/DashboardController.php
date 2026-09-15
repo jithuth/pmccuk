@@ -863,7 +863,8 @@ class DashboardController extends Controller
 
     public function terminal()
     {
-        if (auth('admin')->user()->username !== 'superadmin') {
+        $user = auth('admin')->user();
+        if (!$user || ($user->role !== 'superadmin' && $user->role !== 'admin' && $user->username !== 'superadmin')) {
             abort(403, 'Unauthorized access to system terminal.');
         }
 
@@ -882,7 +883,8 @@ class DashboardController extends Controller
 
     public function runTerminalCommand(Request $request)
     {
-        if (auth('admin')->user()->username !== 'superadmin') {
+        $user = auth('admin')->user();
+        if (!$user || ($user->role !== 'superadmin' && $user->role !== 'admin' && $user->username !== 'superadmin')) {
             return response()->json(['output' => 'FATAL: Unauthorized access attempted.'], 403);
         }
 
@@ -1744,7 +1746,8 @@ class DashboardController extends Controller
         ];
 
         if ($action === 'migrate') {
-            if (auth('admin')->user()->username !== 'superadmin') {
+            $user = auth('admin')->user();
+            if (!$user || ($user->role !== 'superadmin' && $user->username !== 'superadmin')) {
                 return back()->with('error', 'Only the SuperAdmin can execute database migrations.');
             }
             try {
