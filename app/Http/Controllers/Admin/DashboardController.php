@@ -900,10 +900,33 @@ class DashboardController extends Controller
         } catch (\Exception $e) {}
         
         // Anti-Destructive patterns check
-        $destructive = ['migrate:fresh', 'db:wipe', 'key:generate'];
+        $destructive = ['migrate:fresh', 'db:wipe', 'key:generate', 'rm -rf /'];
         foreach($destructive as $d) {
             if (str_contains($command, $d)) {
                 return response()->json(['output' => "ERROR: Command '$d' is strictly prohibited via web terminal for safety."]);
+            }
+        }
+
+        // WhatsApp Daemon / Microservice commands
+        if (preg_match('/^(whatsapp|pm2)/i', $command)) {
+            $res = \App\Services\OpenWaService::runDaemonCommand($command);
+            return response()->json(['output' => $res['output'] ?? 'Executed.']);
+        }
+
+        // Composer commands
+        if (str_starts_with(strtolower($command), 'composer')) {
+            try {
+                $dir = base_path();
+                $proc = new \Symfony\Component\Process\Process(explode(' ', $command), $dir, [
+                    'HOME' => $_SERVER['HOME'] ?? (is_dir('/home/u601819832') ? '/home/u601819832' : getenv('HOME')),
+                    'PATH' => '/opt/alt/alt-nodejs20/root/usr/bin:/usr/local/bin:/usr/bin:/bin:' . (getenv('PATH') ?: '')
+                ]);
+                $proc->setTimeout(120);
+                $proc->run();
+                $out = $proc->getOutput() ?: $proc->getErrorOutput();
+                return response()->json(['output' => $out ?: 'Composer finished with no output.']);
+            } catch (\Throwable $e) {
+                return response()->json(['output' => "Composer execution error: " . $e->getMessage()]);
             }
         }
 

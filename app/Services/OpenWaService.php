@@ -346,7 +346,7 @@ class OpenWaService
                 return $data['qr'] ?? null;
             }
         } catch (\Throwable $e) {
-            Log::warning('[WhatsApp] Failed to fetch QR: ' . $e->getMessage());
+            Log::debug('[WhatsApp] Daemon offline or unreachable during QR fetch: ' . $e->getMessage());
         }
 
         return null;
@@ -489,11 +489,178 @@ class OpenWaService
                 return $response->json();
             }
         } catch (\Throwable $e) {
-            Log::warning('[WhatsApp] Daemon log fetch failed, falling back to local logs: ' . $e->getMessage());
+            Log::debug('[WhatsApp] Daemon log fetch failed, falling back to local logs: ' . $e->getMessage());
         }
 
         // Fallback: extract WhatsApp entries from storage/logs/laravel.log
         return self::getLocalLaravelWhatsAppLogs($limit, $search);
+    }
+
+    /**
+     * Execute Daemon Management Commands from Web Terminal / Artisan
+     * Supports: status, start, restart, stop, logs, or raw safe pm2 commands.
+     */
+    public static function runDaemonCommand(string $command = 'status'): array
+    {
+        $rawCmd = trim($command);
+        if (empty($rawCmd)) {
+            $rawCmd = 'status';
+        }
+
+        // Clean common prefixes
+        $cmd = preg_replace('/^(php\s+artisan\s+)?(whatsapp:daemon\s*|whatsapp\s*)/i', '', $rawCmd);
+        $cmd = trim($cmd);
+        if (empty($cmd)) {
+            $cmd = 'status';
+        }
+
+        $dir = base_path('whatsapp-server');
+        if (!is_dir($dir)) {
+            return [
+                'success' => false,
+                'output' => "[ERROR] WhatsApp server directory not found at: {$dir}"
+            ];
+        }
+
+        $homeDir = $_SERVER['HOME'] ?? (is_dir('/home/u601819832') ? '/home/u601819832' : getenv('HOME'));
+        $env = [
+            'HOME' => $homeDir,
+            'PM2_HOME' => $homeDir ? ($homeDir . '/.pm2') : null,
+            'PATH' => '/opt/alt/alt-nodejs20/root/usr/bin:/usr/local/bin:/usr/bin:/bin:' . (getenv('PATH') ?: ''),
+            'PORT' => '8085',
+            'NODE_ENV' => 'production'
+        ];
+
+        // Locate PM2 binary
+        $pm2Bin = null;
+        if (PHP_OS_FAMILY === 'Windows') {
+            $candidates = [
+                $dir . '\\node_modules\\.bin\\pm2.cmd',
+                $dir . '\\node_modules\\.bin\\pm2.ps1',
+                'pm2'
+            ];
+        } else {
+            $candidates = [
+                $dir . '/node_modules/.bin/pm2',
+                '/usr/local/bin/pm2',
+                '/usr/bin/pm2',
+                'pm2'
+            ];
+        }
+
+        foreach ($candidates as $cand) {
+            if (file_exists($cand) || $cand === 'pm2') {
+                $pm2Bin = $cand;
+                break;
+            }
+        }
+
+        $output = '';
+        $action = strtolower(explode(' ', $cmd)[0]);
+
+        try {
+            switch ($action) {
+                case 'start':
+                    $output .= "🚀 [DAEMON START] Launching WhatsApp daemon via PM2...\n";
+                    if ($pm2Bin) {
+                        $p1 = new \Symfony\Component\Process\Process([$pm2Bin, 'start', 'ecosystem.config.js'], $dir, $env);
+                        $p1->run();
+                        $output .= $p1->getOutput() ?: $p1->getErrorOutput();
+
+                        $p2 = new \Symfony\Component\Process\Process([$pm2Bin, 'save'], $dir, $env);
+                        $p2->run();
+                        $output .= "\n" . ($p2->getOutput() ?: $p2->getErrorOutput());
+                    } else {
+                        $output .= "[WARNING] PM2 not detected. Starting directly via Node...\n";
+                        $p1 = new \Symfony\Component\Process\Process(['node', 'server.js'], $dir, $env);
+                        $p1->setTimeout(null);
+                        $p1->start();
+                        $output .= "[OK] Node server background process spawned.\n";
+                    }
+
+                    // Give socket 1.5s to bind
+                    usleep(1500000);
+                    $live = self::getStatus();
+                    $output .= "\n📡 Microservice Gateway Status (http://127.0.0.1:8085/session/status):\n";
+                    $output .= json_encode($live, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+                    break;
+
+                case 'restart':
+                    $output .= "🔄 [DAEMON RESTART] Restarting WhatsApp daemon via PM2...\n";
+                    if ($pm2Bin) {
+                        $p1 = new \Symfony\Component\Process\Process([$pm2Bin, 'restart', 'pmcc-whatsapp-daemon'], $dir, $env);
+                        $p1->run();
+                        $output .= $p1->getOutput() ?: $p1->getErrorOutput();
+
+                        $p2 = new \Symfony\Component\Process\Process([$pm2Bin, 'save'], $dir, $env);
+                        $p2->run();
+                        $output .= "\n" . ($p2->getOutput() ?: $p2->getErrorOutput());
+                    } else {
+                        $output .= "[ERROR] PM2 binary not found. Cannot restart daemon automatically.\n";
+                    }
+
+                    usleep(1500000);
+                    $live = self::getStatus();
+                    $output .= "\n📡 Microservice Gateway Status (http://127.0.0.1:8085/session/status):\n";
+                    $output .= json_encode($live, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+                    break;
+
+                case 'stop':
+                    $output .= "⏹ [DAEMON STOP] Stopping WhatsApp daemon...\n";
+                    if ($pm2Bin) {
+                        $p1 = new \Symfony\Component\Process\Process([$pm2Bin, 'stop', 'pmcc-whatsapp-daemon'], $dir, $env);
+                        $p1->run();
+                        $output .= $p1->getOutput() ?: $p1->getErrorOutput();
+
+                        $p2 = new \Symfony\Component\Process\Process([$pm2Bin, 'save'], $dir, $env);
+                        $p2->run();
+                        $output .= "\n" . ($p2->getOutput() ?: $p2->getErrorOutput());
+                    }
+                    $output .= "\n[OK] Daemon process stopped.\n";
+                    break;
+
+                case 'logs':
+                    $output .= "📜 [DAEMON LOGS] Fetching recent PM2 process logs (last 35 lines)...\n\n";
+                    if ($pm2Bin) {
+                        $p = new \Symfony\Component\Process\Process([$pm2Bin, 'logs', 'pmcc-whatsapp-daemon', '--lines', '35', '--nostream'], $dir, $env);
+                        $p->run();
+                        $output .= $p->getOutput() ?: $p->getErrorOutput();
+                    } else {
+                        $output .= "[INFO] Reading local daemon log file...\n";
+                        $logFile = $dir . '/logs/whatsapp.log';
+                        if (file_exists($logFile)) {
+                            $lines = array_slice(@file($logFile) ?: [], -35);
+                            $output .= implode("", $lines);
+                        } else {
+                            $output .= "No local log file found at {$logFile}\n";
+                        }
+                    }
+                    break;
+
+                case 'status':
+                default:
+                    $output .= "📊 [DAEMON TELEMETRY & PM2 PROCESS STATUS]\n\n";
+                    if ($pm2Bin) {
+                        $p = new \Symfony\Component\Process\Process([$pm2Bin, 'status'], $dir, $env);
+                        $p->run();
+                        $output .= $p->getOutput() ?: $p->getErrorOutput();
+                    }
+                    $live = self::getStatus();
+                    $output .= "\n📡 Microservice Gateway Status (http://127.0.0.1:8085/session/status):\n";
+                    $output .= json_encode($live, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+                    break;
+            }
+
+            return [
+                'success' => true,
+                'output' => trim($output)
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'output' => "[EXCEPTION] " . $e->getMessage()
+            ];
+        }
     }
 
     /**

@@ -601,6 +601,12 @@
 
                 <div class="d-flex align-items-center gap-2">
                     <button type="button"
+                        class="btn btn-sm btn-dark border border-success-subtle text-white rounded-pill px-3.5 py-2 text-xs fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm"
+                        data-bs-toggle="modal" data-bs-target="#modalDaemonTerminal">
+                        <i class="fas fa-terminal text-success"></i>
+                        <span>Daemon Terminal</span>
+                    </button>
+                    <button type="button"
                         class="btn btn-sm btn-light text-dark rounded-pill px-3.5 py-2 text-xs fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm"
                         data-bs-toggle="modal" data-bs-target="#modalAdminTestMessage">
                         <i class="fas fa-paper-plane text-success"></i>
@@ -761,8 +767,13 @@
                     </div>
 
                     <div class="pt-3 border-top d-flex align-items-center justify-content-between text-xs text-muted">
-                        <span>Uptime: <strong>100% Operational</strong></span>
-                        <span class="badge bg-light text-secondary border px-2 py-0.5">Node v20.19.4</span>
+                        <button type="button"
+                            class="btn btn-dark btn-xs px-2.5 py-1 rounded-pill fw-bold text-white d-inline-flex align-items-center gap-1 shadow-sm"
+                            data-bs-toggle="modal" data-bs-target="#modalDaemonTerminal">
+                            <i class="fas fa-terminal text-success"></i>
+                            <span>Open Terminal</span>
+                        </button>
+                        <span class="badge bg-light text-secondary border px-2 py-0.5 font-monospace">Port 8085</span>
                     </div>
                 </div>
             </div>
@@ -1707,6 +1718,10 @@
                             </div>
 
                             <!-- Action Buttons -->
+                            <button type="button" class="btn btn-success btn-sm p-1 px-2.5 text-xxs fw-bold text-white shadow-sm d-inline-flex align-items-center gap-1"
+                                data-bs-toggle="modal" data-bs-target="#modalDaemonTerminal">
+                                <i class="fas fa-terminal"></i> Terminal Console
+                            </button>
                             <button type="button" id="btnRefreshLogs"
                                 class="btn btn-outline-secondary btn-sm p-1 px-2 text-xxs text-light"
                                 title="Refresh Logs Now">
@@ -1741,6 +1756,83 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- ── DAEMON COMMAND TERMINAL MODAL ── -->
+    <div class="modal fade" id="modalDaemonTerminal" tabindex="-1" aria-labelledby="modalDaemonTerminalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden bg-black text-white" style="border: 1px solid rgba(255,255,255,0.15) !important;">
+                <div class="modal-header bg-dark border-bottom border-secondary p-3 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="d-flex gap-1.5 align-items-center ps-1">
+                            <span class="rounded-circle bg-danger d-inline-block" style="width:11px;height:11px;"></span>
+                            <span class="rounded-circle bg-warning d-inline-block" style="width:11px;height:11px;"></span>
+                            <span class="rounded-circle bg-success d-inline-block" style="width:11px;height:11px;"></span>
+                        </div>
+                        <div class="border-start border-secondary ps-3">
+                            <h6 class="modal-title fw-bold text-white mb-0 font-monospace text-sm d-flex align-items-center gap-2">
+                                <i class="fas fa-terminal text-success"></i>
+                                <span>pmcc-whatsapp-daemon : 8085</span>
+                            </h6>
+                            <span class="text-white-50 font-monospace" style="font-size:11px;">Production PM2 Host | Base Directory: whatsapp-server</span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span id="daemonModalStatusBadge" class="badge bg-success-subtle text-success border border-success-subtle rounded-pill text-xs px-2.5 py-1 font-monospace">
+                            ● CONNECTED
+                        </span>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                </div>
+
+                <!-- Quick Action Buttons Toolbar -->
+                <div class="bg-dark bg-opacity-75 border-bottom border-secondary p-2.5 d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
+                        <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1 text-xs fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm" onclick="runDaemonTerminalAction('start')">
+                            <i class="fas fa-play"></i> Start Daemon
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-warning rounded-pill px-3 py-1 text-xs fw-bold d-inline-flex align-items-center gap-1.5" onclick="runDaemonTerminalAction('restart')">
+                            <i class="fas fa-sync-alt"></i> Restart
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3 py-1 text-xs fw-bold d-inline-flex align-items-center gap-1.5" onclick="runDaemonTerminalAction('stop')">
+                            <i class="fas fa-stop"></i> Stop
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 py-1 text-xs fw-bold d-inline-flex align-items-center gap-1.5" onclick="runDaemonTerminalAction('status')">
+                            <i class="fas fa-chart-bar"></i> PM2 Status
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 py-1 text-xs fw-bold d-inline-flex align-items-center gap-1.5" onclick="runDaemonTerminalAction('logs')">
+                            <i class="fas fa-file-alt"></i> Live Logs
+                        </button>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2.5 py-1 text-xs text-white-50" onclick="clearDaemonTerminal()">
+                            <i class="fas fa-eraser me-1"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Terminal Output Display -->
+                <div id="daemonTerminalDisplay" class="p-4 bg-black overflow-auto scrollbar-dark font-monospace" style="height: 440px; line-height: 1.5; font-size: 12.5px; color: #38ef7d;">
+                    <div class="text-white-50 mb-3 pb-2 border-bottom border-secondary border-opacity-25">
+                        <span class="text-success font-monospace fw-bold">PMCC-UK WhatsApp Microservice Terminal [Version 1.0.0]</span><br>
+                        Type <span class="text-warning">start</span>, <span class="text-warning">status</span>, <span class="text-warning">restart</span>, <span class="text-warning">stop</span>, or <span class="text-warning">logs</span> below, or click any action above.
+                    </div>
+                    <div id="daemonTerminalLogsContainer"></div>
+                </div>
+
+                <!-- Command Input Box -->
+                <div class="p-3 bg-dark border-top border-secondary">
+                    <form id="daemonTerminalForm" class="d-flex align-items-center gap-2 m-0" onsubmit="handleDaemonTerminalSubmit(event)">
+                        <div class="text-success fw-bold font-monospace ps-2 text-nowrap" style="font-size: 13px;">pmcc@hostinger:~/whatsapp-server$&nbsp;</div>
+                        <input type="text" id="daemonTerminalInput" class="form-control bg-transparent text-white border-0 shadow-none font-monospace fw-bold p-0" placeholder="type command (e.g. status, start, restart, logs)..." autocomplete="off" spellcheck="false" style="font-size: 13px;">
+                        <button type="submit" id="btnDaemonTerminalRun" class="btn btn-success btn-sm px-3 rounded-pill fw-bold d-inline-flex align-items-center gap-1">
+                            <i class="fas fa-arrow-right"></i>
+                            <span>Run</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ── 4. ADMIN TEST MESSAGE MODAL ── -->
@@ -2214,7 +2306,120 @@
 
     <!-- ── JAVASCRIPT ENGINE ── -->
     <script>
+        // ── DAEMON WEB TERMINAL HANDLERS ──
+        window.clearDaemonTerminal = function() {
+            const container = document.getElementById('daemonTerminalLogsContainer');
+            if (container) container.innerHTML = '';
+        };
+
+        window.appendDaemonTerminalOutput = function(cmd, output, isError = false) {
+            const container = document.getElementById('daemonTerminalLogsContainer');
+            const display = document.getElementById('daemonTerminalDisplay');
+            if (!container || !display) return;
+
+            const block = document.createElement('div');
+            block.className = 'mb-3 pb-2 border-bottom border-secondary border-opacity-25';
+
+            const cmdLine = document.createElement('div');
+            cmdLine.className = 'text-white-50 mb-1 font-monospace';
+            cmdLine.innerHTML = `<span class="text-success">pmcc@hostinger:~/whatsapp-server$</span> <span class="text-white fw-bold">${cmd}</span> <span class="text-white-50 text-xxs float-end">${new Date().toLocaleTimeString()}</span>`;
+            block.appendChild(cmdLine);
+
+            const outLine = document.createElement('pre');
+            outLine.className = isError ? 'text-danger m-0 font-monospace' : 'text-success m-0 font-monospace';
+            outLine.style.whiteSpace = 'pre-wrap';
+            outLine.style.wordBreak = 'break-word';
+            outLine.style.fontFamily = 'inherit';
+            outLine.style.fontSize = 'inherit';
+            outLine.textContent = output;
+            block.appendChild(outLine);
+
+            container.appendChild(block);
+            display.scrollTop = display.scrollHeight;
+        };
+
+        window.runDaemonTerminalAction = async function(cmd) {
+            const input = document.getElementById('daemonTerminalInput');
+            const btn = document.getElementById('btnDaemonTerminalRun');
+            if (!cmd) return;
+
+            if (input) input.disabled = true;
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            }
+
+            try {
+                const response = await fetch('{{ route('admin.whatsapp.daemon-command') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ command: cmd })
+                });
+
+                const data = await response.json();
+                appendDaemonTerminalOutput(cmd, data.output || 'Command executed.', !data.success);
+
+                // Update modal status badge if json returned
+                const badge = document.getElementById('daemonModalStatusBadge');
+                if (badge && data.output && data.output.includes('"connected": true')) {
+                    badge.className = 'badge bg-success-subtle text-success border border-success-subtle rounded-pill text-xs px-2.5 py-1 font-monospace';
+                    badge.textContent = '● CONNECTED';
+                } else if (badge && data.output && data.output.includes('"status": "offline"')) {
+                    badge.className = 'badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill text-xs px-2.5 py-1 font-monospace';
+                    badge.textContent = '● OFFLINE';
+                }
+
+                // If user started or restarted, trigger telemetry refresh
+                if (['start', 'restart', 'status'].includes(cmd.toLowerCase())) {
+                    setTimeout(() => {
+                        if (typeof window.triggerCheckStatus === 'function') {
+                            window.triggerCheckStatus();
+                        }
+                    }, 1200);
+                }
+            } catch (err) {
+                console.error(err);
+                appendDaemonTerminalOutput(cmd, 'Connection error / timeout: ' + err.message, true);
+            } finally {
+                if (input) {
+                    input.disabled = false;
+                    input.focus();
+                }
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-arrow-right"></i> <span>Run</span>';
+                }
+            }
+        };
+
+        window.handleDaemonTerminalSubmit = function(e) {
+            e.preventDefault();
+            const input = document.getElementById('daemonTerminalInput');
+            if (!input) return;
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            input.value = '';
+            runDaemonTerminalAction(cmd);
+        };
+
         document.addEventListener('DOMContentLoaded', function () {
+            // Automatically run status when terminal modal is opened
+            const modalDaemonTerminalEl = document.getElementById('modalDaemonTerminal');
+            if (modalDaemonTerminalEl) {
+                modalDaemonTerminalEl.addEventListener('shown.bs.modal', function () {
+                    const container = document.getElementById('daemonTerminalLogsContainer');
+                    if (container && container.children.length === 0) {
+                        runDaemonTerminalAction('status');
+                    }
+                    const input = document.getElementById('daemonTerminalInput');
+                    if (input) input.focus();
+                });
+            }
+
             const qrImage = document.getElementById('qrImage');
             const qrSpinner = document.getElementById('qrSpinner');
             const laserLine = document.getElementById('laserLine');
@@ -2357,10 +2562,12 @@
             }, 1000);
 
             // Refresh Click
-            document.getElementById('btnRefreshStatus')?.addEventListener('click', function () {
+            window.triggerCheckStatus = function () {
                 countdown = 15;
                 fetchQrAndStatus();
-            });
+            };
+
+            document.getElementById('btnRefreshStatus')?.addEventListener('click', window.triggerCheckStatus);
 
             // ══════════════════════════════════════════════════════════
             //  LIVE WHATSAPP GATEWAY LOGS & BOT CONSOLE ENGINE

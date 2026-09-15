@@ -514,6 +514,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('/revoke', [WhatsAppController::class, 'revoke'])->name('revoke');
                 Route::get('/logs', [WhatsAppController::class, 'logs'])->name('logs');
                 Route::post('/logs/clear', [WhatsAppController::class, 'clearLogs'])->name('logs.clear');
+                Route::post('/daemon-command', [WhatsAppController::class, 'runDaemonCommand'])->name('daemon-command');
             });
             Route::post('/email-settings/test', [DashboardController::class, 'testEmailConnection'])->name('email-settings.test');
         });

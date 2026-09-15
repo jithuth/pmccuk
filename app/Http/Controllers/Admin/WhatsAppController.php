@@ -1058,4 +1058,38 @@ class WhatsAppController extends Controller
 
         return response()->json($res, $res['success'] ? 200 : 500);
     }
+
+    /**
+     * Execute Daemon commands (status, start, restart, stop, logs) from web terminal
+     */
+    public function runDaemonCommand(Request $request)
+    {
+        $command = trim($request->input('command', 'status'));
+
+        if (empty($command)) {
+            $command = 'status';
+        }
+
+        // Alert via Telegram for start/stop/restart
+        $action = strtolower(explode(' ', $command)[0]);
+        if (in_array($action, ['start', 'stop', 'restart'])) {
+            try {
+                $admin = auth('admin')->user();
+                \App\Services\TelegramService::sendMessage(
+                    "🤖 <b>WhatsApp Daemon Action: " . strtoupper($action) . "</b>\n\n" .
+                    "👤 <b>Admin:</b> " . htmlspecialchars($admin?->username ?? 'Admin') . "\n" .
+                    "💻 <b>Command:</b> <code>" . htmlspecialchars($command) . "</code>\n" .
+                    "🌐 <b>IP:</b> " . $request->ip()
+                );
+            } catch (\Throwable $e) {}
+        }
+
+        $res = OpenWaService::runDaemonCommand($command);
+
+        return response()->json([
+            'success' => $res['success'] ?? true,
+            'output' => $res['output'] ?? 'Executed.',
+            'command' => $command
+        ]);
+    }
 }

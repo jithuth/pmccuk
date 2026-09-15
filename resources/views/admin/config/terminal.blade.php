@@ -51,7 +51,7 @@
                 </div>
             </div>
 
-            <div class="mt-3 d-flex flex-wrap gap-2">
+            <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
                 <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="clearTerminal()">Clear
                     Console</button>
                 <button class="btn btn-sm btn-outline-info rounded-pill px-3" onclick="setCommand('optimize:clear')">Clear
@@ -62,6 +62,16 @@
                     onclick="setCommand('composer install')">composer install</button>
                 <button class="btn btn-sm btn-outline-warning rounded-pill px-3"
                     onclick="setCommand('composer dump-autoload')">composer dump-autoload</button>
+
+                <span class="vr mx-1 bg-secondary opacity-50 d-none d-md-inline-block" style="height: 24px;"></span>
+                <button class="btn btn-sm btn-success rounded-pill px-3 fw-bold"
+                    onclick="setCommand('whatsapp start')"><i class="fab fa-whatsapp me-1"></i> Start WhatsApp</button>
+                <button class="btn btn-sm btn-outline-success rounded-pill px-3"
+                    onclick="setCommand('whatsapp status')"><i class="fas fa-signal me-1"></i> WhatsApp Status</button>
+                <button class="btn btn-sm btn-outline-success rounded-pill px-3"
+                    onclick="setCommand('whatsapp restart')"><i class="fas fa-sync-alt me-1"></i> Restart WhatsApp</button>
+                <button class="btn btn-sm btn-outline-success rounded-pill px-3"
+                    onclick="setCommand('whatsapp logs')"><i class="fas fa-file-alt me-1"></i> WhatsApp Logs</button>
             </div>
         </div>
     </div>
