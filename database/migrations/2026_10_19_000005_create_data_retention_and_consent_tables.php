@@ -34,7 +34,7 @@ return new class extends Migration
                 $table->unsignedInteger('records_disposed')->default(0);
                 $table->string('disposal_action', 50);
                 $table->text('summary')->nullable();
-                $table->foreignId('executed_by')->nullable()->constrained('admins')->nullOnDelete();
+                $table->integer('executed_by')->nullable()->index();
                 $table->timestamp('created_at')->useCurrent();
             });
         }
@@ -55,7 +55,7 @@ return new class extends Migration
         if (!Schema::hasTable('member_consents')) {
             Schema::create('member_consents', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('member_id')->constrained('members')->cascadeOnDelete();
+                $table->integer('member_id')->index();
                 $table->foreignId('privacy_notice_id')->nullable()->constrained('privacy_notices')->nullOnDelete();
                 $table->string('consent_key', 80); // marketing_emails, whatsapp_community, photo_publication, directory_listing
                 $table->string('lawful_basis', 80)->default('consent');

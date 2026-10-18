@@ -38,8 +38,8 @@ return new class extends Migration
                 $table->json('affected_data_categories')->nullable();
                 $table->unsignedInteger('estimated_affected_members')->default(0);
                 $table->timestamp('detected_at')->useCurrent();
-                $table->foreignId('reported_by')->nullable()->constrained('admins')->nullOnDelete();
-                $table->foreignId('lead_investigator')->nullable()->constrained('admins')->nullOnDelete();
+                $table->integer('reported_by')->nullable()->index();
+                $table->integer('lead_investigator')->nullable()->index();
                 $table->text('containment_actions')->nullable();
                 $table->text('root_cause_analysis')->nullable();
                 $table->text('remediation_steps')->nullable();
@@ -58,7 +58,7 @@ return new class extends Migration
             Schema::create('security_incident_timeline', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('security_incident_id')->constrained('security_incidents')->cascadeOnDelete();
-                $table->foreignId('recorded_by')->nullable()->constrained('admins')->nullOnDelete();
+                $table->integer('recorded_by')->nullable()->index();
                 $table->string('event_type', 60); // detection, containment, investigation, notification, remediation
                 $table->text('summary');
                 $table->timestamp('event_timestamp')->useCurrent();

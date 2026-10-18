@@ -43,7 +43,7 @@ return new class extends Migration
         if (!Schema::hasTable('admin_roles')) {
             Schema::create('admin_roles', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('admin_id')->constrained('admins')->cascadeOnDelete();
+                $table->integer('admin_id')->index();
                 $table->foreignId('role_id')->constrained('roles')->cascadeOnDelete();
                 $table->unique(['admin_id', 'role_id']);
                 $table->timestamps();
@@ -53,10 +53,10 @@ return new class extends Migration
         if (!Schema::hasTable('privileged_access_grants')) {
             Schema::create('privileged_access_grants', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('admin_id')->constrained('admins')->cascadeOnDelete();
+                $table->integer('admin_id')->index();
                 $table->string('target_role_slug', 100);
                 $table->text('justification');
-                $table->foreignId('approved_by')->nullable()->constrained('admins')->nullOnDelete();
+                $table->integer('approved_by')->nullable()->index();
                 $table->timestamp('granted_at')->nullable();
                 $table->timestamp('expires_at')->nullable();
                 $table->timestamp('revoked_at')->nullable();

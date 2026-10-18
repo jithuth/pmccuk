@@ -12,7 +12,7 @@ return new class extends Migration
             Schema::create('privacy_requests', function (Blueprint $table) {
                 $table->id();
                 $table->string('reference_number', 50)->unique();
-                $table->foreignId('member_id')->nullable()->constrained('members')->nullOnDelete();
+                $table->integer('member_id')->nullable()->index();
                 $table->string('requester_name', 150);
                 $table->string('requester_email', 150);
                 $table->string('requester_phone', 50)->nullable();
@@ -29,7 +29,7 @@ return new class extends Migration
                 $table->string('decision', 50)->nullable(); // approved, partially_approved, refused, withdrawn
                 $table->text('decision_reasoning')->nullable();
                 $table->text('applicable_exemptions')->nullable();
-                $table->foreignId('assigned_to')->nullable()->constrained('admins')->nullOnDelete();
+                $table->integer('assigned_to')->nullable()->index();
                 $table->timestamp('completed_at')->nullable();
                 $table->string('correlation_id', 64)->nullable();
                 $table->timestamps();
@@ -54,7 +54,7 @@ return new class extends Migration
             Schema::create('privacy_request_actions', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('privacy_request_id')->constrained('privacy_requests')->cascadeOnDelete();
-                $table->foreignId('admin_id')->nullable()->constrained('admins')->nullOnDelete();
+                $table->integer('admin_id')->nullable()->index();
                 $table->string('action_type', 60);
                 $table->text('description');
                 $table->json('metadata')->nullable();
@@ -66,7 +66,7 @@ return new class extends Migration
             Schema::create('privacy_request_approvals', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('privacy_request_id')->constrained('privacy_requests')->cascadeOnDelete();
-                $table->foreignId('approver_id')->constrained('admins')->cascadeOnDelete();
+                $table->integer('approver_id')->index();
                 $table->string('role_at_approval', 60);
                 $table->string('approval_type', 60)->default('general'); // general, high_risk_erasure, bulk_export, complex_refusal
                 $table->string('status', 30)->default('pending'); // pending, approved, rejected
@@ -98,7 +98,7 @@ return new class extends Migration
                 $table->foreignId('privacy_request_id')->constrained('privacy_requests')->cascadeOnDelete();
                 $table->string('from_status', 50)->nullable();
                 $table->string('to_status', 50);
-                $table->foreignId('changed_by')->nullable()->constrained('admins')->nullOnDelete();
+                $table->integer('changed_by')->nullable()->index();
                 $table->text('reason')->nullable();
                 $table->timestamp('created_at')->useCurrent();
             });
