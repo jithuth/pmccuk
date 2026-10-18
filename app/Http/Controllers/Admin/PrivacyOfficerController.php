@@ -745,9 +745,12 @@ class PrivacyOfficerController extends Controller
     }
 
     // Action aliases for router compatibility
+    public function requestShow($id) { return $this->showRequest($id); }
+    public function generateSarExport($id) { return $this->generateSarPackage($id); }
     public function incidentShow($id) { return $this->showIncident($id); }
     public function auditIndex(Request $request) { return $this->auditLogs($request); }
     public function requestPrivilegedAccess(Request $request) { return $this->requestBreakGlass($request); }
     public function grantPrivilegedAccess(Request $request, $id) { return $this->grantBreakGlass($request, $id); }
     public function revokePrivilegedAccess($id) { return $this->revokeBreakGlass($id); }
 }
+

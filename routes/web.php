@@ -559,6 +559,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('/requests/{id}/assign', [PrivacyOfficerController::class, 'assignReviewer'])->name('requests.assign');
                 Route::post('/requests/{id}/extend', [PrivacyOfficerController::class, 'extendDeadline'])->name('requests.extend');
                 Route::post('/requests/{id}/approve', [PrivacyOfficerController::class, 'addApproval'])->name('requests.approve');
+                Route::post('/requests/{id}/add-approval', [PrivacyOfficerController::class, 'addApproval'])->name('requests.add-approval');
                 Route::post('/requests/{id}/generate-sar', [PrivacyOfficerController::class, 'generateSarExport'])->name('requests.generate-sar');
                 Route::post('/requests/{id}/fulfil', [PrivacyOfficerController::class, 'fulfilRequest'])->name('requests.fulfil');
                 Route::post('/requests/{id}/refuse', [PrivacyOfficerController::class, 'refuseRequest'])->name('requests.refuse');
