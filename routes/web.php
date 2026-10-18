@@ -276,9 +276,13 @@ Route::prefix('member')->name('member.')->group(function () {
     Route::prefix('privacy')->name('privacy.')->middleware('auth:member')->group(function () {
         Route::get('/', [MemberPrivacyController::class, 'index'])->name('index');
         Route::post('/sar', [MemberPrivacyController::class, 'submitSar'])->name('sar');
+        Route::post('/sar/submit', [MemberPrivacyController::class, 'submitSar'])->name('sar.submit');
         Route::post('/rectification', [MemberPrivacyController::class, 'submitRectification'])->name('rectification');
+        Route::post('/rectification/submit', [MemberPrivacyController::class, 'submitRectification'])->name('rectification.submit');
         Route::post('/erasure', [MemberPrivacyController::class, 'submitErasure'])->name('erasure');
+        Route::post('/erasure/submit', [MemberPrivacyController::class, 'submitErasure'])->name('erasure.submit');
         Route::post('/consents', [MemberPrivacyController::class, 'updateConsents'])->name('consents');
+        Route::post('/consents/update', [MemberPrivacyController::class, 'updateConsents'])->name('consents.update');
         Route::get('/download/{token}', [MemberPrivacyController::class, 'downloadDocument'])->name('download');
         Route::get('/registration-record', [MemberPrivacyController::class, 'viewRegistrationRecord'])->name('registration-record');
     });
