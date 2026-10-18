@@ -186,8 +186,6 @@
                         class="fas fa-phone mr-2 text-accent"></i>{{ $settings['contact_phone'] ?? '' }}</span>
             </div>
             <div class="flex space-x-6 items-center">
-                <a href="{{ url('verify-membership') }}" class="hover:text-white transition flex items-center"><i
-                        class="fas fa-check-circle mr-1.5 text-accent"></i>Verify Membership</a>
                 <a href="{{ route('member.login') }}" class="hover:text-accent transition flex items-center"><i
                         class="fas fa-user-shield mr-1.5 text-accent"></i>Member Privacy Portal</a>
             </div>
