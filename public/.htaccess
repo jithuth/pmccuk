@@ -5,6 +5,10 @@
 
     RewriteEngine On
 
+    # Canonical Domain Redirection (www to non-www)
+    RewriteCond %{HTTP_HOST} ^www\.pmccuk\.org$ [NC]
+    RewriteRule ^(.*)$ https://pmccuk.org/$1 [L,R=301]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

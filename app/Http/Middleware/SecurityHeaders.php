@@ -30,13 +30,15 @@ class SecurityHeaders
         $response->headers->set('Referrer-Policy', 'no-referrer-when-downgrade');
         
         // Restrict where scripts/styles/images can be loaded from
-        // Added exceptions for common CDNs used in the project
-        $csp = "default-src 'self' https: data:; " .
-               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com https://unpkg.com; " .
-               "script-src-elem 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://code.jquery.com https://cdnjs.cloudflare.com https://unpkg.com; " .
-               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " .
-               "font-src 'self' data: https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " .
-               "img-src 'self' data: https:; " .
+        // Allows self and https: to ensure assets load properly across domain variants (www/non-www)
+        $csp = "default-src 'self' https: data: blob:; " .
+               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; " .
+               "script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; " .
+               "style-src 'self' 'unsafe-inline' https:; " .
+               "style-src-elem 'self' 'unsafe-inline' https:; " .
+               "font-src 'self' data: https:; " .
+               "img-src 'self' data: https: blob:; " .
+               "frame-src 'self' https:; " .
                "connect-src 'self' https:;";
         
         $response->headers->set('Content-Security-Policy', $csp);
