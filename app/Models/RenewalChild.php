@@ -1,9 +1,12 @@
 <?php namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasSmartDecryption;
 
 class RenewalChild extends Model
 {
+    use HasSmartDecryption;
+
     protected $table = 'renewal_children';
     public $timestamps = false; // Legacy table has no timestamps
 
@@ -12,6 +15,10 @@ class RenewalChild extends Model
     protected $casts = [
         'child_name' => 'encrypted',
         'dob'        => 'encrypted',
+    ];
+
+    public array $encryptable = [
+        'child_name', 'dob', 'sex'
     ];
 
     protected $appends = ['age'];

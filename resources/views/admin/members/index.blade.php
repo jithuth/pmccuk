@@ -501,7 +501,7 @@ function viewMember(id) {
                 <div class="row g-0">
                     <div class="col-md-8 border-end p-4">
                         <h6 class="text-primary fw-bold mb-3 d-flex align-items-center"><i class="fas fa-user me-2"></i> Personal Information</h6>
-                        <table class="table table-sm table-bordered mb-4">
+                        <table class="table table-sm table-bordered mb-4" style="table-layout: fixed; word-break: break-word;">
                             <tr><th class="bg-light w-25">Full Name</th><td class="fw-bold">${m.full_name}</td></tr>
                             <tr><th class="bg-light">Email</th><td>${m.email || 'N/A'}</td></tr>
                             <tr><th class="bg-light">Mobile</th><td>${m.mobile_number || 'N/A'}</td></tr>
@@ -511,17 +511,41 @@ function viewMember(id) {
                         </table>
 
                         <h6 class="text-danger fw-bold mb-3 d-flex align-items-center"><i class="fas fa-heart me-2"></i> Spouse</h6>
-                        <table class="table table-sm table-bordered mb-4">
+                        <table class="table table-sm table-bordered mb-4" style="table-layout: fixed; word-break: break-word;">
                             <tr><th class="bg-light w-25">Spouse Name</th><td>${m.spouse_name || 'N/A'}</td></tr>
                             <tr><th class="bg-light">Spouse Mobile</th><td>${m.spouse_mobile || 'N/A'}</td></tr>
                             <tr><th class="bg-light">Spouse DOB</th><td>${m.spouse_dob || 'N/A'}</td></tr>
                         </table>
 
                         <h6 class="text-success fw-bold mb-3 d-flex align-items-center"><i class="fas fa-home me-2"></i> Address</h6>
-                        <table class="table table-sm table-bordered mb-0">
+                        <table class="table table-sm table-bordered mb-3" style="table-layout: fixed; word-break: break-word;">
                             <tr><th class="bg-light w-25">Address</th><td>${m.house_details || 'N/A'}</td></tr>
                             <tr><th class="bg-light">Post Code</th><td>${m.post_code || 'N/A'}</td></tr>
                         </table>
+
+                        ${m.children && m.children.length > 0 ? `
+                        <h6 class="text-secondary fw-bold mb-2 d-flex align-items-center"><i class="fas fa-child me-2"></i> Children (${m.children.length})</h6>
+                        <table class="table table-sm table-bordered mb-0" style="table-layout: fixed; word-break: break-word;">
+                            <thead>
+                                <tr class="bg-light">
+                                    <th>Name</th>
+                                    <th>Sex</th>
+                                    <th>DOB</th>
+                                    <th>Age</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${m.children.map(c => `
+                                    <tr>
+                                        <td class="fw-bold">${c.child_name || '—'}</td>
+                                        <td>${c.sex || '—'}</td>
+                                        <td>${c.dob || '—'}</td>
+                                        <td>${c.age ?? '—'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        ` : ''}
                     </div>
 
                     <div class="col-md-4 p-4 bg-light bg-opacity-10">

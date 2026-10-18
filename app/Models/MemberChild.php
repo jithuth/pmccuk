@@ -1,9 +1,12 @@
 <?php namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasSmartDecryption;
 
 class MemberChild extends Model
 {
+    use HasSmartDecryption;
+
     protected $table = 'member_children';
     public $timestamps = false;
 
@@ -12,6 +15,10 @@ class MemberChild extends Model
     protected $casts = [
         'child_name' => 'encrypted',
         'dob'        => 'encrypted',
+    ];
+
+    public array $encryptable = [
+        'child_name', 'dob', 'sex'
     ];
 
     protected $appends = ['age'];

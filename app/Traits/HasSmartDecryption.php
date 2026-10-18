@@ -28,6 +28,27 @@ trait HasSmartDecryption
     }
 
     /**
+     * Override attributesToArray so JSON serialization (e.g. response()->json($model), toArray())
+     * cleanly decrypts any encrypted values.
+     */
+    public function attributesToArray()
+    {
+        $attributes = parent::attributesToArray();
+
+        foreach ($attributes as $key => $value) {
+            if (is_string($value) && str_starts_with($value, 'eyJ')) {
+                try {
+                    $attributes[$key] = Crypt::decryptString($value);
+                } catch (\Throwable $e) {
+                    // Keep original value if decryption fails
+                }
+            }
+        }
+
+        return $attributes;
+    }
+
+    /**
      * Override setAttribute to automatically encrypt designated attributes when assigned.
      */
     public function setAttribute($key, $value)

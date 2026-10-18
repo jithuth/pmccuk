@@ -15,7 +15,7 @@ class RenewalRequest extends Model
     protected $casts = [];
 
     public array $encryptable = [
-        'full_name', 'email', 'mobile_number', 'dob', 'spouse_name', 'spouse_mobile',
+        'title', 'marital_status', 'full_name', 'email', 'mobile_number', 'dob', 'spouse_name', 'spouse_mobile',
         'spouse_dob', 'emergency_name', 'emergency_mobile', 'post_code', 'house_details',
         'photo', 'family_photo', 'bank_account_holder', 'transaction_ref', 'payment_proof'
     ];

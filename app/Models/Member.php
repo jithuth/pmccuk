@@ -45,7 +45,7 @@ class Member extends Authenticatable
     ];
 
     public array $encryptable = [
-        'full_name', 'email', 'mobile_number', 'dob', 'marital_status',
+        'title', 'full_name', 'email', 'mobile_number', 'dob', 'marital_status',
         'spouse_name', 'spouse_mobile', 'spouse_dob', 'emergency_name',
         'emergency_mobile', 'post_code', 'house_details', 'residing_area',
         'photo', 'family_photo', 'bank_account_holder', 'transaction_ref',
