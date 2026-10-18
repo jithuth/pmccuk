@@ -330,6 +330,45 @@ class PrivacyGovernanceTest extends TestCase
     }
 
     /**
+     * Test: Member Web Portal OTP authentication flow
+     */
+    public function test_member_otp_login_flow(): void
+    {
+        $member = Member::create([
+            'guid' => 'otp-member-guid-789',
+            'full_name' => 'OTP Member',
+            'email' => 'otp_member@example.com',
+            'mobile_number' => '+447000000789',
+            'membership_id_assigned' => 'PMCC-789',
+        ]);
+
+        // Request OTP
+        $sendResponse = $this->postJson('/member/login/otp/send', [
+            'identifier' => 'PMCC-789',
+        ]);
+        $sendResponse->assertStatus(200);
+        $sendResponse->assertJsonPath('success', true);
+
+        // Verify session holds generated OTP
+        $otp = session('member_login_otp');
+        $this->assertNotEmpty($otp);
+
+        // Verify with invalid OTP fails
+        $failVerify = $this->postJson('/member/login/otp/verify', [
+            'otp' => '000000',
+        ]);
+        $failVerify->assertStatus(422);
+
+        // Verify with valid OTP succeeds and authenticates
+        $successVerify = $this->postJson('/member/login/otp/verify', [
+            'otp' => $otp,
+        ]);
+        $successVerify->assertStatus(200);
+        $successVerify->assertJsonPath('success', true);
+        $this->assertAuthenticatedAs($member, 'member');
+    }
+
+    /**
      * Test 12: Member can submit a Subject Access Request (SAR)
      */
     public function test_member_can_submit_subject_access_request(): void
