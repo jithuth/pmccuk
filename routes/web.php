@@ -268,6 +268,7 @@ Route::get('/fix-database', fn() => redirect('/run-migrations'));
 Route::prefix('member')->name('member.')->group(function () {
     Route::get('/login', [MemberAuthController::class, 'showLoginForm'])->name('login')->middleware('guest:member');
     Route::post('/login/password', [MemberAuthController::class, 'loginWithPassword'])->name('login.password')->middleware('guest:member', 'throttle:10,1');
+    Route::post('/login/submit', [MemberAuthController::class, 'loginWithPassword'])->name('login.submit')->middleware('guest:member', 'throttle:10,1');
     Route::post('/login/otp/send', [MemberAuthController::class, 'sendOtp'])->name('login.otp.send')->middleware('guest:member', 'throttle:5,1');
     Route::post('/login/otp/verify', [MemberAuthController::class, 'verifyOtp'])->name('login.otp.verify')->middleware('guest:member', 'throttle:10,1');
     Route::post('/logout', [MemberAuthController::class, 'logout'])->name('logout')->middleware('auth:member');

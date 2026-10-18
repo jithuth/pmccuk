@@ -49,7 +49,7 @@
         </div>
 
         <!-- 1. Password Login Form -->
-        <form id="passwordLoginForm" action="{{ route('member.login.submit') }}" method="POST" class="mt-6 space-y-5">
+        <form id="passwordLoginForm" action="{{ route('member.login.password') }}" method="POST" class="mt-6 space-y-5">
             @csrf
             <div>
                 <label for="login_input" class="block text-xs font-bold uppercase tracking-wider text-slate-700">Member ID, Email or Mobile</label>
