@@ -11,27 +11,29 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('members', function (Blueprint $table) {
-            $table->text('dob')->nullable()->change();
-            $table->text('spouse_name')->nullable()->change();
-            $table->text('spouse_mobile')->nullable()->change();
-            $table->text('spouse_dob')->nullable()->change();
-            $table->text('emergency_name')->nullable()->change();
-            $table->text('emergency_mobile')->nullable()->change();
-            $table->text('house_details')->nullable()->change();
-            $table->text('post_code')->nullable()->change();
-        });
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'mysql') {
+            Schema::table('members', function (Blueprint $table) {
+                $table->text('dob')->nullable()->change();
+                $table->text('spouse_name')->nullable()->change();
+                $table->text('spouse_mobile')->nullable()->change();
+                $table->text('spouse_dob')->nullable()->change();
+                $table->text('emergency_name')->nullable()->change();
+                $table->text('emergency_mobile')->nullable()->change();
+                $table->text('house_details')->nullable()->change();
+                $table->text('post_code')->nullable()->change();
+            });
 
-        Schema::table('renewal_requests', function (Blueprint $table) {
-            $table->text('dob')->nullable()->change();
-            $table->text('spouse_name')->nullable()->change();
-            $table->text('spouse_mobile')->nullable()->change();
-            $table->text('spouse_dob')->nullable()->change();
-            $table->text('emergency_name')->nullable()->change();
-            $table->text('emergency_mobile')->nullable()->change();
-            $table->text('house_details')->nullable()->change();
-            $table->text('post_code')->nullable()->change();
-        });
+            Schema::table('renewal_requests', function (Blueprint $table) {
+                $table->text('dob')->nullable()->change();
+                $table->text('spouse_name')->nullable()->change();
+                $table->text('spouse_mobile')->nullable()->change();
+                $table->text('spouse_dob')->nullable()->change();
+                $table->text('emergency_name')->nullable()->change();
+                $table->text('emergency_mobile')->nullable()->change();
+                $table->text('house_details')->nullable()->change();
+                $table->text('post_code')->nullable()->change();
+            });
+        }
     }
 
     /**

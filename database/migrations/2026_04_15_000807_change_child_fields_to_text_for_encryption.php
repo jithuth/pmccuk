@@ -11,15 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('member_children', function (Blueprint $table) {
-            $table->text('child_name')->nullable()->change();
-            $table->text('dob')->nullable()->change();
-        });
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'mysql') {
+            Schema::table('member_children', function (Blueprint $table) {
+                $table->text('child_name')->nullable()->change();
+                $table->text('dob')->nullable()->change();
+            });
 
-        Schema::table('renewal_children', function (Blueprint $table) {
-            $table->text('child_name')->nullable()->change();
-            $table->text('dob')->nullable()->change();
-        });
+            Schema::table('renewal_children', function (Blueprint $table) {
+                $table->text('child_name')->nullable()->change();
+                $table->text('dob')->nullable()->change();
+            });
+        }
     }
 
     /**

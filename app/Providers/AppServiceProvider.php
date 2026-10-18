@@ -30,8 +30,24 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)->by($request->ip());
         });
 
+        // ── Register Privacy & Governance Policies ──
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\Member::class, \App\Policies\MemberPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\PrivacyRequest::class, \App\Policies\PrivacyRequestPolicy::class);
+        \Illuminate\Support\Facades\Gate::policy(\App\Models\PrivilegedAccessGrant::class, \App\Policies\PrivilegedAccessPolicy::class);
+
+        // ── Granular Gates ──
+        \Illuminate\Support\Facades\Gate::define('export-members', [\App\Policies\ExportPolicy::class, 'exportMembers']);
+        \Illuminate\Support\Facades\Gate::define('export-sensitive', [\App\Policies\ExportPolicy::class, 'exportSensitive']);
+        \Illuminate\Support\Facades\Gate::define('export-financials', [\App\Policies\ExportPolicy::class, 'exportFinancials']);
+        \Illuminate\Support\Facades\Gate::define('view-audit-logs', function ($user) {
+            return $user instanceof \App\Models\Admin && ($user->hasPermission('audit.logs.view') || $user->isSuperAdmin() || $user->isPrivacyOfficer());
+        });
+
         \Illuminate\Pagination\Paginator::useBootstrapFive();
         
+        View::share('settings', collect([]));
+        View::share('menus', []);
+
         try {
             if (Schema::hasTable('settings')) {
                 $settings = Setting::all()->pluck('setting_value', 'setting_key');

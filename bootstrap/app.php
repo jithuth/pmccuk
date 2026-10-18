@@ -19,7 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->append(\App\Http\Middleware\SharedHostingCompatibility::class);
         $middleware->append(\App\Http\Middleware\WebApplicationFirewall::class);
-        $middleware->redirectGuestsTo(fn () => route('admin.login'));
+        $middleware->redirectGuestsTo(function (\Illuminate\Http\Request $request) {
+            if ($request->is('member/*') || $request->is('member')) {
+                return route('member.login');
+            }
+            return route('admin.login');
+        });
         $middleware->alias([
             'admin.role' => \App\Http\Middleware\AdminRole::class,
         ]);

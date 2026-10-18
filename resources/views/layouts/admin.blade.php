@@ -334,6 +334,52 @@
                     <li class="nav-item"><a href="{{ route('admin.videos') }}" class="nav-link {{ Route::is('admin.videos') ? 'active' : '' }}"><i class="nav-icon fas fa-video ic-yellow"></i><p>Videos</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.accounting') }}" class="nav-link {{ Route::is('admin.accounting') ? 'active' : '' }}"><i class="nav-icon fas fa-wallet ic-yellow"></i><p>Financials</p></a></li>
 
+                    <li class="nav-header text-info fw-bold">PRIVACY & GOVERNANCE</li>
+                    <li class="nav-item {{ Route::is('admin.privacy.*') ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link {{ Route::is('admin.privacy.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-user-shield text-info"></i>
+                            <p>UK GDPR Privacy Hub <i class="right fas fa-angle-left"></i></p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{{ route('admin.privacy.dashboard') }}" class="nav-link {{ Route::is('admin.privacy.dashboard') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon text-info" style="font-size:7px;"></i>
+                                    <p>Officer Dashboard</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.privacy.requests.index') }}" class="nav-link {{ Route::is('admin.privacy.requests.*') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon text-info" style="font-size:7px;"></i>
+                                    <p>Privacy Requests (SAR)</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.privacy.incidents.index') }}" class="nav-link {{ Route::is('admin.privacy.incidents.*') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon text-danger" style="font-size:7px;"></i>
+                                    <p>72h Breach Register</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.privacy.retention.index') }}" class="nav-link {{ Route::is('admin.privacy.retention.*') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon text-warning" style="font-size:7px;"></i>
+                                    <p>Data Retention Rules</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.privacy.audit.index') }}" class="nav-link {{ Route::is('admin.privacy.audit.*') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon text-secondary" style="font-size:7px;"></i>
+                                    <p>Security Audit Trail</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.privacy.access.index') }}" class="nav-link {{ Route::is('admin.privacy.access.*') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon text-danger" style="font-size:7px;"></i>
+                                    <p>Break-Glass Elevation</p>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+
                     <li class="nav-header">System</li>
                     <li class="nav-item"><a href="{{ route('admin.2fa.setup') }}" class="nav-link {{ Route::is('admin.2fa.*') ? 'active' : '' }}"><i class="nav-icon fas fa-qrcode ic-green"></i><p>2FA Security</p></a></li>
                     <li class="nav-item"><a href="{{ route('admin.email-settings') }}" class="nav-link {{ Route::is('admin.email-settings') ? 'active' : '' }}"><i class="nav-icon fas fa-at ic-slate"></i><p>Email Settings</p></a></li>

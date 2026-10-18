@@ -25,7 +25,7 @@ class AdminRole
         }
 
         // If the logged-in user's role is in the allowed list, proceed
-        if (in_array($user->role, $roles)) {
+        if (in_array($user->role, $roles) || (method_exists($user, 'hasRole') && $user->hasRole($roles))) {
             return $next($request);
         }
 

@@ -12,8 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Add 'superadmin' to the role enum
-        DB::statement("ALTER TABLE admins MODIFY COLUMN role ENUM('admin', 'staff', 'sponsor', 'superadmin') DEFAULT 'admin'");
+        // Add 'superadmin' to the role enum in MySQL
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE admins MODIFY COLUMN role ENUM('admin', 'staff', 'sponsor', 'superadmin') DEFAULT 'admin'");
+        }
     }
 
     /**
@@ -21,7 +23,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Revert to original enum (note: this may fail if 'superadmin' rows exist)
-        DB::statement("ALTER TABLE admins MODIFY COLUMN role ENUM('admin', 'staff', 'sponsor') DEFAULT 'admin'");
+        // Revert to original enum in MySQL
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE admins MODIFY COLUMN role ENUM('admin', 'staff', 'sponsor') DEFAULT 'admin'");
+        }
     }
 };

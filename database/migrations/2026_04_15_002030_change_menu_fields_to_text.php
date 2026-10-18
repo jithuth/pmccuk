@@ -11,10 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('menus', function (Blueprint $table) {
-            $table->text('title')->nullable()->change();
-            $table->text('url')->nullable()->change();
-        });
+        if (DB::getDriverName() === 'mysql') {
+            Schema::table('menus', function (Blueprint $table) {
+                $table->text('title')->nullable()->change();
+                $table->text('url')->nullable()->change();
+            });
+        }
     }
 
     /**

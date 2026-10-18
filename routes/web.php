@@ -15,6 +15,9 @@ use App\Http\Controllers\TeamController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\Admin\EventBookingController;
 use App\Http\Controllers\Admin\WhatsAppController;
+use App\Http\Controllers\Member\MemberAuthController;
+use App\Http\Controllers\Member\MemberPrivacyController;
+use App\Http\Controllers\Admin\PrivacyOfficerController;
 
 // 🚨 SYSTEM-LEVEL ASSET FAILSAFE (MUST BE TOP)
 Route::get('/img', function () {
@@ -59,7 +62,9 @@ Route::any('{any_prefix?}/{media_type}/{path}', function ($prefix, $type, $path)
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-Route::get('/path-debug', function () {
+// ── Maintenance & Diagnostic Failsafes (Restricted to Authenticated Super Administrators) ──
+Route::middleware(['auth:admin', 'admin.role:superadmin'])->group(function () {
+    Route::get('/path-debug', function () {
     $paths = [
         'public_path' => public_path(),
         'base_path' => base_path(),
@@ -257,6 +262,26 @@ Route::get('/run-migrations', function () {
     }
 });
 Route::get('/fix-database', fn() => redirect('/run-migrations'));
+});
+
+// ── Member Portal & Privacy Center (UK GDPR Rights) ──
+Route::prefix('member')->name('member.')->group(function () {
+    Route::get('/login', [MemberAuthController::class, 'showLoginForm'])->name('login')->middleware('guest:member');
+    Route::post('/login/password', [MemberAuthController::class, 'loginWithPassword'])->name('login.password')->middleware('guest:member', 'throttle:10,1');
+    Route::post('/login/otp/send', [MemberAuthController::class, 'sendOtp'])->name('login.otp.send')->middleware('guest:member', 'throttle:5,1');
+    Route::post('/login/otp/verify', [MemberAuthController::class, 'verifyOtp'])->name('login.otp.verify')->middleware('guest:member', 'throttle:10,1');
+    Route::post('/logout', [MemberAuthController::class, 'logout'])->name('logout')->middleware('auth:member');
+
+    Route::prefix('privacy')->name('privacy.')->middleware('auth:member')->group(function () {
+        Route::get('/', [MemberPrivacyController::class, 'index'])->name('index');
+        Route::post('/sar', [MemberPrivacyController::class, 'submitSar'])->name('sar');
+        Route::post('/rectification', [MemberPrivacyController::class, 'submitRectification'])->name('rectification');
+        Route::post('/erasure', [MemberPrivacyController::class, 'submitErasure'])->name('erasure');
+        Route::post('/consents', [MemberPrivacyController::class, 'updateConsents'])->name('consents');
+        Route::get('/download/{token}', [MemberPrivacyController::class, 'downloadDocument'])->name('download');
+        Route::get('/registration-record', [MemberPrivacyController::class, 'viewRegistrationRecord'])->name('registration-record');
+    });
+});
 
 Route::get('/membership', [MembershipController::class, 'index'])->name('membership');
 Route::get('/id-card/view/{guid}', [MembershipController::class, 'viewIdCard'])->name('member.id-card.view');
@@ -517,6 +542,42 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('/daemon-command', [WhatsAppController::class, 'runDaemonCommand'])->name('daemon-command');
             });
             Route::post('/email-settings/test', [DashboardController::class, 'testEmailConnection'])->name('email-settings.test');
+
+            // ── UK GDPR Privacy & Data Governance Hub ──
+            Route::prefix('privacy')->name('privacy.')->group(function () {
+                Route::get('/dashboard', [PrivacyOfficerController::class, 'dashboard'])->name('dashboard');
+
+                // Privacy Requests Workflow
+                Route::get('/requests', [PrivacyOfficerController::class, 'requestsIndex'])->name('requests.index');
+                Route::get('/requests/{id}', [PrivacyOfficerController::class, 'requestShow'])->name('requests.show');
+                Route::post('/requests/{id}/verify-identity', [PrivacyOfficerController::class, 'verifyIdentity'])->name('requests.verify-identity');
+                Route::post('/requests/{id}/assign', [PrivacyOfficerController::class, 'assignReviewer'])->name('requests.assign');
+                Route::post('/requests/{id}/extend', [PrivacyOfficerController::class, 'extendDeadline'])->name('requests.extend');
+                Route::post('/requests/{id}/approve', [PrivacyOfficerController::class, 'addApproval'])->name('requests.approve');
+                Route::post('/requests/{id}/generate-sar', [PrivacyOfficerController::class, 'generateSarExport'])->name('requests.generate-sar');
+                Route::post('/requests/{id}/fulfil', [PrivacyOfficerController::class, 'fulfilRequest'])->name('requests.fulfil');
+                Route::post('/requests/{id}/refuse', [PrivacyOfficerController::class, 'refuseRequest'])->name('requests.refuse');
+
+                // Security Incidents & 72h ICO Breach Register
+                Route::get('/incidents', [PrivacyOfficerController::class, 'incidentsIndex'])->name('incidents.index');
+                Route::get('/incidents/{id}', [PrivacyOfficerController::class, 'incidentShow'])->name('incidents.show');
+                Route::post('/incidents', [PrivacyOfficerController::class, 'storeIncident'])->name('incidents.store');
+                Route::post('/incidents/{id}/update', [PrivacyOfficerController::class, 'updateIncident'])->name('incidents.update');
+                Route::post('/incidents/{id}/timeline', [PrivacyOfficerController::class, 'addIncidentTimeline'])->name('incidents.timeline');
+
+                // Data Retention Policies & Selective Anonymization
+                Route::get('/retention', [PrivacyOfficerController::class, 'retentionIndex'])->name('retention.index');
+                Route::post('/retention/execute', [PrivacyOfficerController::class, 'executeRetention'])->name('retention.execute');
+
+                // Security & Privacy Audit Trail
+                Route::get('/audit', [PrivacyOfficerController::class, 'auditIndex'])->name('audit.index');
+
+                // Privileged Access / Break-Glass Elevation
+                Route::get('/access', [PrivacyOfficerController::class, 'privilegedAccessIndex'])->name('access.index');
+                Route::post('/access/request', [PrivacyOfficerController::class, 'requestPrivilegedAccess'])->name('access.request');
+                Route::post('/access/{id}/grant', [PrivacyOfficerController::class, 'grantPrivilegedAccess'])->name('access.grant');
+                Route::post('/access/{id}/revoke', [PrivacyOfficerController::class, 'revokePrivilegedAccess'])->name('access.revoke');
+            });
         });
 
         // Staff Counter Dashboard

@@ -1,13 +1,14 @@
 <?php namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\HasSmartDecryption;
 use Illuminate\Support\Str;
 
-class Member extends Model
+class Member extends Authenticatable
 {
-    use SoftDeletes, HasSmartDecryption;
+    use SoftDeletes, HasSmartDecryption, Notifiable;
 
     protected static function boot()
     {
@@ -22,20 +23,38 @@ class Member extends Model
     protected $table = 'members';
 
     protected $fillable = [
-        'guid', 'title', 'full_name', 'email', 'mobile_number', 'photo', 'family_photo', 
+        'guid', 'title', 'full_name', 'email', 'password', 'mobile_number', 'photo', 'family_photo', 
         'dob', 'marital_status', 'spouse_name', 'spouse_mobile', 'spouse_dob', 
         'emergency_name', 'emergency_mobile', 'post_code', 'house_details', 
         'residing_area', 'membership_type', 'status', 'expiry_date', 
         'membership_id_assigned', 'prev_membership_no', 'payment_amount', 
         'transaction_ref', 'payment_proof', 'payment_date', 'bank_account_holder', 
-        'consent_given', 'children_below_18', 'children_above_18'
+        'consent_given', 'children_below_18', 'children_above_18',
+        'privacy_anonymized_at', 'privacy_hold', 'privacy_notes'
+    ];
+
+    protected $hidden = [
+        'password', 'remember_token'
     ];
 
     protected $casts = [
-        'consent_given'    => 'boolean',
+        'consent_given'         => 'boolean',
+        'privacy_hold'          => 'boolean',
+        'privacy_anonymized_at' => 'datetime',
+        'password'              => 'hashed',
     ];
 
     protected $appends = ['photo_url', 'family_photo_url'];
+
+    public function privacyRequests()
+    {
+        return $this->hasMany(PrivacyRequest::class, 'member_id')->orderBy('received_at', 'desc');
+    }
+
+    public function consents()
+    {
+        return $this->hasMany(MemberConsent::class, 'member_id');
+    }
 
     public function children()
     {

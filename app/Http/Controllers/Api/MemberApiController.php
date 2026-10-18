@@ -87,7 +87,7 @@ class MemberApiController extends Controller
     {
         $request->validate([
             'login' => 'required|string',
-            'password' => 'nullable|string',
+            'password' => 'required|string',
         ]);
 
         $login = trim($request->login);
@@ -102,12 +102,29 @@ class MemberApiController extends Controller
         if (!$member) {
             return response()->json([
                 'success' => false,
-                'message' => 'No active membership found matching the provided details.'
-            ], 404);
+                'message' => 'Invalid credentials.'
+            ], 401);
         }
 
-        // Generate dynamic API Bearer Token
-        $token = base64_encode($member->id . ':' . $member->guid . ':' . time());
+        // Verify password against password hash or legacy DOB verification
+        $passwordValid = false;
+        if (!empty($member->password) && Hash::check($request->password, $member->password)) {
+            $passwordValid = true;
+        } elseif (!empty($member->dob) && (trim($member->dob) === trim($request->password) || date('Y-m-d', strtotime($member->dob)) === trim($request->password))) {
+            $passwordValid = true;
+        }
+
+        if (!$passwordValid) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credentials.'
+            ], 401);
+        }
+
+        // Generate cryptographically signed API Bearer Token (HMAC SHA-256)
+        $timestamp = time();
+        $signature = hash_hmac('sha256', "{$member->id}:{$member->guid}:{$timestamp}", config('app.key'));
+        $token = base64_encode("{$member->id}:{$member->guid}:{$timestamp}:{$signature}");
 
         return response()->json([
             'success' => true,
@@ -370,8 +387,29 @@ class MemberApiController extends Controller
         $parts = explode(':', $decoded);
         $memberId = $parts[0] ?? null;
         $guid = $parts[1] ?? null;
+        $timestamp = $parts[2] ?? null;
+        $signature = $parts[3] ?? null;
 
         if (!$memberId || !$guid) {
+            return null;
+        }
+
+        // Cryptographic HMAC Verification
+        if ($signature && $timestamp) {
+            $expectedSignature = hash_hmac('sha256', "{$memberId}:{$guid}:{$timestamp}", config('app.key'));
+            if (!hash_equals($expectedSignature, $signature)) {
+                return null;
+            }
+            // Check max validity (60 days)
+            if (abs(time() - (int)$timestamp) > (60 * 86400)) {
+                return null;
+            }
+        } elseif ($timestamp) {
+            // Legacy token grace period: only accept if generated within the last 2 hours
+            if (abs(time() - (int)$timestamp) > 7200) {
+                return null;
+            }
+        } else {
             return null;
         }
 

@@ -8,7 +8,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Admins
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'mysql') {
+            return;
+        }
         Schema::table('admins', function (Blueprint $table) {
             $table->text('email')->nullable()->change();
         });

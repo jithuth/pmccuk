@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (\Illuminate\Support\Facades\DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         Schema::table('renewal_requests', function (Blueprint $table) {
             $table->text('bank_account_holder')->nullable()->change();
             $table->text('transaction_ref')->nullable()->change();
