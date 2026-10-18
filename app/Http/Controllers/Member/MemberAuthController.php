@@ -49,6 +49,21 @@ class MemberAuthController extends Controller
             ->first();
 
         if (!$member) {
+            $cleanLogin = trim($login);
+            $cleanPhone = preg_replace('/[^0-9]/', '', $cleanLogin);
+            $member = Member::all()->first(function ($m) use ($cleanLogin, $cleanPhone) {
+                if ($m->email && strtolower(trim($m->email)) === strtolower($cleanLogin)) return true;
+                if ($m->mobile_number) {
+                    $mPhone = preg_replace('/[^0-9]/', '', $m->mobile_number);
+                    if (!empty($cleanPhone) && ($mPhone === $cleanPhone || str_ends_with($mPhone, substr($cleanPhone, -10)))) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+        }
+
+        if (!$member) {
             SecurityAuditService::log('member_login_failed', 'Member', null, 'Invalid login identifier: ' . $login, 'failed');
             return back()->withErrors(['login' => 'No membership found matching the provided details.'])->withInput();
         }
@@ -97,6 +112,19 @@ class MemberAuthController extends Controller
                 $q->orWhere('mobile_number', 'LIKE', '%' . substr($cleanPhone, -10));
             })
             ->first();
+
+        if (!$member) {
+            $member = Member::all()->first(function ($m) use ($rawId, $cleanPhone) {
+                if ($m->email && strtolower(trim($m->email)) === strtolower(trim($rawId))) return true;
+                if ($m->mobile_number) {
+                    $mPhone = preg_replace('/[^0-9]/', '', $m->mobile_number);
+                    if (!empty($cleanPhone) && ($mPhone === $cleanPhone || str_ends_with($mPhone, substr($cleanPhone, -10)))) {
+                        return true;
+                    }
+                }
+                return false;
+            });
+        }
 
         if (!$member) {
             return response()->json(['success' => false, 'message' => 'No active membership record found matching this detail.'], 404);

@@ -44,6 +44,14 @@ class Member extends Authenticatable
         'password'              => 'hashed',
     ];
 
+    public array $encryptable = [
+        'full_name', 'email', 'mobile_number', 'dob', 'marital_status',
+        'spouse_name', 'spouse_mobile', 'spouse_dob', 'emergency_name',
+        'emergency_mobile', 'post_code', 'house_details', 'residing_area',
+        'photo', 'family_photo', 'bank_account_holder', 'transaction_ref',
+        'payment_proof', 'privacy_notes'
+    ];
+
     protected $appends = ['photo_url', 'family_photo_url'];
 
     public function privacyRequests()

@@ -20,7 +20,10 @@ class EventBooking extends Model
     protected $casts = [
         'attendee_breakdown' => 'array',
         'check_in_at' => 'datetime',
-        // No encrypted casts, the trait handles it dynamically
+    ];
+
+    public array $encryptable = [
+        'full_name', 'email', 'phone',
     ];
 
     public function event()

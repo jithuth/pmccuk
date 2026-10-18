@@ -70,12 +70,15 @@ class DashboardController extends Controller
         }
 
         if ($search) {
-            $query->where(function ($q) use ($search) {
-                $q->where('full_name', 'LIKE', "%$search%")
-                    ->orWhere('email', 'LIKE', "%$search%")
-                    ->orWhere('mobile_number', 'LIKE', "%$search%")
-                    ->orWhere('membership_id_assigned', 'LIKE', "%$search%");
-            });
+            $matchingIds = Member::all()->filter(function ($m) use ($search) {
+                $cleanS = strtolower(trim($search));
+                return str_contains(strtolower($m->full_name ?? ''), $cleanS)
+                    || str_contains(strtolower($m->email ?? ''), $cleanS)
+                    || str_contains(strtolower($m->mobile_number ?? ''), $cleanS)
+                    || str_contains(strtolower($m->membership_id_assigned ?? ''), $cleanS);
+            })->pluck('id')->toArray();
+
+            $query->whereIn('id', $matchingIds);
         }
 
         $members = $query->orderBy('id', 'asc')->paginate(10);

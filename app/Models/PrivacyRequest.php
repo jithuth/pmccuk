@@ -4,10 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use App\Traits\HasSmartDecryption;
 
 class PrivacyRequest extends Model
 {
+    use HasSmartDecryption;
+
     protected $table = 'privacy_requests';
+
+    public array $encryptable = [
+        'requester_name', 'requester_email', 'requester_phone', 'details', 'decision_reasoning',
+    ];
 
     protected $fillable = [
         'reference_number',
