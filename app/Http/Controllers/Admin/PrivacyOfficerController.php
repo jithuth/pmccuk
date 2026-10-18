@@ -117,12 +117,32 @@ class PrivacyOfficerController extends Controller
         $privacyRequest = PrivacyRequest::with([
             'member.children',
             'member.payments',
+            'member.consents',
             'items',
             'actions.actor',
             'approvals.approver',
             'documents',
             'statusHistory.changer'
         ])->findOrFail($id);
+
+        $member = $privacyRequest->member;
+        $eventBookings = collect();
+        if ($member) {
+            $eventBookings = \App\Models\EventBooking::with('event')
+                ->where(function($q) use ($member) {
+                    if ($member->membership_id_assigned) {
+                        $q->where('membership_no', $member->membership_id_assigned);
+                    }
+                    if ($member->email) {
+                        $q->orWhere('email', $member->email);
+                    }
+                    if ($member->mobile_number) {
+                        $q->orWhere('phone', $member->mobile_number);
+                    }
+                })
+                ->orderBy('id', 'desc')
+                ->get();
+        }
 
         $admins = Admin::orderBy('username')->get();
 
@@ -133,7 +153,7 @@ class PrivacyOfficerController extends Controller
             "Officer inspected Privacy Request {$privacyRequest->reference_number}"
         );
 
-        return view('admin.privacy.requests.show', compact('privacyRequest', 'admins'));
+        return view('admin.privacy.requests.show', compact('privacyRequest', 'admins', 'eventBookings'));
     }
 
     public function verifyIdentity(Request $request, $id)

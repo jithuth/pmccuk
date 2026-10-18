@@ -428,4 +428,68 @@ class PrivacyGovernanceTest extends TestCase
         $this->assertNotNull($mktConsent);
         $this->assertFalse((bool)$mktConsent->granted);
     }
+
+    /**
+     * Test 15: SAR Export compiles comprehensive member details including personal, financial, and event records
+     */
+    public function test_sar_compiles_financial_and_event_records(): void
+    {
+        $member = Member::create([
+            'guid'                   => 'sar-export-test-guid-888',
+            'membership_id_assigned' => 'PMCC-8888',
+            'full_name'              => 'George Kurian',
+            'email'                  => 'george.kurian@example.com',
+            'mobile_number'          => '+447999888777',
+            'payment_amount'         => 50.00,
+            'payment_date'           => '2026-02-15',
+            'bank_account_holder'    => 'George Kurian',
+            'transaction_ref'        => 'TXN-GK-8888',
+        ]);
+
+        \App\Models\PaymentHistory::create([
+            'member_id'       => $member->id,
+            'payment_type'    => 'Annual Renewal 2026',
+            'amount'          => 50.00,
+            'transaction_ref' => 'TXN-RENEW-8888',
+        ]);
+
+        $event = \App\Models\Event::create([
+            'title' => 'PMCC Annual Gala 2026',
+            'slug'  => 'pmcc-annual-gala-2026',
+            'date'  => '2026-08-20',
+        ]);
+
+        \App\Models\EventBooking::create([
+            'event_id'       => $event->id,
+            'membership_no'  => 'PMCC-8888',
+            'email'          => 'george.kurian@example.com',
+            'full_name'      => 'George Kurian',
+            'adult_count'    => 2,
+            'child_count'    => 1,
+            'total_amount'   => 40.00,
+            'booking_status' => 'confirmed',
+            'check_in_at'    => now(),
+        ]);
+
+        $data = \App\Services\MemberDataExportService::compileMemberData($member);
+
+        $this->assertEquals('George Kurian', $data['member_profile']['full_name']);
+        $this->assertEquals('PMCC-8888', $data['member_profile']['membership_number']);
+        $this->assertNotEmpty($data['financial_history']);
+        $this->assertCount(2, $data['financial_history']); // Initial fee + renewal
+        $this->assertNotEmpty($data['event_history']);
+        $this->assertEquals('PMCC Annual Gala 2026', $data['event_history'][0]['event_title']);
+        $this->assertTrue($data['event_history'][0]['attended']);
+    }
+
+    /**
+     * Test 16: Footer displays updated copyright: © 2026 PMCC-UK Made and maintained by PMCC-UK .
+     */
+    public function test_footer_displays_updated_pmcc_copyright(): void
+    {
+        $response = $this->get('/');
+        $response->assertStatus(200);
+        $response->assertSee('PMCC-UK Made and maintained by PMCC-UK .');
+        $response->assertDontSee('Tom Jacob');
+    }
 }

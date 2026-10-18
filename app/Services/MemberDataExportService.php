@@ -17,7 +17,9 @@ class MemberDataExportService
     {
         // 1. Core Profile
         $profile = [
+            'guid'              => $member->guid,
             'membership_number' => $member->membership_id_assigned ?: 'PENDING',
+            'prev_membership_no'=> $member->prev_membership_no,
             'title'             => $member->title,
             'full_name'         => $member->full_name,
             'email'             => $member->email,
@@ -40,6 +42,8 @@ class MemberDataExportService
             'status'            => $member->getMembershipStatusLabel(),
             'expiry_date'       => $member->expiry_date,
             'joined_at'         => $member->created_at ? $member->created_at->toIso8601String() : null,
+            'photo_url'         => $member->photo_url,
+            'family_photo_url'  => $member->family_photo_url,
         ];
 
         // 2. Family Dependents
@@ -52,26 +56,52 @@ class MemberDataExportService
             ];
         })->toArray();
 
-        // 3. Payment Records
-        $payments = $member->payments->map(function ($p) {
-            return [
-                'payment_id'      => $p->id,
-                'payment_type'    => $p->payment_type,
-                'amount_gbp'      => (float) $p->amount,
-                'transaction_ref' => $p->transaction_ref,
-                'date'            => $p->created_at ? $p->created_at->toIso8601String() : null,
+        // 3. Payment Records (including initial membership fee & transaction history)
+        $payments = [];
+        if ($member->payment_amount > 0 || $member->payment_date || $member->bank_account_holder) {
+            $payments[] = [
+                'payment_id'          => 'INITIAL_MEMBERSHIP_FEE',
+                'payment_type'        => 'Membership Registration / Annual Fee',
+                'amount_gbp'          => (float) $member->payment_amount,
+                'bank_account_holder' => $member->bank_account_holder,
+                'transaction_ref'     => $member->transaction_ref,
+                'payment_proof'       => $member->payment_proof ? url('img?p=' . ltrim($member->payment_proof, '/')) : null,
+                'date'                => $member->payment_date ?: ($member->created_at ? $member->created_at->toIso8601String() : null),
             ];
-        })->toArray();
+        }
+
+        foreach ($member->payments as $p) {
+            $payments[] = [
+                'payment_id'          => $p->id,
+                'payment_type'        => $p->payment_type ?: 'Subscription / Fee Renewal',
+                'amount_gbp'          => (float) $p->amount,
+                'bank_account_holder' => $member->bank_account_holder,
+                'transaction_ref'     => $p->transaction_ref,
+                'payment_proof'       => null,
+                'date'                => $p->created_at ? $p->created_at->toIso8601String() : null,
+            ];
+        }
 
         // 4. Event Bookings
-        $bookings = \App\Models\EventBooking::where('email', $member->email)
-            ->orWhere('membership_no', $member->membership_id_assigned)
+        $bookings = \App\Models\EventBooking::where(function ($q) use ($member) {
+                if ($member->email) {
+                    $q->where('email', $member->email);
+                }
+                if ($member->membership_id_assigned) {
+                    $q->orWhere('membership_no', $member->membership_id_assigned);
+                }
+                if ($member->mobile_number) {
+                    $q->orWhere('phone', $member->mobile_number);
+                }
+            })
             ->with('event')
+            ->orderBy('id', 'desc')
             ->get()
             ->map(function ($b) {
                 return [
                     'reference'      => $b->reference_no,
-                    'event_title'    => $b->event->title ?? 'Club Event',
+                    'event_title'    => $b->event->title ?? 'PMCC Event',
+                    'event_date'     => $b->event->date ?? null,
                     'headcount'      => [
                         'adults'   => $b->adult_count,
                         'children' => $b->child_count,
@@ -90,7 +120,7 @@ class MemberDataExportService
             return [
                 'purpose'      => $c->consent_key,
                 'lawful_basis' => $c->lawful_basis,
-                'granted'      => $c->granted,
+                'granted'      => (bool) $c->granted,
                 'granted_at'   => $c->granted_at ? $c->granted_at->toIso8601String() : null,
                 'revoked_at'   => $c->revoked_at ? $c->revoked_at->toIso8601String() : null,
             ];
@@ -98,10 +128,10 @@ class MemberDataExportService
 
         return [
             'subject_access_disclosure' => [
-                'data_controller'   => 'Plymouth Malayalee Community Club (PMCC-UK)',
+                'data_controller'    => 'Plymouth Malayalee Community Club (PMCC-UK)',
                 'controller_contact' => 'privacy@pmcc-uk.org',
-                'compiled_at'       => now()->toIso8601String(),
-                'statutory_basis'   => 'UK GDPR Article 15 (Right of Access by the Data Subject)',
+                'compiled_at'        => now()->toIso8601String(),
+                'statutory_basis'    => 'UK GDPR Article 15 (Right of Access by the Data Subject)',
             ],
             'member_profile'            => $profile,
             'dependents'                => $children,
@@ -165,9 +195,21 @@ class MemberDataExportService
             fputcsv($handle, ['Dependent #' . ($i + 1), 'Gender', $child['gender']]);
         }
         foreach ($data['financial_history'] as $i => $pay) {
-            fputcsv($handle, ['Payment #' . ($i + 1), 'Type / Ref', $pay['payment_type'] . ' (' . $pay['transaction_ref'] . ')']);
-            fputcsv($handle, ['Payment #' . ($i + 1), 'Amount (£)', $pay['amount_gbp']]);
-            fputcsv($handle, ['Payment #' . ($i + 1), 'Date', $pay['date']]);
+            fputcsv($handle, ['Financial Payment #' . ($i + 1), 'Type / Description', $pay['payment_type']]);
+            fputcsv($handle, ['Financial Payment #' . ($i + 1), 'Amount (£)', $pay['amount_gbp']]);
+            fputcsv($handle, ['Financial Payment #' . ($i + 1), 'Transaction Ref', $pay['transaction_ref'] ?? 'N/A']);
+            fputcsv($handle, ['Financial Payment #' . ($i + 1), 'Bank Account Holder', $pay['bank_account_holder'] ?? 'N/A']);
+            fputcsv($handle, ['Financial Payment #' . ($i + 1), 'Payment Date', $pay['date'] ?? 'N/A']);
+        }
+        foreach ($data['event_history'] as $i => $ev) {
+            fputcsv($handle, ['Event Booking #' . ($i + 1), 'Reference', $ev['reference']]);
+            fputcsv($handle, ['Event Booking #' . ($i + 1), 'Event Title', $ev['event_title']]);
+            fputcsv($handle, ['Event Booking #' . ($i + 1), 'Total Amount (£)', $ev['total_amount']]);
+            fputcsv($handle, ['Event Booking #' . ($i + 1), 'Booking Status', $ev['booking_status']]);
+            fputcsv($handle, ['Event Booking #' . ($i + 1), 'Attended / Checked-in', $ev['attended'] ? 'YES (' . $ev['check_in_time'] . ')' : 'NO']);
+        }
+        foreach ($data['consent_records'] as $i => $c) {
+            fputcsv($handle, ['Consent Record #' . ($i + 1), $c['purpose'], ($c['granted'] ? 'GRANTED' : 'REVOKED') . ' (Basis: ' . $c['lawful_basis'] . ')']);
         }
 
         rewind($handle);

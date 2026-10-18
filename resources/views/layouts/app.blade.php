@@ -381,8 +381,7 @@
 
             <div
                 class="pt-10 border-t border-white/10 flex flex-col md:flex-row justify-between items-center text-[11px] font-black uppercase tracking-widest text-slate-500">
-                <p class="mb-4 md:mb-0">&copy; {{ date('Y') }} PMCC-UK Made and maintained with ❤️ by Tom Jacob .
-
+                <p class="mb-4 md:mb-0">&copy; {{ date('Y') }} PMCC-UK Made and maintained by PMCC-UK .
                 </p>
                 <div class="relative inline-block text-left mt-4 md:mt-0">
                     <!-- Dropup Trigger Button -->

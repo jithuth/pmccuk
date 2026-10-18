@@ -57,6 +57,320 @@
 <div class="row">
     <!-- Left Column: Request Details, Items & Documents -->
     <div class="col-lg-8">
+        <!-- Comprehensive Member Data Records -->
+        <div class="card card-outline card-primary elevation-2 mb-4">
+            <div class="card-header border-bottom d-flex justify-content-between align-items-center">
+                <h3 class="card-title font-weight-bold text-primary mb-0">
+                    <i class="fas fa-id-card mr-2"></i> Member Complete Data Profile (Subject of Request)
+                </h3>
+                @if($privacyRequest->member)
+                    <span class="badge bg-primary text-white font-monospace px-2.5 py-1">
+                        {{ $privacyRequest->member->membership_id_assigned ?: 'PENDING ID' }}
+                    </span>
+                @endif
+            </div>
+
+            @if($privacyRequest->member)
+                @php $m = $privacyRequest->member; @endphp
+                <div class="card-header p-2 bg-light">
+                    <ul class="nav nav-pills" id="memberProfileTabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active font-weight-bold text-xs text-uppercase" id="tab-admin-personal" data-toggle="pill" data-bs-toggle="pill" href="#admin-personal" role="tab">
+                                <i class="fas fa-user mr-1 text-primary"></i> Personal Details
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link font-weight-bold text-xs text-uppercase" id="tab-admin-family" data-toggle="pill" data-bs-toggle="pill" href="#admin-family" role="tab">
+                                <i class="fas fa-users mr-1 text-info"></i> Family & Dependents ({{ $m->children->count() + ($m->spouse_name ? 1 : 0) }})
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link font-weight-bold text-xs text-uppercase" id="tab-admin-financial" data-toggle="pill" data-bs-toggle="pill" href="#admin-financial" role="tab">
+                                <i class="fas fa-receipt mr-1 text-success"></i> Financial Details ({{ $m->payments->count() + ($m->payment_amount > 0 ? 1 : 0) }})
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link font-weight-bold text-xs text-uppercase" id="tab-admin-events" data-toggle="pill" data-bs-toggle="pill" href="#admin-events" role="tab">
+                                <i class="fas fa-calendar-check mr-1 text-warning"></i> Event Records ({{ $eventBookings->count() }})
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link font-weight-bold text-xs text-uppercase" id="tab-admin-consents" data-toggle="pill" data-bs-toggle="pill" href="#admin-consents" role="tab">
+                                <i class="fas fa-shield-alt mr-1 text-secondary"></i> GDPR Consents
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="card-body p-4">
+                    <div class="tab-content" id="memberProfileTabContent">
+                        <!-- TAB 1: Personal Details -->
+                        <div class="tab-pane fade show active" id="admin-personal" role="tabpanel">
+                            <div class="row align-items-center mb-4 pb-3 border-bottom">
+                                <div class="col-auto">
+                                    <img src="{{ $m->photo_url }}" alt="Member Photo" class="img-thumbnail rounded-circle" style="width: 80px; height: 80px; object-fit: cover;">
+                                </div>
+                                <div class="col">
+                                    <h4 class="font-weight-bold mb-1 text-dark">{{ $m->title }} {{ $m->full_name }}</h4>
+                                    <div class="d-flex flex-wrap gap-2 align-items-center text-xs">
+                                        <span class="badge bg-secondary font-monospace">{{ $m->membership_id_assigned ?: 'PENDING' }}</span>
+                                        <span class="badge bg-light border text-dark">{{ strtoupper($m->membership_type ?: 'Standard') }}</span>
+                                        <span class="badge bg-{{ strtolower($m->status) === 'active' ? 'success' : 'warning' }}">{{ strtoupper($m->getMembershipStatusLabel()) }}</span>
+                                        <span class="text-muted"><i class="fas fa-calendar-alt mr-1"></i> Registered: {{ $m->created_at ? $m->created_at->format('d M Y') : 'N/A' }}</span>
+                                        <span class="text-muted"><i class="fas fa-hourglass-end mr-1"></i> Expires: {{ $m->expiry_date ?: 'Permanent' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-3 small">
+                                <div class="col-sm-6 col-md-4">
+                                    <span class="text-muted d-block text-uppercase font-weight-bold text-xs">Email Address</span>
+                                    <strong class="text-dark">{{ $m->email ?: 'N/A' }}</strong>
+                                </div>
+                                <div class="col-sm-6 col-md-4">
+                                    <span class="text-muted d-block text-uppercase font-weight-bold text-xs">Mobile Phone</span>
+                                    <strong class="text-dark">{{ $m->mobile_number ?: 'N/A' }}</strong>
+                                </div>
+                                <div class="col-sm-6 col-md-4">
+                                    <span class="text-muted d-block text-uppercase font-weight-bold text-xs">Date of Birth</span>
+                                    <strong class="text-dark">{{ $m->dob ?: 'N/A' }}</strong>
+                                </div>
+                                <div class="col-sm-6 col-md-4">
+                                    <span class="text-muted d-block text-uppercase font-weight-bold text-xs">Marital Status</span>
+                                    <strong class="text-dark">{{ ucfirst($m->marital_status ?: 'Unspecified') }}</strong>
+                                </div>
+                                <div class="col-sm-6 col-md-8">
+                                    <span class="text-muted d-block text-uppercase font-weight-bold text-xs">Full Residential Address</span>
+                                    <strong class="text-dark">{{ $m->house_details ?: 'House details on file' }}, {{ $m->residing_area ?: 'Plymouth' }}, {{ $m->post_code }}</strong>
+                                </div>
+                                <div class="col-sm-6 col-md-6">
+                                    <span class="text-muted d-block text-uppercase font-weight-bold text-xs">Emergency Contact Person</span>
+                                    <strong class="text-dark">{{ $m->emergency_name ?: 'None specified' }}</strong>
+                                </div>
+                                <div class="col-sm-6 col-md-6">
+                                    <span class="text-muted d-block text-uppercase font-weight-bold text-xs">Emergency Contact Phone</span>
+                                    <strong class="text-dark">{{ $m->emergency_mobile ?: 'None specified' }}</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 2: Family & Dependents -->
+                        <div class="tab-pane fade" id="admin-family" role="tabpanel">
+                            @if($m->spouse_name)
+                                <div class="p-3 bg-light rounded border mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="badge bg-danger mb-1"><i class="fas fa-heart mr-1"></i> Spouse / Partner</span>
+                                            <h5 class="font-weight-bold mb-0 text-dark">{{ $m->spouse_name }}</h5>
+                                        </div>
+                                        <div class="text-right text-xs">
+                                            <div class="text-muted">Mobile: <strong>{{ $m->spouse_mobile ?: 'N/A' }}</strong></div>
+                                            <div class="text-muted">DOB: <strong>{{ $m->spouse_dob ?: 'N/A' }}</strong></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <h6 class="font-weight-bold text-secondary text-uppercase text-xs mb-2">Registered Children / Dependents ({{ $m->children->count() }})</h6>
+                            @if($m->children->count() > 0)
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-sm table-striped mb-0">
+                                        <thead class="bg-light text-xs text-uppercase">
+                                            <tr>
+                                                <th>Child Name</th>
+                                                <th>Gender</th>
+                                                <th>Date of Birth</th>
+                                                <th>Calculated Age</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="small">
+                                            @foreach($m->children as $child)
+                                                <tr>
+                                                    <td class="font-weight-bold text-dark">{{ $child->child_name }}</td>
+                                                    <td>{{ ucfirst($child->child_gender ?: ($child->sex ?: 'N/A')) }}</td>
+                                                    <td>{{ $child->dob ?: ($child->child_dob ?: 'N/A') }}</td>
+                                                    <td><span class="badge bg-light border text-dark">{{ $child->age ? $child->age . ' yrs' : 'N/A' }}</span></td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <p class="text-muted small mb-0">No dependent children registered under this member account.</p>
+                            @endif
+                        </div>
+
+                        <!-- TAB 3: Financial Details -->
+                        <div class="tab-pane fade" id="admin-financial" role="tabpanel">
+                            <!-- Baseline Fee -->
+                            <div class="p-3 bg-light rounded border mb-3">
+                                <h6 class="font-weight-bold text-success text-uppercase text-xs mb-2">
+                                    <i class="fas fa-wallet mr-1"></i> Membership Registration Fee Record
+                                </h6>
+                                <div class="row g-2 text-xs">
+                                    <div class="col-sm-6 col-md-3">
+                                        <span class="text-muted d-block">Fee Paid</span>
+                                        <strong class="text-dark fs-6 font-monospace">£{{ number_format((float)$m->payment_amount, 2) }}</strong>
+                                    </div>
+                                    <div class="col-sm-6 col-md-3">
+                                        <span class="text-muted d-block">Payment Date</span>
+                                        <strong class="text-dark">{{ $m->payment_date ?: ($m->created_at ? $m->created_at->format('d M Y') : 'N/A') }}</strong>
+                                    </div>
+                                    <div class="col-sm-6 col-md-3">
+                                        <span class="text-muted d-block">Bank Account Holder</span>
+                                        <strong class="text-dark">{{ $m->bank_account_holder ?: 'N/A' }}</strong>
+                                    </div>
+                                    <div class="col-sm-6 col-md-3">
+                                        <span class="text-muted d-block">Transaction Reference</span>
+                                        <strong class="text-dark font-monospace">{{ $m->transaction_ref ?: 'N/A' }}</strong>
+                                    </div>
+                                </div>
+                                @if($m->payment_proof)
+                                    <div class="mt-2 pt-2 border-top">
+                                        <a href="{{ url('img?p=' . ltrim($m->payment_proof, '/')) }}" target="_blank" class="btn btn-xs btn-outline-success font-weight-bold">
+                                            <i class="fas fa-receipt mr-1"></i> View Bank Proof Document
+                                        </a>
+                                    </div>
+                                @endif
+                            </div>
+
+                            <!-- Additional Payments -->
+                            <h6 class="font-weight-bold text-secondary text-uppercase text-xs mb-2">Payment Transaction History ({{ $m->payments->count() }})</h6>
+                            @if($m->payments->count() > 0)
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-sm table-hover mb-0">
+                                        <thead class="bg-light text-xs text-uppercase">
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Type / Description</th>
+                                                <th>Amount (£)</th>
+                                                <th>Transaction Ref</th>
+                                                <th>Date Recorded</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="small">
+                                            @foreach($m->payments as $payment)
+                                                <tr>
+                                                    <td>#{{ $payment->id }}</td>
+                                                    <td class="font-weight-bold">{{ $payment->payment_type ?: 'Membership Fee' }}</td>
+                                                    <td class="text-success font-weight-bold">£{{ number_format((float)$payment->amount, 2) }}</td>
+                                                    <td class="font-monospace text-muted">{{ $payment->transaction_ref ?: 'N/A' }}</td>
+                                                    <td>{{ $payment->created_at ? $payment->created_at->format('d M Y, h:i A') : 'N/A' }}</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <p class="text-muted small mb-0">No supplementary payment records found in ledger.</p>
+                            @endif
+                        </div>
+
+                        <!-- TAB 4: Event Records -->
+                        <div class="tab-pane fade" id="admin-events" role="tabpanel">
+                            <h6 class="font-weight-bold text-secondary text-uppercase text-xs mb-2">Booked Community Events & Attendance ({{ $eventBookings->count() }})</h6>
+                            @if($eventBookings->count() > 0)
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-sm table-hover mb-0">
+                                        <thead class="bg-light text-xs text-uppercase">
+                                            <tr>
+                                                <th>Booking Ref</th>
+                                                <th>Event Title</th>
+                                                <th>Headcount Breakdown</th>
+                                                <th>Amount (£)</th>
+                                                <th>Booking Status</th>
+                                                <th>Attendance Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="small">
+                                            @foreach($eventBookings as $booking)
+                                                <tr>
+                                                    <td class="font-monospace font-weight-bold text-primary">{{ $booking->reference_no }}</td>
+                                                    <td>
+                                                        <strong class="text-dark">{{ $booking->event->title ?? 'Club Event' }}</strong>
+                                                        @if(!empty($booking->event->date))
+                                                            <div class="text-muted text-xs">{{ \Carbon\Carbon::parse($booking->event->date)->format('d M Y') }}</div>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-light border text-dark">Adults: {{ $booking->adult_count }}</span>
+                                                        <span class="badge bg-light border text-dark">Children: {{ $booking->child_count }}</span>
+                                                        @if($booking->student_count > 0)
+                                                            <span class="badge bg-light border text-dark">Students: {{ $booking->student_count }}</span>
+                                                        @endif
+                                                        @if($booking->infant_count > 0)
+                                                            <span class="badge bg-light border text-dark">Infants: {{ $booking->infant_count }}</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="font-weight-bold font-monospace">£{{ number_format((float)$booking->total_amount, 2) }}</td>
+                                                    <td>
+                                                        <span class="badge bg-{{ $booking->booking_status === 'confirmed' ? 'success' : 'secondary' }}">
+                                                            {{ strtoupper($booking->booking_status) }}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        @if($booking->check_in_at)
+                                                            <span class="badge bg-success"><i class="fas fa-check-circle mr-1"></i> ATTENDED</span>
+                                                            <small class="d-block text-muted">{{ $booking->check_in_at->format('d M Y, h:i A') }}</small>
+                                                        @else
+                                                            <span class="badge bg-light border text-muted">Not Checked In</span>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @else
+                                <p class="text-muted small mb-0">No event registrations or tickets recorded under this member's details.</p>
+                            @endif
+                        </div>
+
+                        <!-- TAB 5: Consents -->
+                        <div class="tab-pane fade" id="admin-consents" role="tabpanel">
+                            <h6 class="font-weight-bold text-secondary text-uppercase text-xs mb-2">Statutory GDPR & Communication Consents</h6>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm mb-0">
+                                    <thead class="bg-light text-xs text-uppercase">
+                                        <tr>
+                                            <th>Consent Category</th>
+                                            <th>Lawful Basis</th>
+                                            <th>Status</th>
+                                            <th>Granted At</th>
+                                            <th>Revoked At</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="small">
+                                        @forelse($m->consents as $consent)
+                                            <tr>
+                                                <td class="font-weight-bold">{{ $consent->consent_key }}</td>
+                                                <td><span class="badge bg-light border text-dark">{{ $consent->lawful_basis }}</span></td>
+                                                <td>
+                                                    <span class="badge bg-{{ $consent->granted ? 'success' : 'danger' }}">
+                                                        {{ $consent->granted ? 'GRANTED' : 'REVOKED' }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ $consent->granted_at ? $consent->granted_at->format('d M Y, h:i A') : 'N/A' }}</td>
+                                                <td>{{ $consent->revoked_at ? $consent->revoked_at->format('d M Y, h:i A') : '-' }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="5" class="text-muted text-center py-2">No explicit electronic consent preferences logged yet.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @else
+                <div class="card-body p-4 text-muted small">
+                    <i class="fas fa-info-circle mr-1 text-info"></i> No registered member record is linked to this request. Submitted as guest / prospective member by: <strong>{{ $privacyRequest->requester_name }}</strong> ({{ $privacyRequest->requester_email }}).
+                </div>
+            @endif
+        </div>
+
         <!-- Scope & Details -->
         <div class="card card-outline card-secondary elevation-2 mb-4">
             <div class="card-header">

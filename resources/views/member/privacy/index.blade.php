@@ -73,6 +73,12 @@
                 <a href="?tab=family" class="px-6 py-4 flex items-center gap-2 border-b-2 whitespace-nowrap transition-colors {{ $activeTab === 'family' ? 'border-blue-900 text-blue-900 bg-white' : 'border-transparent hover:text-slate-900' }}">
                     <i class="fa-solid fa-people-roof"></i> Family & Dependents
                 </a>
+                <a href="?tab=financial" class="px-6 py-4 flex items-center gap-2 border-b-2 whitespace-nowrap transition-colors {{ $activeTab === 'financial' ? 'border-blue-900 text-blue-900 bg-white' : 'border-transparent hover:text-slate-900' }}">
+                    <i class="fa-solid fa-receipt"></i> Financial Records
+                </a>
+                <a href="?tab=events" class="px-6 py-4 flex items-center gap-2 border-b-2 whitespace-nowrap transition-colors {{ $activeTab === 'events' ? 'border-blue-900 text-blue-900 bg-white' : 'border-transparent hover:text-slate-900' }}">
+                    <i class="fa-solid fa-calendar-check"></i> Event History
+                </a>
                 <a href="?tab=sar" class="px-6 py-4 flex items-center gap-2 border-b-2 whitespace-nowrap transition-colors {{ $activeTab === 'sar' ? 'border-blue-900 text-blue-900 bg-white' : 'border-transparent hover:text-slate-900' }}">
                     <i class="fa-solid fa-download"></i> Download My Data (SAR)
                 </a>
@@ -226,6 +232,161 @@
                             </div>
                         @endif
                     </div>
+                </div>
+            @endif
+
+            <!-- TAB: FINANCIAL RECORDS -->
+            @if($activeTab === 'financial')
+                <div class="p-6 sm:p-8 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Financial History & Accounting Records</h2>
+                        <p class="text-xs text-slate-500 mt-1">
+                            Accounting records of membership dues and subscription contributions maintained under statutory legal obligation (UK Taxes Management Act 1970).
+                        </p>
+                    </div>
+
+                    <!-- Primary Membership Fee -->
+                    <div class="p-5 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xs font-extrabold uppercase tracking-wider text-emerald-900 flex items-center gap-2">
+                                <i class="fa-solid fa-wallet text-emerald-600"></i> Primary Membership Registration Fee
+                            </h3>
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">RECORDED</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 text-xs">
+                            <div>
+                                <span class="text-slate-500 font-bold block">Fee Amount:</span>
+                                <span class="text-slate-900 font-extrabold text-sm font-mono">£{{ number_format((float)$member->payment_amount, 2) }}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-500 font-bold block">Payment Date:</span>
+                                <span class="text-slate-900 font-semibold">{{ $member->payment_date ?: ($member->created_at ? $member->created_at->format('d M Y') : 'N/A') }}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-500 font-bold block">Account Holder:</span>
+                                <span class="text-slate-900 font-semibold">{{ $member->bank_account_holder ?: 'N/A' }}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-500 font-bold block">Transaction Reference:</span>
+                                <span class="text-slate-900 font-mono font-semibold">{{ $member->transaction_ref ?: 'N/A' }}</span>
+                            </div>
+                        </div>
+                        @if($member->payment_proof)
+                            <div class="pt-2 border-t border-emerald-200">
+                                <a href="{{ url('img?p=' . ltrim($member->payment_proof, '/')) }}" target="_blank"
+                                   class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 underline">
+                                    <i class="fa-solid fa-file-invoice"></i> View Bank Payment Proof
+                                </a>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Ledger Transactions -->
+                    <div>
+                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-700 mb-3">Recorded Transaction Ledger ({{ $member->payments->count() }})</h3>
+                        @if($member->payments->count() > 0)
+                            <div class="overflow-hidden rounded-xl border border-slate-200">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-100 font-bold uppercase text-slate-600">
+                                        <tr>
+                                            <th class="py-2.5 px-3">Transaction ID</th>
+                                            <th class="py-2.5 px-3">Type / Description</th>
+                                            <th class="py-2.5 px-3">Amount (£)</th>
+                                            <th class="py-2.5 px-3">Transaction Reference</th>
+                                            <th class="py-2.5 px-3">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-200 font-medium">
+                                        @foreach($member->payments as $p)
+                                            <tr>
+                                                <td class="py-2 px-3 font-mono font-bold text-slate-700">#{{ $p->id }}</td>
+                                                <td class="py-2 px-3 font-bold text-slate-900">{{ $p->payment_type ?: 'Membership Fee' }}</td>
+                                                <td class="py-2 px-3 font-mono font-bold text-emerald-700">£{{ number_format((float)$p->amount, 2) }}</td>
+                                                <td class="py-2 px-3 font-mono text-slate-600">{{ $p->transaction_ref ?: 'N/A' }}</td>
+                                                <td class="py-2 px-3 text-slate-500">{{ $p->created_at ? $p->created_at->format('d M Y, h:i A') : 'N/A' }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <div class="p-6 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 text-xs text-slate-500">
+                                No supplementary transaction ledger entries recorded.
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
+            <!-- TAB: EVENT RECORDS -->
+            @if($activeTab === 'events')
+                <div class="p-6 sm:p-8 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Event Registrations & Attendance Records</h2>
+                        <p class="text-xs text-slate-500 mt-1">
+                            History of community event bookings, tickets purchased, and on-site check-in logs.
+                        </p>
+                    </div>
+
+                    @if(isset($eventBookings) && $eventBookings->count() > 0)
+                        <div class="overflow-hidden rounded-xl border border-slate-200">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-100 font-bold uppercase text-slate-600">
+                                    <tr>
+                                        <th class="py-2.5 px-3">Reference</th>
+                                        <th class="py-2.5 px-3">Event Title</th>
+                                        <th class="py-2.5 px-3">Tickets & Headcount</th>
+                                        <th class="py-2.5 px-3">Amount (£)</th>
+                                        <th class="py-2.5 px-3">Booking Status</th>
+                                        <th class="py-2.5 px-3">Attendance</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200 font-medium">
+                                    @foreach($eventBookings as $b)
+                                        <tr>
+                                            <td class="py-2 px-3 font-mono font-bold text-blue-900">{{ $b->reference_no }}</td>
+                                            <td class="py-2 px-3">
+                                                <div class="font-bold text-slate-900">{{ $b->event->title ?? 'PMCC Event' }}</div>
+                                                @if(!empty($b->event->date))
+                                                    <div class="text-[11px] text-slate-500">{{ \Carbon\Carbon::parse($b->event->date)->format('d M Y') }}</div>
+                                                @endif
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <span class="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] mr-1">Adults: {{ $b->adult_count }}</span>
+                                                <span class="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] mr-1">Children: {{ $b->child_count }}</span>
+                                                @if($b->student_count > 0)
+                                                    <span class="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] mr-1">Students: {{ $b->student_count }}</span>
+                                                @endif
+                                                @if($b->infant_count > 0)
+                                                    <span class="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px]">Infants: {{ $b->infant_count }}</span>
+                                                @endif
+                                            </td>
+                                            <td class="py-2 px-3 font-mono font-bold text-slate-900">£{{ number_format((float)$b->total_amount, 2) }}</td>
+                                            <td class="py-2 px-3">
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase {{ $b->booking_status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700' }}">
+                                                    {{ $b->booking_status }}
+                                                </span>
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                @if($b->check_in_at)
+                                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
+                                                        <i class="fa-solid fa-check"></i> Attended
+                                                    </span>
+                                                    <div class="text-[10px] text-slate-400 mt-0.5">{{ $b->check_in_at->format('d M Y, h:i A') }}</div>
+                                                @else
+                                                    <span class="text-slate-400 text-xs">Not Checked In</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @else
+                        <div class="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 text-xs text-slate-500">
+                            No event booking records found for your account.
+                        </div>
+                    @endif
                 </div>
             @endif
 

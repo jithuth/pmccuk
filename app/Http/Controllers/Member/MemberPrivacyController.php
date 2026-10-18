@@ -33,7 +33,22 @@ class MemberPrivacyController extends Controller
     public function index()
     {
         $member = $this->getAuthenticatedMember();
-        $member->load(['children', 'consents', 'privacyRequests.documents']);
+        $member->load(['children', 'consents', 'payments', 'privacyRequests.documents']);
+
+        $eventBookings = \App\Models\EventBooking::where(function($q) use ($member) {
+            if ($member->membership_id_assigned) {
+                $q->where('membership_no', $member->membership_id_assigned);
+            }
+            if ($member->email) {
+                $q->orWhere('email', $member->email);
+            }
+            if ($member->mobile_number) {
+                $q->orWhere('phone', $member->mobile_number);
+            }
+        })
+        ->with('event')
+        ->orderBy('id', 'desc')
+        ->get();
 
         $activeNotice = PrivacyNotice::where('is_active', true)->latest('published_at')->first();
 
@@ -44,7 +59,7 @@ class MemberPrivacyController extends Controller
             'Member accessed personal Privacy Center'
         );
 
-        return view('member.privacy.index', compact('member', 'activeNotice'));
+        return view('member.privacy.index', compact('member', 'activeNotice', 'eventBookings'));
     }
 
     public function submitSar(Request $request)
