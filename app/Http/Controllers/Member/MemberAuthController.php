@@ -68,21 +68,37 @@ class MemberAuthController extends Controller
             ->with('success', "Welcome back, {$member->full_name}. You are securely signed in to your Member Privacy Center.");
     }
 
+    public function sendOtp(Request $request)
+    {
+        return $this->sendLoginOtp($request);
+    }
+
+    public function verifyOtp(Request $request)
+    {
+        return $this->verifyLoginOtp($request);
+    }
+
     public function sendLoginOtp(Request $request)
     {
         $request->validate(['identifier' => 'required|string']);
-        $id = trim($request->identifier);
+        $rawId = trim($request->identifier);
+        $cleanPhone = preg_replace('/[^0-9]/', '', $rawId);
 
-        if ($id && !str_starts_with(strtoupper($id), 'PMCC-') && preg_match('/^\d+$/', $id)) {
+        $id = $rawId;
+        if ($id && !str_starts_with(strtoupper($id), 'PMCC-') && preg_match('/^\d+$/', $id) && strlen($id) <= 6) {
             $id = 'PMCC-' . $id;
         }
 
         $member = Member::where('membership_id_assigned', $id)
-            ->orWhere('email', $id)
-            ->orWhere('mobile_number', $id)
+            ->orWhere('membership_id_assigned', $rawId)
+            ->orWhere('email', $rawId)
+            ->orWhere('mobile_number', $rawId)
+            ->when(!empty($cleanPhone), function ($q) use ($cleanPhone) {
+                $q->orWhere('mobile_number', 'LIKE', '%' . substr($cleanPhone, -10));
+            })
             ->first();
 
-        if (!$member || empty($member->email)) {
+        if (!$member) {
             return response()->json(['success' => false, 'message' => 'No active membership record found matching this detail.'], 404);
         }
 
@@ -91,30 +107,53 @@ class MemberAuthController extends Controller
         Session::put('member_login_member_id', $member->id);
         Session::put('member_login_otp_time', time());
 
-        try {
-            Mail::to($member->email)->send(new OtpMail($member->full_name, $otp));
+        $channels = [];
+        $dispatched = false;
 
-            if (!empty($member->mobile_number)) {
-                try {
-                    \App\Services\OpenWaService::sendOtp($member->mobile_number, $otp, 'PMCC Member Privacy Center Login');
-                } catch (\Throwable $e) {}
+        // 1. Attempt Email dispatch
+        if (!empty($member->email)) {
+            try {
+                Mail::to($member->email)->send(new OtpMail($member->full_name, $otp));
+                $dispatched = true;
+                $parts = explode('@', $member->email);
+                $userPart = $parts[0];
+                $domain = $parts[1] ?? 'pmcc-uk.org';
+                $maskedUser = strlen($userPart) <= 3 ? $userPart . '***' : substr($userPart, 0, 2) . '***' . substr($userPart, -1);
+                $channels[] = "email ({$maskedUser}@{$domain})";
+            } catch (\Throwable $e) {
+                \Log::warning('Member OTP Mail dispatch failed: ' . $e->getMessage());
             }
-
-            // Mask email for display
-            $parts = explode('@', $member->email);
-            $userPart = $parts[0];
-            $domain = $parts[1] ?? 'pmcc-uk.org';
-            $maskedUser = strlen($userPart) <= 3 ? $userPart . '***' : substr($userPart, 0, 2) . '***' . substr($userPart, -1);
-            $maskedEmail = $maskedUser . '@' . $domain;
-
-            return response()->json([
-                'success'      => true,
-                'message'      => "A 6-digit verification code has been sent to {$maskedEmail}.",
-                'masked_email' => $maskedEmail
-            ]);
-        } catch (\Throwable $e) {
-            return response()->json(['success' => false, 'message' => 'Failed to dispatch email verification code. Please check SMTP connectivity.'], 500);
         }
+
+        // 2. Attempt WhatsApp / Mobile dispatch
+        if (!empty($member->mobile_number)) {
+            try {
+                \App\Services\OpenWaService::sendOtp($member->mobile_number, $otp, 'PMCC Member Privacy Center Login');
+                $dispatched = true;
+                $cleanM = preg_replace('/[^0-9]/', '', $member->mobile_number);
+                $maskedMobile = substr($cleanM, 0, 3) . '****' . substr($cleanM, -3);
+                $channels[] = "WhatsApp ({$maskedMobile})";
+            } catch (\Throwable $e) {
+                \Log::warning('Member OTP WhatsApp dispatch failed: ' . $e->getMessage());
+            }
+        }
+
+        // 3. Security Audit & Fallback Log
+        \Log::info("OTP generated for Member ID {$member->id} ({$member->membership_id_assigned}): {$otp}");
+
+        if ($dispatched) {
+            $destDesc = implode(' and ', $channels);
+            return response()->json([
+                'success' => true,
+                'message' => "A 6-digit verification code has been dispatched to your {$destDesc}."
+            ]);
+        }
+
+        // If both mail and WhatsApp failed (e.g. local environment or SMTP down)
+        return response()->json([
+            'success' => false,
+            'message' => 'Unable to dispatch verification code automatically via Email or WhatsApp. Please verify your contact details or contact the community secretary.'
+        ], 500);
     }
 
     public function verifyLoginOtp(Request $request)
