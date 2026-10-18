@@ -185,9 +185,11 @@
                 <span class="hidden sm:inline"><i
                         class="fas fa-phone mr-2 text-accent"></i>{{ $settings['contact_phone'] ?? '' }}</span>
             </div>
-            <div class="flex space-x-6">
+            <div class="flex space-x-6 items-center">
                 <a href="{{ url('verify-membership') }}" class="hover:text-white transition flex items-center"><i
                         class="fas fa-check-circle mr-1.5 text-accent"></i>Verify Membership</a>
+                <a href="{{ route('member.login') }}" class="hover:text-accent transition flex items-center"><i
+                        class="fas fa-user-shield mr-1.5 text-accent"></i>Member Privacy Portal</a>
             </div>
         </div>
     </div>
@@ -391,6 +393,9 @@
                     
                     <!-- Dropup Menu Content -->
                     <div id="legal-dropup-menu" class="hidden absolute right-0 mb-4 w-64 rounded-[2rem] bg-slate-900 border border-white/10 shadow-2xl p-3 z-50 flex flex-col space-y-1 text-slate-400 font-bold normal-case text-left" style="bottom: 100% !important;">
+                        <a href="{{ route('member.login') }}" class="px-4 py-3 bg-white/5 text-accent rounded-2xl hover:bg-white/10 transition-colors flex items-center font-bold">
+                            <i class="fas fa-user-lock w-8 text-accent"></i> Member Privacy Portal
+                        </a>
                         <a href="{{ route('privacy') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
                             <i class="fas fa-user-shield w-8 text-secondary"></i> Privacy Policy
                         </a>
