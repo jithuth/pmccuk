@@ -344,7 +344,7 @@ class PrivacyGovernanceTest extends TestCase
 
         // Request OTP
         $sendResponse = $this->postJson('/member/login/otp/send', [
-            'identifier' => 'PMCC-789',
+            'identifier' => 'otp_member@example.com',
         ]);
         $sendResponse->assertStatus(200);
         $sendResponse->assertJsonPath('success', true);

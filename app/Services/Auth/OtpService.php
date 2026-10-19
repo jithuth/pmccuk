@@ -175,7 +175,8 @@ class OtpService
         // 1. Email Dispatch
         if (!empty($member->email)) {
             try {
-                Mail::to($member->email)->send(new OtpMail($member->full_name, $rawOtp));
+                $expiryMins = $challenge->expires_at ? max(1, (int) round(now()->diffInSeconds($challenge->expires_at) / 60)) : 5;
+                Mail::to($member->email)->send(new OtpMail($member->full_name, $rawOtp, 'login', $expiryMins));
                 $emailEvidence = [
                     'recipient' => self::maskEmail($member->email),
                     'timestamp' => now()->toIso8601String(),
@@ -427,47 +428,26 @@ class OtpService
     }
 
     /**
-     * Resolve member safely across ID, email, and mobile variants
+     * Resolve member exclusively by registered email address
      */
     public static function resolveMember(string $identifier): ?Member
     {
-        $raw = trim($identifier);
-        $cleanPhone = preg_replace('/[^0-9]/', '', $raw);
+        $raw = strtolower(trim($identifier));
 
-        $id = $raw;
-        if (!str_starts_with(strtoupper($id), 'PMCC-') && preg_match('/^\d+$/', $id) && strlen($id) <= 6) {
-            $id = 'PMCC-' . $id;
+        // Exclusively allow email address as login identifier
+        if (!filter_var($raw, FILTER_VALIDATE_EMAIL)) {
+            return null;
         }
 
         // Direct database query first
-        $member = Member::where('membership_id_assigned', $id)
-            ->orWhere('membership_id_assigned', $raw)
-            ->orWhere('email', $raw)
-            ->orWhere('mobile_number', $raw)
-            ->when(!empty($cleanPhone), function ($q) use ($cleanPhone) {
-                $q->orWhere('mobile_number', 'LIKE', '%' . substr($cleanPhone, -10));
-            })
-            ->first();
-
+        $member = Member::where('email', $raw)->first();
         if ($member) {
             return $member;
         }
 
         // Fallback for encrypted member records (HasSmartDecryption)
-        return Member::all()->first(function ($m) use ($raw, $cleanPhone) {
-            if ($m->membership_id_assigned && strtolower(trim($m->membership_id_assigned)) === strtolower(trim($raw))) {
-                return true;
-            }
-            if ($m->email && strtolower(trim($m->email)) === strtolower(trim($raw))) {
-                return true;
-            }
-            if ($m->mobile_number) {
-                $mPhone = preg_replace('/[^0-9]/', '', $m->mobile_number);
-                if (!empty($cleanPhone) && ($mPhone === $cleanPhone || str_ends_with($mPhone, substr($cleanPhone, -10)))) {
-                    return true;
-                }
-            }
-            return false;
+        return Member::all()->first(function ($m) use ($raw) {
+            return $m->email && strtolower(trim($m->email)) === $raw;
         });
     }
 

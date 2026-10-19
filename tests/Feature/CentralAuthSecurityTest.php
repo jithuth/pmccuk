@@ -67,7 +67,7 @@ class CentralAuthSecurityTest extends TestCase
         $member = $this->createTestMember();
 
         $res = $this->postJson(route('member.login.otp.send'), [
-            'identifier' => 'PMCC-9901'
+            'identifier' => 'john.doe@example.com'
         ]);
 
         $res->assertStatus(200);
@@ -103,7 +103,7 @@ class CentralAuthSecurityTest extends TestCase
         // Create challenge with known hash
         $knownOtp = '882211';
         $challenge = OtpChallenge::create([
-            'identifier' => 'PMCC-9901',
+            'identifier' => 'john.doe@example.com',
             'member_id' => $member->id,
             'otp_hash' => Hash::make($knownOtp),
             'purpose' => 'member_login',
@@ -148,13 +148,13 @@ class CentralAuthSecurityTest extends TestCase
 
         // Request 1
         $res1 = $this->postJson(route('member.login.otp.send'), [
-            'identifier' => 'PMCC-9901'
+            'identifier' => 'john.doe@example.com'
         ]);
         $res1->assertStatus(200);
 
         // Immediate Request 2 should hit cooldown
         $res2 = $this->postJson(route('member.login.otp.send'), [
-            'identifier' => 'PMCC-9901'
+            'identifier' => 'john.doe@example.com'
         ]);
         $res2->assertStatus(429);
         $res2->assertJsonFragment(['success' => false]);
@@ -167,7 +167,7 @@ class CentralAuthSecurityTest extends TestCase
     {
         // Request with non-existent member
         $res = $this->postJson(route('member.login.otp.send'), [
-            'identifier' => 'NON_EXISTENT_ID_99999'
+            'identifier' => 'nonexistent@example.com'
         ]);
 
         $res->assertStatus(200);
@@ -176,6 +176,46 @@ class CentralAuthSecurityTest extends TestCase
             'success' => true,
             'message' => 'If an active account exists with the provided information, a verification code has been dispatched.'
         ]);
+    }
+
+    /**
+     * Test: Only email is accepted for login (PMCC ID and phone number are rejected)
+     */
+    public function test_login_rejects_pmcc_id_and_phone_number_as_identifiers(): void
+    {
+        $member = $this->createTestMember([
+            'email' => 'valid.member@pmcc-uk.org',
+            'membership_id_assigned' => 'PMCC-RESTRICT-1',
+            'mobile_number' => '+447911000999',
+        ]);
+
+        // Attempt login using PMCC ID
+        $resId = $this->postJson(route('member.login.otp.send'), [
+            'identifier' => 'PMCC-RESTRICT-1',
+        ]);
+        $resId->assertStatus(200);
+        $resId->assertJsonFragment(['success' => true]);
+
+        // No challenge created for this member
+        $this->assertEquals(0, OtpChallenge::where('member_id', $member->id)->count());
+
+        // Attempt login using Phone number
+        $resPhone = $this->postJson(route('member.login.otp.send'), [
+            'identifier' => '+447911000999',
+        ]);
+        $resPhone->assertStatus(200);
+        $resPhone->assertJsonFragment(['success' => true]);
+
+        // Still no challenge created
+        $this->assertEquals(0, OtpChallenge::where('member_id', $member->id)->count());
+
+        // Login using Email generates the challenge
+        $resEmail = $this->postJson(route('member.login.otp.send'), [
+            'identifier' => 'valid.member@pmcc-uk.org',
+        ]);
+        $resEmail->assertStatus(200);
+        $resEmail->assertJsonFragment(['success' => true]);
+        $this->assertEquals(1, OtpChallenge::where('member_id', $member->id)->count());
     }
 
     /**
@@ -227,7 +267,7 @@ class CentralAuthSecurityTest extends TestCase
         // Create valid primary OTP challenge
         $otp = '771122';
         $challenge = OtpChallenge::create([
-            'identifier' => 'PMCC-9901',
+            'identifier' => 'john.doe@example.com',
             'member_id' => $member->id,
             'otp_hash' => Hash::make($otp),
             'purpose' => 'member_login',
@@ -363,10 +403,10 @@ class CentralAuthSecurityTest extends TestCase
 
         // Request OTP
         $this->postJson(route('member.login.otp.send'), [
-            'identifier' => 'PMCC-9901'
+            'identifier' => 'john.doe@example.com'
         ]);
 
-        $event = AuthEvent::where('actor_identifier', 'PMCC-9901')
+        $event = AuthEvent::where('actor_identifier', 'john.doe@example.com')
             ->where('action', 'otp_requested')
             ->first();
 

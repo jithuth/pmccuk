@@ -34,26 +34,26 @@
         <div id="otpStep1" class="space-y-4">
             <div>
                 <label for="otp_identifier" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Membership ID, Email or Mobile Number
+                    Registered Email Address
                 </label>
                 <div class="mt-1.5 relative rounded-xl shadow-sm">
                     <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <i class="fa-solid fa-id-card"></i>
+                        <i class="fa-solid fa-envelope"></i>
                     </span>
-                    <input id="otp_identifier" type="text" autofocus
-                           placeholder="e.g. PMCC-1001, name@domain.com, or mobile"
+                    <input id="otp_identifier" type="email" autofocus
+                           placeholder="name@example.com"
                            onkeydown="if(event.key==='Enter') sendOtpCode()"
                            class="block w-full pl-10 pr-3 py-3.5 text-slate-900 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 text-sm">
                 </div>
                 <p class="mt-2 text-xs text-slate-500 flex items-center gap-1.5">
                     <i class="fa-solid fa-lock text-slate-400"></i>
-                    A secure 6-digit code will be sent to your registered Email & WhatsApp.
+                    A secure 6-digit passcode will be sent to your registered email address.
                 </p>
             </div>
 
             <button type="button" id="sendOtpBtn" onclick="sendOtpCode()" 
                     class="w-full py-3.5 px-4 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm">
-                <span id="sendOtpBtnText">Send 6-Digit Passcode</span>
+                <span id="sendOtpBtnText">Send Passcode to Email</span>
                 <i class="fa-solid fa-paper-plane text-xs"></i>
             </button>
         </div>
@@ -64,7 +64,7 @@
                 <i class="fa-solid fa-envelope-open-text text-base text-blue-700 mt-0.5"></i>
                 <div>
                     <span class="font-bold">Passcode Dispatched</span>
-                    <p id="otpSentNotice" class="mt-0.5 text-slate-600">Please check your registered Email and WhatsApp.</p>
+                    <p id="otpSentNotice" class="mt-0.5 text-slate-600">Please check your registered Email inbox (and spam folder).</p>
                 </div>
             </div>
 
@@ -86,7 +86,7 @@
 
             <div class="flex items-center justify-between text-xs text-slate-600 pt-1">
                 <button type="button" onclick="changeIdentifier()" class="text-slate-500 hover:text-slate-900 flex items-center gap-1">
-                    <i class="fa-solid fa-arrow-left"></i> Change ID
+                    <i class="fa-solid fa-arrow-left"></i> Change Email
                 </button>
                 <button type="button" id="resendOtpBtn" onclick="sendOtpCode()" class="text-blue-900 font-semibold hover:underline">
                     Resend Code
@@ -141,8 +141,8 @@ function getCsrfToken() {
 async function sendOtpCode() {
     hideAlert();
     const identifier = document.getElementById('otp_identifier').value.trim();
-    if (!identifier) {
-        showAlert('Please enter your Membership ID, Registered Email, or Mobile Number.');
+    if (!identifier || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)) {
+        showAlert('Please enter your valid registered email address.');
         return;
     }
 

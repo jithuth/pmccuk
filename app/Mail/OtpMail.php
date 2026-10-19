@@ -14,14 +14,18 @@ class OtpMail extends Mailable
 
     public $name;
     public $otp;
+    public $purpose;
+    public $expiryMinutes;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($name, $otp)
+    public function __construct(string $name, string $otp, string $purpose = 'login', int $expiryMinutes = 5)
     {
         $this->name = $name;
         $this->otp = $otp;
+        $this->purpose = $purpose;
+        $this->expiryMinutes = $expiryMinutes;
     }
 
     /**
@@ -29,8 +33,12 @@ class OtpMail extends Mailable
      */
     public function envelope(): \Illuminate\Mail\Mailables\Envelope
     {
+        $subject = ($this->purpose === 'renewal')
+            ? 'Verification Code for PMCC Membership Renewal'
+            : 'Your PMCC Member Login Verification Code';
+
         return new \Illuminate\Mail\Mailables\Envelope(
-            subject: 'Verification Code for PMCC Membership Renewal',
+            subject: $subject,
         );
     }
 
@@ -41,6 +49,12 @@ class OtpMail extends Mailable
     {
         return new \Illuminate\Mail\Mailables\Content(
             view: 'emails.otp',
+            with: [
+                'name' => $this->name,
+                'otp' => $this->otp,
+                'purpose' => $this->purpose,
+                'expiryMinutes' => $this->expiryMinutes,
+            ]
         );
     }
 
