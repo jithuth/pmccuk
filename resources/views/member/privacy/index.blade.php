@@ -33,6 +33,10 @@
                     {{ $member->isActive() ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-800 border border-amber-300' }}">
                     Status: {{ $member->getMembershipStatusLabel() }}
                 </span>
+                <a href="{{ route('member.security.index') }}" class="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded-xl transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-lock"></i>
+                    <span>Security & MFA</span>
+                </a>
                 <form action="{{ route('member.logout') }}" method="POST">
                     @csrf
                     <button type="submit" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center gap-2">

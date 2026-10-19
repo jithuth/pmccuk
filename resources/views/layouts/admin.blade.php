@@ -226,8 +226,110 @@
                     <i class="fas fa-external-link-alt me-1"></i> View Live Site
                 </a>
             </li>
+
+            <!-- Security Centre Top Menu Dropdown -->
+            <li class="nav-item dropdown d-none d-md-inline-block">
+                <a class="nav-link dropdown-toggle font-weight-bold text-dark d-flex align-items-center gap-1" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">
+                    <i class="fas fa-shield-alt text-warning"></i>
+                    <span>Security Centre</span>
+                    @php
+                        $activeAlertsCount = \Illuminate\Support\Facades\Schema::hasTable('security_alerts') ? \App\Models\SecurityAlert::where('resolved', false)->count() : 0;
+                    @endphp
+                    @if($activeAlertsCount > 0)
+                        <span class="badge badge-danger ml-1 font-weight-bold text-white px-1.5" style="font-size:10px;">{{ $activeAlertsCount }}</span>
+                    @endif
+                </a>
+                <div class="dropdown-menu shadow border-0 mt-2 p-2" style="border-radius:12px;min-width:240px;box-shadow:0 10px 30px rgba(0,0,0,0.12) !important;">
+                    <div class="px-3 py-1.5 mb-1 text-uppercase text-muted font-weight-bold" style="font-size:10px;letter-spacing:0.8px;">Central Security Telemetry</div>
+                    <a href="{{ route('admin.security.overview') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold rounded {{ Route::is('admin.security.overview') ? 'bg-primary text-white' : 'text-dark' }}">
+                        <i class="fas fa-chart-line text-info mr-2" style="width:16px;"></i> Security Overview
+                    </a>
+                    <a href="{{ route('admin.security.events') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold rounded {{ Route::is('admin.security.events') ? 'bg-primary text-white' : 'text-dark' }}">
+                        <i class="fas fa-list-alt text-primary mr-2" style="width:16px;"></i> Auth Events Explorer
+                    </a>
+                    <a href="{{ route('admin.security.otp') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold rounded {{ Route::is('admin.security.otp') ? 'bg-primary text-white' : 'text-dark' }}">
+                        <i class="fas fa-paper-plane text-success mr-2" style="width:16px;"></i> OTP Request History
+                    </a>
+                    <a href="{{ route('admin.security.mfa') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold rounded {{ Route::is('admin.security.mfa') ? 'bg-primary text-white' : 'text-dark' }}">
+                        <i class="fas fa-shield-alt text-warning mr-2" style="width:16px;"></i> MFA Adoption Status
+                    </a>
+                    <a href="{{ route('admin.security.logins') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold rounded {{ Route::is('admin.security.logins') ? 'bg-primary text-white' : 'text-dark' }}">
+                        <i class="fas fa-sign-in-alt text-secondary mr-2" style="width:16px;"></i> Login Attempts Stream
+                    </a>
+                    <a href="{{ route('admin.security.sessions') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold rounded {{ Route::is('admin.security.sessions') ? 'bg-primary text-white' : 'text-dark' }}">
+                        <i class="fas fa-satellite-dish text-info mr-2" style="width:16px;"></i> Active Sessions & Revoke
+                    </a>
+                    <a href="{{ route('admin.security.devices') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold rounded {{ Route::is('admin.security.devices') ? 'bg-primary text-white' : 'text-dark' }}">
+                        <i class="fas fa-laptop text-primary mr-2" style="width:16px;"></i> Device History
+                    </a>
+                    <a href="{{ route('admin.security.ip') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold rounded {{ Route::is('admin.security.ip') ? 'bg-danger text-white' : 'text-danger' }}">
+                        <i class="fas fa-search-location mr-2" style="width:16px;"></i> Suspicious IP Forensics
+                    </a>
+                    <div class="dropdown-divider my-1"></div>
+                    <a href="{{ route('admin.security.alerts') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold rounded d-flex justify-content-between align-items-center {{ Route::is('admin.security.alerts') ? 'bg-warning text-dark' : 'text-dark' }}">
+                        <span><i class="fas fa-bell text-warning mr-2" style="width:16px;"></i> Security Alerts</span>
+                        @if($activeAlertsCount > 0)
+                            <span class="badge badge-danger text-white font-weight-bold px-1.5">{{ $activeAlertsCount }}</span>
+                        @endif
+                    </a>
+                    <a href="{{ route('admin.security.policies') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold rounded {{ Route::is('admin.security.policies') ? 'bg-primary text-white' : 'text-dark' }}">
+                        <i class="fas fa-sliders-h text-secondary mr-2" style="width:16px;"></i> Security Policies
+                    </a>
+                    <a href="{{ route('admin.security.export') }}" class="dropdown-item py-2 px-3 text-xs font-weight-bold text-success rounded">
+                        <i class="fas fa-file-export text-success mr-2" style="width:16px;"></i> Export Audit Logs (CSV)
+                    </a>
+                </div>
+            </li>
         </ul>
         <ul class="navbar-nav ml-auto align-items-center">
+            @php
+                if (!isset($activeAlertsCount)) {
+                    $activeAlertsCount = \Illuminate\Support\Facades\Schema::hasTable('security_alerts') ? \App\Models\SecurityAlert::where('resolved', false)->count() : 0;
+                }
+            @endphp
+            <!-- Security Alert Bell Notification -->
+            <li class="nav-item dropdown mr-1">
+                <a class="nav-link text-muted position-relative px-2" data-bs-toggle="dropdown" href="#" title="Security Alerts">
+                    <i class="fas fa-bell fa-lg"></i>
+                    @if($activeAlertsCount > 0)
+                        <span class="badge badge-danger badge-pill position-absolute" style="top:2px;right:2px;font-size:9px;padding:3px 5px;">{{ $activeAlertsCount }}</span>
+                    @endif
+                </a>
+                <div class="dropdown-menu dropdown-menu-right shadow border-0 mt-2 p-0" style="border-radius:12px;min-width:260px;overflow:hidden;">
+                    <div class="px-3 py-2 bg-light border-bottom d-flex justify-content-between align-items-center">
+                        <span class="font-weight-bold text-xs text-dark">Security Alerts</span>
+                        <span class="badge badge-{{ $activeAlertsCount > 0 ? 'danger' : 'success' }} text-white font-weight-bold">{{ $activeAlertsCount }} active</span>
+                    </div>
+                    <div class="p-2">
+                        @if($activeAlertsCount > 0)
+                            <a href="{{ route('admin.security.alerts') }}" class="dropdown-item p-2 rounded text-xs font-weight-bold text-danger d-flex align-items-center gap-2">
+                                <i class="fas fa-exclamation-triangle fa-lg text-danger"></i>
+                                <div>
+                                    <div>{{ $activeAlertsCount }} Incident Alert(s) Pending</div>
+                                    <small class="text-muted font-weight-normal">Review threat telemetry & lockouts</small>
+                                </div>
+                            </a>
+                        @else
+                            <div class="p-3 text-center text-xs text-muted">
+                                <i class="fas fa-shield-check text-success fa-2x mb-2 d-block"></i>
+                                No active security alerts detected. System threat status is normal.
+                            </div>
+                        @endif
+                    </div>
+                    <div class="border-top p-1 bg-light text-center">
+                        <a href="{{ route('admin.security.overview') }}" class="text-xs text-primary font-weight-bold py-1 d-block text-decoration-none">
+                            Open Security Overview <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </li>
+
+            <li class="nav-item mr-2">
+                <a href="{{ route('admin.security.overview') }}" class="btn btn-sm btn-outline-warning text-dark font-weight-bold px-3 d-flex align-items-center gap-1 shadow-sm" title="Central Security Centre">
+                    <i class="fas fa-shield-alt text-warning"></i>
+                    <span class="d-none d-md-inline ms-1">Security Centre</span>
+                </a>
+            </li>
             <li class="nav-item">
                 <form action="{{ route('admin.logout') }}" method="POST" id="top-logout-form">
                     @csrf
@@ -246,17 +348,30 @@
                         <div class="text-muted" style="font-size:10px;">Administrator</div>
                     </div>
                 </a>
-                <div class="dropdown-menu dropdown-menu-right shadow border-0 p-0 mt-1" style="border-radius:12px;min-width:210px;overflow:hidden;">
+                <div class="dropdown-menu dropdown-menu-right shadow border-0 p-0 mt-1" style="border-radius:12px;min-width:220px;overflow:hidden;">
                     <div class="px-4 py-3 bg-light border-bottom">
                         <p class="mb-0 font-weight-bold text-dark" style="font-size:13px;">{{ Auth::guard('admin')->user()->username ?? 'Admin' }}</p>
                         <small class="text-muted">System Administrator</small>
                     </div>
-                    <form action="{{ route('admin.logout') }}" method="POST" class="p-3">
-                        @csrf
-                        <button type="submit" class="btn btn-danger btn-sm btn-block w-100">
-                            <i class="fas fa-sign-out-alt mr-2 me-2"></i> Sign Out
-                        </button>
-                    </form>
+                    <div class="py-2">
+                        <a href="{{ route('admin.security.overview') }}" class="dropdown-item px-4 py-2 text-xs font-weight-bold d-flex align-items-center gap-2 text-dark">
+                            <i class="fas fa-shield-alt text-warning" style="width:18px;"></i> Security Centre
+                        </a>
+                        <a href="{{ route('admin.security.sessions') }}" class="dropdown-item px-4 py-2 text-xs font-weight-bold d-flex align-items-center gap-2 text-dark">
+                            <i class="fas fa-desktop text-primary" style="width:18px;"></i> Active Sessions
+                        </a>
+                        <a href="{{ route('admin.2fa.setup') }}" class="dropdown-item px-4 py-2 text-xs font-weight-bold d-flex align-items-center gap-2 text-dark">
+                            <i class="fas fa-qrcode text-success" style="width:18px;"></i> 2FA Security
+                        </a>
+                    </div>
+                    <div class="border-top p-2">
+                        <form action="{{ route('admin.logout') }}" method="POST">
+                            @csrf
+                            <button type="submit" class="btn btn-danger btn-sm btn-block w-100">
+                                <i class="fas fa-sign-out-alt mr-2 me-2"></i> Sign Out
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </li>
         </ul>
@@ -377,6 +492,31 @@
                                     <p>Break-Glass Elevation</p>
                                 </a>
                             </li>
+                        </ul>
+                    </li>
+                    <li class="nav-header text-warning fw-bold">SECURITY & AUDIT</li>
+                    <li class="nav-item {{ Route::is('admin.security.*') ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link {{ Route::is('admin.security.*') ? 'active bg-warning text-dark font-weight-bold' : '' }}">
+                            <i class="nav-icon fas fa-shield-alt text-warning"></i>
+                            <p>
+                                Security Centre 
+                                @if(isset($activeAlertsCount) && $activeAlertsCount > 0)
+                                    <span class="badge badge-danger right mr-2">{{ $activeAlertsCount }}</span>
+                                @endif
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
+                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item"><a href="{{ route('admin.security.overview') }}" class="nav-link {{ Route::is('admin.security.overview') ? 'active' : '' }}"><i class="far fa-circle nav-icon text-warning" style="font-size:7px;"></i><p>Overview</p></a></li>
+                            <li class="nav-item"><a href="{{ route('admin.security.events') }}" class="nav-link {{ Route::is('admin.security.events') ? 'active' : '' }}"><i class="far fa-circle nav-icon text-warning" style="font-size:7px;"></i><p>Auth Events</p></a></li>
+                            <li class="nav-item"><a href="{{ route('admin.security.otp') }}" class="nav-link {{ Route::is('admin.security.otp') ? 'active' : '' }}"><i class="far fa-circle nav-icon text-warning" style="font-size:7px;"></i><p>OTP History</p></a></li>
+                            <li class="nav-item"><a href="{{ route('admin.security.mfa') }}" class="nav-link {{ Route::is('admin.security.mfa') ? 'active' : '' }}"><i class="far fa-circle nav-icon text-warning" style="font-size:7px;"></i><p>MFA Status</p></a></li>
+                            <li class="nav-item"><a href="{{ route('admin.security.logins') }}" class="nav-link {{ Route::is('admin.security.logins') ? 'active' : '' }}"><i class="far fa-circle nav-icon text-warning" style="font-size:7px;"></i><p>Login Attempts</p></a></li>
+                            <li class="nav-item"><a href="{{ route('admin.security.sessions') }}" class="nav-link {{ Route::is('admin.security.sessions') ? 'active' : '' }}"><i class="far fa-circle nav-icon text-warning" style="font-size:7px;"></i><p>Active Sessions</p></a></li>
+                            <li class="nav-item"><a href="{{ route('admin.security.devices') }}" class="nav-link {{ Route::is('admin.security.devices') ? 'active' : '' }}"><i class="far fa-circle nav-icon text-warning" style="font-size:7px;"></i><p>Device History</p></a></li>
+                            <li class="nav-item"><a href="{{ route('admin.security.ip') }}" class="nav-link {{ Route::is('admin.security.ip') ? 'active' : '' }}"><i class="far fa-circle nav-icon text-danger" style="font-size:7px;"></i><p>Investigate IP</p></a></li>
+                            <li class="nav-item"><a href="{{ route('admin.security.alerts') }}" class="nav-link {{ Route::is('admin.security.alerts') ? 'active' : '' }}"><i class="far fa-circle nav-icon text-warning" style="font-size:7px;"></i><p>Security Alerts</p></a></li>
+                            <li class="nav-item"><a href="{{ route('admin.security.policies') }}" class="nav-link {{ Route::is('admin.security.policies') ? 'active' : '' }}"><i class="far fa-circle nav-icon text-secondary" style="font-size:7px;"></i><p>Security Policies</p></a></li>
                         </ul>
                     </li>
 

@@ -18,6 +18,8 @@ use App\Http\Controllers\Admin\WhatsAppController;
 use App\Http\Controllers\Member\MemberAuthController;
 use App\Http\Controllers\Member\MemberPrivacyController;
 use App\Http\Controllers\Admin\PrivacyOfficerController;
+use App\Http\Controllers\Member\MemberSecurityController;
+use App\Http\Controllers\Admin\SecurityCenterController;
 
 // 🚨 SYSTEM-LEVEL ASSET FAILSAFE (MUST BE TOP)
 Route::get('/img', function () {
@@ -269,11 +271,26 @@ Route::prefix('member')->name('member.')->group(function () {
     Route::get('/login', [MemberAuthController::class, 'showLoginForm'])->name('login')->middleware('guest:member');
     Route::post('/login/password', [MemberAuthController::class, 'loginWithPassword'])->name('login.password')->middleware('guest:member', 'throttle:10,1');
     Route::post('/login/submit', [MemberAuthController::class, 'loginWithPassword'])->name('login.submit')->middleware('guest:member', 'throttle:10,1');
-    Route::post('/login/otp/send', [MemberAuthController::class, 'sendOtp'])->name('login.otp.send')->middleware('guest:member', 'throttle:5,1');
-    Route::post('/login/otp/verify', [MemberAuthController::class, 'verifyOtp'])->name('login.otp.verify')->middleware('guest:member', 'throttle:10,1');
+    Route::post('/login/otp/send', [MemberAuthController::class, 'sendOtp'])->name('login.otp.send')->middleware('guest:member', 'throttle:15,1');
+    Route::post('/login/otp/verify', [MemberAuthController::class, 'verifyOtp'])->name('login.otp.verify')->middleware('guest:member', 'throttle:15,1');
+    Route::get('/mfa/challenge', [MemberAuthController::class, 'showMfaChallenge'])->name('mfa.challenge');
+    Route::post('/mfa/verify', [MemberAuthController::class, 'verifyMfaChallenge'])->name('mfa.verify');
+    Route::get('/logout', [MemberAuthController::class, 'logout'])->name('logout.get');
     Route::post('/logout', [MemberAuthController::class, 'logout'])->name('logout')->middleware('auth:member');
 
-    Route::prefix('privacy')->name('privacy.')->middleware('auth:member')->group(function () {
+    // ── Member Security Centre ──
+    Route::prefix('security')->name('security.')->middleware(['auth:member', 'session.secure', 'mfa.check:member'])->group(function () {
+        Route::get('/', [MemberSecurityController::class, 'index'])->name('index');
+        Route::post('/mfa/initiate', [MemberSecurityController::class, 'initiateMfa'])->name('mfa.initiate');
+        Route::post('/mfa/confirm', [MemberSecurityController::class, 'confirmMfa'])->name('mfa.confirm');
+        Route::post('/mfa/disable', [MemberSecurityController::class, 'disableMfa'])->name('mfa.disable');
+        Route::post('/mfa/recovery-codes', [MemberSecurityController::class, 'regenerateRecoveryCodes'])->name('mfa.recovery-codes');
+        Route::post('/sessions/revoke', [MemberSecurityController::class, 'revokeSession'])->name('sessions.revoke');
+        Route::post('/sessions/revoke-others', [MemberSecurityController::class, 'revokeOtherSessions'])->name('sessions.revoke-others');
+        Route::post('/report', [MemberSecurityController::class, 'reportSuspiciousActivity'])->name('report');
+    });
+
+    Route::prefix('privacy')->name('privacy.')->middleware(['auth:member', 'session.secure', 'mfa.check:member'])->group(function () {
         Route::get('/', [MemberPrivacyController::class, 'index'])->name('index');
         Route::post('/sar', [MemberPrivacyController::class, 'submitSar'])->name('sar');
         Route::post('/sar/submit', [MemberPrivacyController::class, 'submitSar'])->name('sar.submit');
@@ -394,6 +411,25 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/2fa/disable', [\App\Http\Controllers\Admin\TwoFactorController::class, 'disable'])->name('2fa.disable');
 
             Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+            // ── Central Security Administration Centre ──
+            Route::prefix('security')->name('security.')->group(function () {
+                Route::get('/', [SecurityCenterController::class, 'overview'])->name('overview');
+                Route::get('/events', [SecurityCenterController::class, 'events'])->name('events');
+                Route::get('/otp', [SecurityCenterController::class, 'otpHistory'])->name('otp');
+                Route::get('/mfa', [SecurityCenterController::class, 'mfaStatus'])->name('mfa');
+                Route::get('/logins', [SecurityCenterController::class, 'loginAttempts'])->name('logins');
+                Route::get('/sessions', [SecurityCenterController::class, 'activeSessions'])->name('sessions');
+                Route::post('/sessions/revoke', [SecurityCenterController::class, 'revokeSession'])->name('sessions.revoke');
+                Route::get('/devices', [SecurityCenterController::class, 'deviceHistory'])->name('devices');
+                Route::get('/ip', [SecurityCenterController::class, 'investigateIp'])->name('ip');
+                Route::post('/ip/toggle-block', [SecurityCenterController::class, 'toggleBlockIp'])->name('ip.toggle-block');
+                Route::get('/alerts', [SecurityCenterController::class, 'alerts'])->name('alerts');
+                Route::post('/alerts/{id}/resolve', [SecurityCenterController::class, 'resolveAlert'])->name('alerts.resolve');
+                Route::get('/policies', [SecurityCenterController::class, 'policies'])->name('policies');
+                Route::post('/policies', [SecurityCenterController::class, 'updatePolicies'])->name('policies.update');
+                Route::get('/export', [SecurityCenterController::class, 'export'])->name('export');
+            });
 
             // Membership Hub
             Route::prefix('members')->name('members.')->group(function () {

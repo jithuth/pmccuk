@@ -30,18 +30,21 @@ class Member extends Authenticatable
         'membership_id_assigned', 'prev_membership_no', 'payment_amount', 
         'transaction_ref', 'payment_proof', 'payment_date', 'bank_account_holder', 
         'consent_given', 'children_below_18', 'children_above_18',
-        'privacy_anonymized_at', 'privacy_hold', 'privacy_notes'
+        'privacy_anonymized_at', 'privacy_hold', 'privacy_notes',
+        'two_factor_secret', 'two_factor_enabled', 'two_factor_recovery_codes', 'two_factor_confirmed_at'
     ];
 
     protected $hidden = [
-        'password', 'remember_token'
+        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'
     ];
 
     protected $casts = [
-        'consent_given'         => 'boolean',
-        'privacy_hold'          => 'boolean',
-        'privacy_anonymized_at' => 'datetime',
-        'password'              => 'hashed',
+        'consent_given'           => 'boolean',
+        'privacy_hold'            => 'boolean',
+        'privacy_anonymized_at'   => 'datetime',
+        'password'                => 'hashed',
+        'two_factor_enabled'      => 'boolean',
+        'two_factor_confirmed_at' => 'datetime',
     ];
 
     public array $encryptable = [
@@ -49,7 +52,7 @@ class Member extends Authenticatable
         'spouse_name', 'spouse_mobile', 'spouse_dob', 'emergency_name',
         'emergency_mobile', 'post_code', 'house_details', 'residing_area',
         'photo', 'family_photo', 'bank_account_holder', 'transaction_ref',
-        'payment_proof', 'privacy_notes'
+        'payment_proof', 'privacy_notes', 'two_factor_secret'
     ];
 
     protected $appends = ['photo_url', 'family_photo_url'];

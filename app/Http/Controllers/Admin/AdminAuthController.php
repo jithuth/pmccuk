@@ -56,8 +56,21 @@ class AdminAuthController extends Controller
                 }
             }
 
-            // Strictly record intrusion details in ActivityLog
+            // Strictly record intrusion details in ActivityLog and AuthEvents
             try {
+                \App\Services\Auth\AuthAuditService::log(
+                    eventCategory: 'login',
+                    action: 'admin_login_failed',
+                    status: 'failed',
+                    reasonCode: 'invalid_credentials',
+                    actorType: 'admin',
+                    actorIdentifier: $enteredUser,
+                    guard: 'admin',
+                    riskScore: 35,
+                    metadata: ['ip' => $request->ip(), 'location' => $locInfo['location']],
+                    request: $request
+                );
+
                 \App\Models\ActivityLog::create([
                     'admin_id' => null,
                     'admin_username' => $enteredUser,
@@ -78,22 +91,10 @@ class AdminAuthController extends Controller
 
         $admin = \App\Models\Admin::where('username', $credentials['username'])->first();
 
-        // If 2FA is enabled, redirect to challenge instead of completing login
-        if ($admin->two_factor_enabled) {
-            session(['2fa_admin_id' => $admin->id]);
-            if ($photoFile && file_exists($photoFile)) {
-                @unlink($photoFile);
-            }
-            return redirect()->route('admin.2fa.challenge');
-        }
-
-        // No 2FA — log in directly
-        Auth::guard('admin')->login($admin);
-        $request->session()->regenerate();
-
+        // Send Telegram alert if configured
         try {
             $locInfo = $this->getIpLocation($request->ip());
-            $caption = "🔑 <b>Security Alert: Successful Admin Login</b>\n\n" .
+            $caption = "🔑 <b>Security Alert: Admin Credentials Verified</b>\n\n" .
                 "👤 <b>User:</b> " . htmlspecialchars($admin->username) . " (ID: {$admin->id}, Role: {$admin->role})\n" .
                 "🌐 <b>IP Address:</b> <code>" . $request->ip() . "</code>\n" .
                 "📍 <b>Location:</b> " . htmlspecialchars($locInfo['location']) . "\n" .
@@ -113,12 +114,12 @@ class AdminAuthController extends Controller
             }
         }
 
-        if ($admin->role === 'staff') {
-            return redirect()->route('admin.staff.dashboard');
-        }
+        // Central Authentication & Mandatory MFA handling
+        $centralAuth = app(\App\Services\Auth\CentralAuthService::class);
+        $authResult = $centralAuth->handleAdminLogin($admin, $request);
 
         session()->forget('url.intended');
-        return redirect()->route('admin.dashboard');
+        return redirect($authResult['redirect']);
     }
 
     /**
@@ -156,9 +157,7 @@ class AdminAuthController extends Controller
 
     public function logout(Request $request)
     {
-        Auth::guard('admin')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        app(\App\Services\Auth\CentralAuthService::class)->logout('admin', $request);
         return redirect()->route('admin.login');
     }
 

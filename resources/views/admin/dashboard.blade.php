@@ -134,6 +134,18 @@
                         <span>Admin UI:</span>
                         <span class="badge bg-dark">AdminLTE 4.0</span>
                     </div>
+                    <hr class="my-2">
+                    <a href="{{ route('admin.security.overview') }}" class="btn btn-warning text-dark font-weight-bold btn-sm w-100 d-flex align-items-center justify-content-center gap-2 mb-2 shadow-sm">
+                        <i class="fas fa-shield-alt"></i> Security Centre
+                    </a>
+                    <div class="d-flex justify-content-between text-xs px-1">
+                        <a href="{{ route('admin.security.sessions') }}" class="text-primary font-weight-bold text-decoration-none">
+                            <i class="fas fa-desktop me-1"></i>Live Sessions
+                        </a>
+                        <a href="{{ route('admin.security.alerts') }}" class="text-danger font-weight-bold text-decoration-none">
+                            <i class="fas fa-shield-virus me-1"></i>Security Alerts
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

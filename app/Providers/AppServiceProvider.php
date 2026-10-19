@@ -49,7 +49,7 @@ class AppServiceProvider extends ServiceProvider
         View::share('menus', []);
 
         try {
-            if (Schema::hasTable('settings')) {
+            if (!app()->runningInConsole() && Schema::hasTable('settings')) {
                 $settings = Setting::all()->pluck('setting_value', 'setting_key');
                 
                 // 1. Decryption Logic for Shared Settings

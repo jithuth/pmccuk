@@ -185,9 +185,22 @@
                 <span class="hidden sm:inline"><i
                         class="fas fa-phone mr-2 text-accent"></i>{{ $settings['contact_phone'] ?? '' }}</span>
             </div>
-            <div class="flex space-x-6 items-center">
-                <a href="{{ route('member.login') }}" class="hover:text-accent transition flex items-center"><i
-                        class="fas fa-user-shield mr-1.5 text-accent"></i>Member Privacy Portal</a>
+            <div class="flex space-x-4 sm:space-x-6 items-center">
+                @if(Auth::guard('member')->check())
+                    <a href="{{ route('member.privacy.index') }}" class="hover:text-accent transition flex items-center">
+                        <i class="fas fa-id-card mr-1.5 text-accent"></i><span class="hidden sm:inline">Member </span>Privacy
+                    </a>
+                    <a href="{{ route('member.security.index') }}" class="hover:text-accent transition flex items-center">
+                        <i class="fas fa-shield-alt mr-1.5 text-accent"></i>Security & MFA
+                    </a>
+                    <a href="{{ route('member.logout.get') }}" class="hover:text-red-300 transition flex items-center text-red-200">
+                        <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                    </a>
+                @else
+                    <a href="{{ route('member.login') }}" class="hover:text-accent transition flex items-center">
+                        <i class="fas fa-user-shield mr-1.5 text-accent"></i>Member Portal
+                    </a>
+                @endif
             </div>
         </div>
     </div>
@@ -391,7 +404,10 @@
                     <!-- Dropup Menu Content -->
                     <div id="legal-dropup-menu" class="hidden absolute right-0 mb-4 w-64 rounded-[2rem] bg-slate-900 border border-white/10 shadow-2xl p-3 z-50 flex flex-col space-y-1 text-slate-400 font-bold normal-case text-left" style="bottom: 100% !important;">
                         <a href="{{ route('member.login') }}" class="px-4 py-3 bg-white/5 text-accent rounded-2xl hover:bg-white/10 transition-colors flex items-center font-bold">
-                            <i class="fas fa-user-lock w-8 text-accent"></i> Member Privacy Portal
+                            <i class="fas fa-user-lock w-8 text-accent"></i> Member Portal
+                        </a>
+                        <a href="{{ route('member.security.index') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
+                            <i class="fas fa-shield-alt w-8 text-secondary"></i> Member Security & MFA
                         </a>
                         <a href="{{ route('privacy') }}" class="px-4 py-3 hover:bg-white/5 rounded-2xl hover:text-white transition-colors flex items-center">
                             <i class="fas fa-user-shield w-8 text-secondary"></i> Privacy Policy
