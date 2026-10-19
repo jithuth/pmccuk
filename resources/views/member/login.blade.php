@@ -128,6 +128,16 @@ function hideAlert() {
     document.getElementById('otpStatusAlert').classList.add('hidden');
 }
 
+let currentChallengeUuid = null;
+
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.content) return meta.content;
+    const input = document.querySelector('input[name="_token"]');
+    if (input && input.value) return input.value;
+    return '{{ csrf_token() }}';
+}
+
 async function sendOtpCode() {
     hideAlert();
     const identifier = document.getElementById('otp_identifier').value.trim();
@@ -147,13 +157,21 @@ async function sendOtpCode() {
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': getCsrfToken()
             },
-            body: JSON.stringify({ identifier })
+            body: JSON.stringify({ identifier, _token: getCsrfToken() })
         });
+
+        if (response.status === 419) {
+            showAlert('Your session refreshed. Retrying request...', 'error');
+            setTimeout(() => window.location.reload(), 800);
+            return;
+        }
+
         const data = await response.json();
 
         if (data.success) {
+            currentChallengeUuid = data.challenge_uuid || null;
             document.getElementById('otpStep1').classList.add('opacity-60', 'pointer-events-none');
             document.getElementById('otpStep2').classList.remove('hidden');
             document.getElementById('otpSentNotice').textContent = data.message;
@@ -196,14 +214,25 @@ async function verifyOtpCode() {
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': getCsrfToken()
             },
-            body: JSON.stringify({ otp })
+            body: JSON.stringify({ 
+                otp: otp,
+                challenge_uuid: currentChallengeUuid,
+                _token: getCsrfToken()
+            })
         });
+
+        if (response.status === 419) {
+            showAlert('Your session refreshed. Please sign in again.', 'error');
+            setTimeout(() => window.location.reload(), 800);
+            return;
+        }
+
         const data = await response.json();
 
         if (data.success && data.redirect) {
-            showAlert('Passcode verified! Redirecting to Member Privacy Center...', 'success');
+            showAlert('Passcode verified! Redirecting...', 'success');
             window.location.href = data.redirect;
         } else {
             showAlert(data.message || 'Invalid or expired passcode. Please try again.');

@@ -15,6 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'telegram/webhook',
             'api/telegram/webhook',
+            'member/login/otp/send',
+            'member/login/otp/verify',
+            'member/login/otp/*',
+            'member/mfa/verify',
         ]);
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         $middleware->append(\App\Http\Middleware\SharedHostingCompatibility::class);
