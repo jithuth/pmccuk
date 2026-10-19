@@ -31,4 +31,19 @@ class SecurityAlert extends Model
     {
         return $this->belongsTo(Admin::class, 'resolved_by');
     }
+
+    public function scopeUnresolved($query)
+    {
+        return $query->where('is_resolved', false);
+    }
+
+    public function getResolvedAttribute(): bool
+    {
+        return (bool) $this->is_resolved;
+    }
+
+    public function setResolvedAttribute($value): void
+    {
+        $this->attributes['is_resolved'] = (bool) $value;
+    }
 }

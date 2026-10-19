@@ -233,7 +233,7 @@
                     <i class="fas fa-shield-alt text-warning"></i>
                     <span>Security Centre</span>
                     @php
-                        $activeAlertsCount = \Illuminate\Support\Facades\Schema::hasTable('security_alerts') ? \App\Models\SecurityAlert::where('resolved', false)->count() : 0;
+                        $activeAlertsCount = \Illuminate\Support\Facades\Schema::hasTable('security_alerts') ? \App\Models\SecurityAlert::where('is_resolved', false)->count() : 0;
                     @endphp
                     @if($activeAlertsCount > 0)
                         <span class="badge badge-danger ml-1 font-weight-bold text-white px-1.5" style="font-size:10px;">{{ $activeAlertsCount }}</span>
@@ -284,7 +284,7 @@
         <ul class="navbar-nav ml-auto align-items-center">
             @php
                 if (!isset($activeAlertsCount)) {
-                    $activeAlertsCount = \Illuminate\Support\Facades\Schema::hasTable('security_alerts') ? \App\Models\SecurityAlert::where('resolved', false)->count() : 0;
+                    $activeAlertsCount = \Illuminate\Support\Facades\Schema::hasTable('security_alerts') ? \App\Models\SecurityAlert::where('is_resolved', false)->count() : 0;
                 }
             @endphp
             <!-- Security Alert Bell Notification -->
