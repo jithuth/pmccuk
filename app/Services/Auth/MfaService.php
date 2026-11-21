@@ -506,7 +506,7 @@ class MfaService
         // Handle serialized strings if decryptString was used on a serialized payload
         if (is_string($secret) && str_starts_with($secret, 's:') && str_contains($secret, '"')) {
             try {
-                $unserialized = @unserialize($secret);
+                $unserialized = @unserialize($secret, ['allowed_classes' => false]);
                 if (is_string($unserialized)) {
                     $secret = $unserialized;
                 }
