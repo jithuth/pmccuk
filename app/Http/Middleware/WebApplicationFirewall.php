@@ -99,6 +99,32 @@ class WebApplicationFirewall
                         Log::error('WAF failed to write block log: ' . $e->getMessage());
                     }
 
+                    // Auto-ban malicious IP: permanently add to waf_ip_blocklist and flush cache
+                    if ($ip && !in_array($ip, ['127.0.0.1', '::1', '141.136.39.186'])) {
+                        try {
+                            $blockSetting = Setting::where('setting_key', 'waf_ip_blocklist')->first();
+                            $existingStr = $blockSetting ? $blockSetting->setting_value : '';
+                            try { $existingStr = decrypt($existingStr); } catch (\Throwable $e) {}
+
+                            $existingIps = preg_split('/[\s,;]+/', trim($existingStr));
+                            $cleanIps = array_filter(array_map('trim', $existingIps));
+
+                            if (!in_array($ip, $cleanIps)) {
+                                $cleanIps[] = $ip;
+                                $newBlocklist = implode("\n", array_values(array_unique($cleanIps)));
+                                Setting::updateOrCreate(
+                                    ['setting_key' => 'waf_ip_blocklist'],
+                                    ['setting_value' => $newBlocklist]
+                                );
+                                \Illuminate\Support\Facades\Cache::forget('waf_config');
+                                \Illuminate\Support\Facades\Cache::forget('pmcc_waf_config');
+                                Log::warning("WAF Auto-Banned Attacker IP: {$ip} for {$ruleName}");
+                            }
+                        } catch (\Throwable $banErr) {
+                            Log::error("WAF Auto-Ban Failed for {$ip}: " . $banErr->getMessage());
+                        }
+                    }
+
                     // Dispatch Telegram alert (Throttled per IP + Rule for 15 minutes to prevent alert storms)
                     try {
                         $wafAlertKey = 'waf_alert_sent_' . md5($ip . ':' . $ruleName);
