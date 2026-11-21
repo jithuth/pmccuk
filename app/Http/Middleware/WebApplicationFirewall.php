@@ -99,15 +99,19 @@ class WebApplicationFirewall
                         Log::error('WAF failed to write block log: ' . $e->getMessage());
                     }
 
-                    // Dispatch Telegram alert
+                    // Dispatch Telegram alert (Throttled per IP + Rule for 15 minutes to prevent alert storms)
                     try {
-                        \App\Services\TelegramService::sendMessage(
-                            "🛡️ 🚨 <b>WAF Alert: Attack Blocked</b>\n\n" .
-                            "🌐 <b>IP Address:</b> {$ip}\n" .
-                            "🔥 <b>Attack Type:</b> {$ruleName}\n" .
-                            "📍 <b>Request Source:</b> " . ucfirst($source) . "\n" .
-                            "🕵️ <b>User Agent:</b> " . htmlspecialchars($request->userAgent() ?: 'Unknown / Bot')
-                        );
+                        $wafAlertKey = 'waf_alert_sent_' . md5($ip . ':' . $ruleName);
+                        if (!\Illuminate\Support\Facades\Cache::has($wafAlertKey)) {
+                            \Illuminate\Support\Facades\Cache::put($wafAlertKey, true, 900);
+                            \App\Services\TelegramService::sendMessage(
+                                "🛡️ 🚨 <b>WAF Alert: Attack Blocked</b>\n\n" .
+                                "🌐 <b>IP Address:</b> {$ip}\n" .
+                                "🔥 <b>Attack Type:</b> {$ruleName}\n" .
+                                "📍 <b>Request Source:</b> " . ucfirst($source) . "\n" .
+                                "🕵️ <b>User Agent:</b> " . htmlspecialchars($request->userAgent() ?: 'Unknown / Bot')
+                            );
+                        }
                     } catch (\Exception $e) {}
 
                     return response('Forbidden: Request blocked by Web Application Firewall (WAF).', 403);

@@ -34,17 +34,29 @@ class TelegramLogHandler extends AbstractProcessingHandler
         try {
             $message = $record->message;
             $level = $record->level;
+
+            // 1. Filter out internal noise and background daemon reconnects from spamming Telegram
+            if (
+                str_contains($message, 'Exception sending text') ||
+                str_contains($message, 'Failed to connect to 127.0.0.1:8085') ||
+                str_contains($message, '[WhatsApp]') ||
+                str_contains($message, 'WAF Blocked IP Access attempt')
+            ) {
+                self::$isSending = false;
+                return;
+            }
+
             $contextStr = !empty($record->context) ? json_encode($record->context, JSON_UNESCAPED_SLASHES) : '';
             $details = $message . ($contextStr ? "\nContext: " . $contextStr : '');
             $ip = $record->extra['ip'] ?? (request()?->ip() ?? 'CLI/System');
 
-            // Cache key throttling for duplicate errors within 60 seconds
+            // Cache key throttling for duplicate errors within 300 seconds (5 minutes)
             $cacheKey = 'telegram_log_alert_' . md5($level->name . ':' . substr($message, 0, 100));
             if (Cache::has($cacheKey)) {
                 self::$isSending = false;
                 return;
             }
-            Cache::put($cacheKey, true, 60);
+            Cache::put($cacheKey, true, 300);
 
             if ($level->value >= Level::Error->value) {
                 TelegramService::sendErrorAlert("Application Error ({$level->name})", $details, $ip);
