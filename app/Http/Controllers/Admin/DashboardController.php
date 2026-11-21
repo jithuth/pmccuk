@@ -1519,16 +1519,32 @@ class DashboardController extends Controller
         $request->validate([
             'username' => 'required|unique:admins,username|max:60',
             'email' => 'nullable|email|unique:admins,email|max:120',
-            'role' => 'required|in:admin,superadmin,staff',
+            'role' => 'required|in:admin,superadmin,staff,reviewer',
             'password' => 'required|confirmed|min:8',
         ]);
 
-        Admin::create([
+        $createdAdmin = Admin::create([
             'username' => $request->input('username'),
             'email' => $request->input('email'),
             'role' => $request->input('role'),
             'password' => Hash::make($request->password),
         ]);
+
+        // Sync relational role if exists
+        $rbacRole = \App\Models\Role::where('slug', $request->input('role'))->first();
+        if ($rbacRole) {
+            $createdAdmin->roles()->syncWithoutDetaching([$rbacRole->id]);
+        }
+
+        // Audit Log
+        \App\Services\SecurityAuditService::log(
+            'admin_account_created',
+            'Admin',
+            $createdAdmin->id,
+            "Created admin account '{$createdAdmin->username}' with role '{$createdAdmin->role}'",
+            'success',
+            ['username' => $createdAdmin->username, 'role' => $createdAdmin->role, 'email' => $createdAdmin->email]
+        );
 
         // Send Telegram Alert
         try {
@@ -1578,10 +1594,26 @@ class DashboardController extends Controller
         $request->validate([
             'username' => 'required|max:60|unique:admins,username,' . $id,
             'email' => 'nullable|email|max:120',
-            'role' => 'required|in:admin,superadmin,staff',
+            'role' => 'required|in:admin,superadmin,staff,reviewer',
         ]);
 
+        $oldRole = $admin->role;
         $admin->update($request->only(['username', 'email', 'role']));
+
+        // Sync relational role if changed
+        $rbacRole = \App\Models\Role::where('slug', $request->input('role'))->first();
+        if ($rbacRole) {
+            $admin->roles()->sync([$rbacRole->id]);
+        }
+
+        \App\Services\SecurityAuditService::log(
+            'admin_account_updated',
+            'Admin',
+            $admin->id,
+            "Superadmin updated administrator details for '{$admin->username}'",
+            'success',
+            ['username' => $admin->username, 'role' => $admin->role, 'old_role' => $oldRole, 'email' => $admin->email]
+        );
 
         return redirect()->route('admin.access-control')
             ->with('success', "Admin account '{$admin->username}' updated successfully.");

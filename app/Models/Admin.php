@@ -117,4 +117,9 @@ class Admin extends Authenticatable
     {
         return $this->hasRole('privacy_officer');
     }
+
+    public function isReviewer(): bool
+    {
+        return $this->role === 'reviewer' || $this->hasRole('reviewer');
+    }
 }

@@ -212,6 +212,15 @@ class PrivacyOfficerController extends Controller
             'created_at'         => now(),
         ]);
 
+        SecurityAuditService::log(
+            'privacy_reviewer_assigned',
+            'PrivacyRequest',
+            $privacyRequest->id,
+            "Assigned reviewer {$assignee->username} to {$privacyRequest->reference_number} by {$actor->username}",
+            'success',
+            ['assigned_to_id' => $assignee->id, 'assigned_to_username' => $assignee->username]
+        );
+
         return back()->with('success', "Request assigned to {$assignee->username}.");
     }
 

@@ -42,8 +42,8 @@
                                     </td>
                                     <td>
                                         <span
-                                            class="badge rounded-pill {{ $admin->role === 'superadmin' ? 'bg-danger' : ($admin->role === 'staff' ? 'bg-info' : 'bg-primary') }}">
-                                            {{ ucfirst($admin->role) }}
+                                            class="badge rounded-pill {{ $admin->role === 'superadmin' ? 'bg-danger' : ($admin->role === 'staff' ? 'bg-info' : ($admin->role === 'reviewer' ? 'bg-warning text-dark' : 'bg-primary')) }}">
+                                            {{ $admin->role === 'reviewer' ? 'GDPR Reviewer' : ucfirst($admin->role) }}
                                         </span>
                                     </td>
                                     <td>
@@ -109,6 +109,7 @@
                                                             <div class="form-group mb-0">
                                                                 <label class="fw-bold small mb-1">Access Role</label>
                                                                 <select name="role" class="form-control">
+                                                                    <option value="reviewer" {{ $admin->role === 'reviewer' ? 'selected' : '' }}>GDPR Reviewer (Privacy Requests Only)</option>
                                                                     <option value="staff" {{ $admin->role === 'staff' ? 'selected' : '' }}>Staff (Counter Portal Only)</option>
                                                                     <option value="admin" {{ $admin->role === 'admin' ? 'selected' : '' }}>Admin (Standard Control)</option>
                                                                     <option value="superadmin" {{ $admin->role === 'superadmin' ? 'selected' : '' }}>Super Admin (Master Access)</option>
@@ -215,6 +216,7 @@
                             <label class="fw-bold small text-muted text-uppercase mb-1" style="font-size:10px;">Access
                                 Role</label>
                             <select name="role" class="form-select bg-light border-0 h-auto py-3">
+                                <option value="reviewer">GDPR Reviewer (Privacy Requests Only)</option>
                                 <option value="staff">Staff (Entrance Counter Only)</option>
                                 <option value="admin">Admin (Full Site Control)</option>
                                 <option value="superadmin">Super Admin (System Owner)</option>

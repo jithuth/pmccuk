@@ -35,6 +35,12 @@ class AdminRole
                 ->with('error', 'Access Denied: You only have permission to access the Gate Control Counter Dashboard.');
         }
 
+        // Redirect reviewer users to GDPR requests index
+        if ($user->role === 'reviewer' || (method_exists($user, 'hasRole') && $user->hasRole('reviewer'))) {
+            return redirect()->route('admin.privacy.requests.index')
+                ->with('error', 'Access Denied: You only have permission to review UK GDPR Requests.');
+        }
+
         abort(403, 'Unauthorized access: Your role (' . $user->role . ') is not allowed to access this resource.');
     }
 }

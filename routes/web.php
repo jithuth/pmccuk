@@ -584,21 +584,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
             });
             Route::post('/email-settings/test', [DashboardController::class, 'testEmailConnection'])->name('email-settings.test');
 
-            // ── UK GDPR Privacy & Data Governance Hub ──
+            // ── UK GDPR Privacy & Data Governance Hub (Privacy Officers & Superadmins) ──
             Route::prefix('privacy')->name('privacy.')->group(function () {
                 Route::get('/dashboard', [PrivacyOfficerController::class, 'dashboard'])->name('dashboard');
-
-                // Privacy Requests Workflow
-                Route::get('/requests', [PrivacyOfficerController::class, 'requestsIndex'])->name('requests.index');
-                Route::get('/requests/{id}', [PrivacyOfficerController::class, 'requestShow'])->name('requests.show');
-                Route::post('/requests/{id}/verify-identity', [PrivacyOfficerController::class, 'verifyIdentity'])->name('requests.verify-identity');
-                Route::post('/requests/{id}/assign', [PrivacyOfficerController::class, 'assignReviewer'])->name('requests.assign');
-                Route::post('/requests/{id}/extend', [PrivacyOfficerController::class, 'extendDeadline'])->name('requests.extend');
-                Route::post('/requests/{id}/approve', [PrivacyOfficerController::class, 'addApproval'])->name('requests.approve');
-                Route::post('/requests/{id}/add-approval', [PrivacyOfficerController::class, 'addApproval'])->name('requests.add-approval');
-                Route::post('/requests/{id}/generate-sar', [PrivacyOfficerController::class, 'generateSarExport'])->name('requests.generate-sar');
-                Route::post('/requests/{id}/fulfil', [PrivacyOfficerController::class, 'fulfilRequest'])->name('requests.fulfil');
-                Route::post('/requests/{id}/refuse', [PrivacyOfficerController::class, 'refuseRequest'])->name('requests.refuse');
 
                 // Security Incidents & 72h ICO Breach Register
                 Route::get('/incidents', [PrivacyOfficerController::class, 'incidentsIndex'])->name('incidents.index');
@@ -620,6 +608,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('/access/{id}/grant', [PrivacyOfficerController::class, 'grantPrivilegedAccess'])->name('access.grant');
                 Route::post('/access/{id}/revoke', [PrivacyOfficerController::class, 'revokePrivilegedAccess'])->name('access.revoke');
             });
+        });
+
+        // ── UK GDPR Privacy Requests Workflow (Accessible to Reviewer, Admin, Superadmin) ──
+        Route::prefix('privacy')->name('privacy.')->middleware('admin.role:reviewer,admin,superadmin')->group(function () {
+            Route::get('/requests', [PrivacyOfficerController::class, 'requestsIndex'])->name('requests.index');
+            Route::get('/requests/{id}', [PrivacyOfficerController::class, 'requestShow'])->name('requests.show');
+            Route::post('/requests/{id}/verify-identity', [PrivacyOfficerController::class, 'verifyIdentity'])->name('requests.verify-identity');
+            Route::post('/requests/{id}/assign', [PrivacyOfficerController::class, 'assignReviewer'])->name('requests.assign');
+            Route::post('/requests/{id}/extend', [PrivacyOfficerController::class, 'extendDeadline'])->name('requests.extend');
+            Route::post('/requests/{id}/approve', [PrivacyOfficerController::class, 'addApproval'])->name('requests.approve');
+            Route::post('/requests/{id}/add-approval', [PrivacyOfficerController::class, 'addApproval'])->name('requests.add-approval');
+            Route::post('/requests/{id}/generate-sar', [PrivacyOfficerController::class, 'generateSarExport'])->name('requests.generate-sar');
+            Route::post('/requests/{id}/fulfil', [PrivacyOfficerController::class, 'fulfilRequest'])->name('requests.fulfil');
+            Route::post('/requests/{id}/refuse', [PrivacyOfficerController::class, 'refuseRequest'])->name('requests.refuse');
         });
 
         // Staff Counter Dashboard

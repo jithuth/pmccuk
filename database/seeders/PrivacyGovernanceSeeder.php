@@ -51,6 +51,12 @@ class PrivacyGovernanceSeeder extends Seeder
                 'is_system' => true,
             ],
             [
+                'name' => 'GDPR Reviewer',
+                'slug' => 'reviewer',
+                'description' => 'Designated Reviewer for reviewing Recent UK GDPR Requests and evidence packages.',
+                'is_system' => true,
+            ],
+            [
                 'name' => 'Committee Member',
                 'slug' => 'committee_member',
                 'description' => 'Executive committee member with assigned community duties.',
@@ -118,6 +124,15 @@ class PrivacyGovernanceSeeder extends Seeder
         ];
         $roles['privacy_officer']->permissions()->sync(
             array_filter(array_map(fn($slug) => $perms[$slug]->id ?? null, $privacyOfficerPerms))
+        );
+
+        // GDPR Reviewer: Review and discovery on Privacy Requests
+        $reviewerPerms = [
+            'members.view.assigned',
+            'privacy.requests.review',
+        ];
+        $roles['reviewer']->permissions()->sync(
+            array_filter(array_map(fn($slug) => $perms[$slug]->id ?? null, $reviewerPerms))
         );
 
         // Treasurer: Financials, reconciliation, assigned members (No general PII export)

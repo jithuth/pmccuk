@@ -492,4 +492,150 @@ class PrivacyGovernanceTest extends TestCase
         $response->assertSee('PMCC-UK Made and maintained by PMCC-UK .');
         $response->assertDontSee('Tom Jacob');
     }
+
+    /**
+     * Test 17: Superadmin can create and edit Reviewer account and system records audit behaviors
+     */
+    public function test_superadmin_can_create_and_edit_reviewer_with_audit_trail(): void
+    {
+        $superadmin = Admin::create([
+            'username' => 'superadmin_test',
+            'email' => 'supertest@pmccuk.org',
+            'role' => 'superadmin',
+            'password' => Hash::make('Password123!'),
+        ]);
+
+        // 1. Superadmin creates a Reviewer
+        $createResponse = $this->actingAs($superadmin, 'admin')->post('/admin/access-control', [
+            'username' => 'gdpr_reviewer_1',
+            'email' => 'reviewer1@pmccuk.org',
+            'role' => 'reviewer',
+            'password' => 'ReviewerPass123!',
+            'password_confirmation' => 'ReviewerPass123!',
+        ]);
+
+        $createResponse->assertRedirect(route('admin.access-control'));
+        $this->assertDatabaseHas('admins', [
+            'username' => 'gdpr_reviewer_1',
+            'role' => 'reviewer',
+        ]);
+
+        $reviewer = Admin::where('username', 'gdpr_reviewer_1')->first();
+        $this->assertNotNull($reviewer);
+        $this->assertTrue($reviewer->isReviewer());
+
+        // Verify audit log for creation
+        $this->assertDatabaseHas('security_audit_logs', [
+            'action' => 'admin_account_created',
+            'resource_type' => 'Admin',
+            'resource_id' => (string) $reviewer->id,
+        ]);
+
+        // 2. Superadmin edits the Reviewer details
+        $updateResponse = $this->actingAs($superadmin, 'admin')->patch("/admin/access-control/{$reviewer->id}", [
+            'username' => 'gdpr_reviewer_updated',
+            'email' => 'updated_reviewer@pmccuk.org',
+            'role' => 'reviewer',
+        ]);
+
+        $updateResponse->assertRedirect(route('admin.access-control'));
+        $this->assertDatabaseHas('admins', [
+            'id' => $reviewer->id,
+            'username' => 'gdpr_reviewer_updated',
+            'role' => 'reviewer',
+        ]);
+        $updatedReviewer = Admin::find($reviewer->id);
+        $this->assertEquals('updated_reviewer@pmccuk.org', $updatedReviewer->email);
+
+        // Verify audit log for modification
+        $this->assertDatabaseHas('security_audit_logs', [
+            'action' => 'admin_account_updated',
+            'resource_type' => 'Admin',
+            'resource_id' => (string) $reviewer->id,
+        ]);
+    }
+
+    /**
+     * Test 18: Reviewer can review Recent UK GDPR Requests and behaviors are audited
+     */
+    public function test_reviewer_can_review_gdpr_requests_and_behavior_is_recorded(): void
+    {
+        $reviewer = Admin::create([
+            'username' => 'reviewer_john',
+            'email' => 'john.reviewer@pmccuk.org',
+            'role' => 'reviewer',
+            'password' => Hash::make('ReviewerPass123!'),
+        ]);
+
+        $member = Member::create([
+            'guid' => 'gdpr-test-member-guid',
+            'full_name' => 'John Doe',
+            'email' => 'johndoe@example.com',
+            'mobile_number' => '+447000111222',
+            'password' => Hash::make('MemberPass123!'),
+        ]);
+
+        $privacyRequest = PrivacyRequest::create([
+            'reference_number' => 'REQ-TEST-2026-001',
+            'member_id' => $member->id,
+            'requester_name' => 'John Doe',
+            'requester_email' => 'johndoe@example.com',
+            'request_type' => 'sar',
+            'details' => 'Please provide a copy of all personal records.',
+            'statutory_deadline' => now()->addMonth()->toDateString(),
+            'status' => 'submitted',
+        ]);
+
+        // 1. Reviewer views list of recent GDPR requests
+        $indexResponse = $this->actingAs($reviewer, 'admin')->get('/admin/privacy/requests');
+        $indexResponse->assertStatus(200);
+        $indexResponse->assertSee('REQ-TEST-2026-001');
+
+        // 2. Reviewer inspects specific GDPR request -> behavior recorded
+        $showResponse = $this->actingAs($reviewer, 'admin')->get("/admin/privacy/requests/{$privacyRequest->id}");
+        $showResponse->assertStatus(200);
+        $showResponse->assertSee('REQ-TEST-2026-001');
+
+        $this->assertDatabaseHas('security_audit_logs', [
+            'actor_id' => $reviewer->id,
+            'actor_type' => 'admin',
+            'actor_username' => 'reviewer_john',
+            'action' => 'privacy_request_inspected',
+            'resource_id' => (string) $privacyRequest->id,
+        ]);
+
+        // 3. Reviewer verifies requester identity -> behavior recorded
+        $verifyResponse = $this->actingAs($reviewer, 'admin')->post("/admin/privacy/requests/{$privacyRequest->id}/verify-identity", [
+            'method' => 'UK Driving Licence & Member OTP Verification',
+        ]);
+        $verifyResponse->assertRedirect();
+
+        $this->assertDatabaseHas('security_audit_logs', [
+            'actor_id' => $reviewer->id,
+            'actor_type' => 'admin',
+            'actor_username' => 'reviewer_john',
+            'action' => 'privacy_identity_verified',
+            'resource_id' => (string) $privacyRequest->id,
+        ]);
+
+        // 4. Reviewer records an independent review decision -> behavior recorded
+        $approvalResponse = $this->actingAs($reviewer, 'admin')->post("/admin/privacy/requests/{$privacyRequest->id}/add-approval", [
+            'approval_type' => 'General Data Governance Approval',
+            'decision' => 'approved',
+            'comments' => 'Identity verified and scope confirmed for SAR packaging.',
+        ]);
+        $approvalResponse->assertRedirect();
+
+        $this->assertDatabaseHas('security_audit_logs', [
+            'actor_id' => $reviewer->id,
+            'actor_type' => 'admin',
+            'actor_username' => 'reviewer_john',
+            'action' => 'privacy_approval_decided',
+        ]);
+
+        // 5. Reviewer attempts unauthorized access to unrelated sensitive section (e.g. 72h Incidents register) -> denied
+        $incidentResponse = $this->actingAs($reviewer, 'admin')->get('/admin/privacy/incidents');
+        // Reviewer does not have role admin or superadmin for the general privacy hub group
+        $this->assertEquals(302, $incidentResponse->getStatusCode());
+    }
 }
