@@ -83,8 +83,9 @@
                                 <div class="pricing-items">
                                     @php $itemsCount = 0; @endphp
                                     @foreach($rubric->items as $item)
+                                    @continue(!$item->category)
                                     <div class="d-flex justify-content-between align-items-center mb-1 small border-bottom border-light pb-1">
-                                        <span class="text-secondary fw-bold text-truncate" style="max-width: 100px;">{{ $item->category->name }}</span>
+                                        <span class="text-secondary fw-bold text-truncate" style="max-width: 100px;">{{ $item->category?->name ?? 'Category' }}</span>
                                         <div class="text-end">
                                             <span class="text-dark">M: £{{ number_format($item->member_price, 2) }}</span>
                                             <span class="text-muted ms-2">G: £{{ number_format($item->guest_price, 2) }}</span>

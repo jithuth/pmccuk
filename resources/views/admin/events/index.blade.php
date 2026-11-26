@@ -127,8 +127,9 @@
                                 <td>
                                     <div class="d-flex flex-wrap" style="max-width: 200px;">
                                         @foreach($row->prices as $p)
+                                            @continue(!$p->category)
                                             <div class="badge bg-light text-dark border m-1 p-2 text-start" style="font-size: 9px; min-width: 90px;">
-                                                <div class="border-bottom mb-1 pb-1 opacity-50">{{ $p->category->name ?? 'Cat' }}</div>
+                                                <div class="border-bottom mb-1 pb-1 opacity-50">{{ $p->category?->name ?? 'Cat' }}</div>
                                                 <div class="text-success">M: £{{ number_format($p->member_price, 2) }}</div>
                                                 <div class="text-primary">G: £{{ number_format($p->guest_price, 2) }}</div>
                                             </div>

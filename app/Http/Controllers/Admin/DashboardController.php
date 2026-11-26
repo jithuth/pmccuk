@@ -1093,6 +1093,7 @@ class DashboardController extends Controller
 
     public function fareLogic()
     {
+        FareRubricItem::whereDoesntHave('category')->delete();
         $categories = FareCategory::orderBy('id')->get();
         $rubrics = FareRubric::with('items.category')->orderBy('id')->get();
         return view('admin.events.fare_logic', compact('categories', 'rubrics'));
@@ -1111,6 +1112,8 @@ class DashboardController extends Controller
 
     public function deleteFareCategory($id)
     {
+        FareRubricItem::where('category_id', $id)->delete();
+        EventPrice::where('category_id', $id)->delete();
         FareCategory::findOrFail($id)->delete();
         return back()->with('success', 'Fare category removed.');
     }

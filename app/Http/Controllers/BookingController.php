@@ -192,7 +192,7 @@ class BookingController extends Controller
         $hasStudentTicket = false;
         foreach ($request->counts as $cat_id => $count) {
             if (intval($count) > 0) {
-                $cat_name = strtolower(\App\Models\FareCategory::find($cat_id)->name ?? '');
+                $cat_name = strtolower(\App\Models\FareCategory::find($cat_id)?->name ?? '');
                 if (str_contains($cat_name, 'student')) {
                     $hasStudentTicket = true;
                     break;
@@ -229,7 +229,7 @@ class BookingController extends Controller
         foreach ($request->counts as $cat_id => $count) {
             $count = intval($count);
             if ($count > 0) {
-                $cat_title = \App\Models\FareCategory::find($cat_id)->name ?? 'Item';
+                $cat_title = \App\Models\FareCategory::find($cat_id)?->name ?? 'Item';
                 $price = floatval($request->prices[$cat_id] ?? 0);
 
                 $total_amount += ($count * $price);
