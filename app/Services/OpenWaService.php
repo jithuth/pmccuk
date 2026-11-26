@@ -486,14 +486,18 @@ class OpenWaService
                 ->get(self::getServerUrl() . '/logs', $params);
 
             if ($response->successful()) {
-                return $response->json();
+                $json = $response->json();
+                if (is_array($json)) {
+                    return $json;
+                }
             }
         } catch (\Throwable $e) {
             Log::debug('[WhatsApp] Daemon log fetch failed, falling back to local logs: ' . $e->getMessage());
         }
 
         // Fallback: extract WhatsApp entries from storage/logs/laravel.log
-        return self::getLocalLaravelWhatsAppLogs($limit, $search);
+        $fallback = self::getLocalLaravelWhatsAppLogs($limit, $search);
+        return is_array($fallback) ? $fallback : ['success' => true, 'count' => 0, 'logs' => []];
     }
 
     /**
@@ -905,28 +909,37 @@ class OpenWaService
 
         // 1. Personalize text and append URL blocks if present
         $body = str_replace('{name}', $recipientName, $message);
+        $body = str_replace('{first_name}', explode(' ', trim($recipientName))[0] ?: $recipientName, $body);
 
         $urls = $attachments['urls'] ?? [];
         if (!empty($urls) && is_array($urls)) {
             $urlText = "\n";
             foreach ($urls as $u) {
-                $label = !empty($u['title']) ? "*{$u['title']}*: " : '';
-                $urlText .= "\n🔗 {$label}{$u['url']}";
+                if (!is_array($u)) {
+                    continue;
+                }
+                $uUrl = trim((string) ($u['url'] ?? ''));
+                if (empty($uUrl)) {
+                    continue;
+                }
+                $label = !empty($u['title']) ? "*" . trim((string) $u['title']) . "*: " : '';
+                $urlText .= "\n🔗 {$label}{$uUrl}";
             }
-            if (!str_contains($body, trim($urlText))) {
+            if (trim($urlText) !== '' && !str_contains($body, trim($urlText))) {
                 $body .= $urlText;
             }
         }
 
         // Send main text message and capture message ID for audit & revocation
         $textRes = self::sendTextMessage($formatted, $body);
-        $msgId = $textRes['messageId'] ?? null;
-        $mainOk = $textRes['success'] ?? false;
+        $msgId = is_array($textRes) ? ($textRes['messageId'] ?? null) : null;
+        $mainOk = is_array($textRes) ? ($textRes['success'] ?? false) : false;
 
         // 2. Dispatch multiple images
         $images = $attachments['images'] ?? [];
         if (!empty($images) && is_array($images)) {
             foreach ($images as $img) {
+                if (!is_array($img)) continue;
                 usleep(350000); // 350ms delay
                 $absPath = $img['path'] ?? null;
                 if ($absPath && file_exists($absPath)) {
@@ -942,6 +955,7 @@ class OpenWaService
         $docs = $attachments['documents'] ?? [];
         if (!empty($docs) && is_array($docs)) {
             foreach ($docs as $doc) {
+                if (!is_array($doc)) continue;
                 usleep(350000); // 350ms delay
                 $absPath = $doc['path'] ?? null;
                 if ($absPath && file_exists($absPath)) {
@@ -957,6 +971,7 @@ class OpenWaService
         $contacts = $attachments['contacts'] ?? [];
         if (!empty($contacts) && is_array($contacts)) {
             foreach ($contacts as $contact) {
+                if (!is_array($contact)) continue;
                 usleep(350000); // 350ms delay
                 $cName = $contact['name'] ?? 'Executive Member';
                 $cPhone = $contact['phone'] ?? null;

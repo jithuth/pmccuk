@@ -576,6 +576,14 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::post('/scheduled/{id}/send-now', [WhatsAppController::class, 'sendNowScheduled'])->name('scheduled.send-now');
                 Route::delete('/scheduled/{id}', [WhatsAppController::class, 'deleteScheduled'])->name('scheduled.delete');
                 Route::post('/scheduled/process', [WhatsAppController::class, 'processScheduled'])->name('scheduled.process');
+                // WhatsApp Template Builder & Studio
+                Route::get('/templates', [WhatsAppController::class, 'getTemplates'])->name('templates.index');
+                Route::post('/templates', [WhatsAppController::class, 'saveTemplate'])->name('templates.save');
+                Route::get('/templates/{id}', [WhatsAppController::class, 'getTemplate'])->name('templates.show');
+                Route::delete('/templates/{id}', [WhatsAppController::class, 'deleteTemplate'])->name('templates.delete');
+                Route::post('/templates/{id}/clone', [WhatsAppController::class, 'cloneTemplate'])->name('templates.clone');
+                Route::post('/templates/preview', [WhatsAppController::class, 'previewTemplate'])->name('templates.preview');
+
                 Route::post('/logout', [WhatsAppController::class, 'logout'])->name('logout');
                 Route::post('/revoke', [WhatsAppController::class, 'revoke'])->name('revoke');
                 Route::get('/logs', [WhatsAppController::class, 'logs'])->name('logs');

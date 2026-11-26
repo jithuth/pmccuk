@@ -569,6 +569,203 @@
                 transform: scale(0.85);
             }
         }
+
+        /* ── WhatsApp Template Builder & Smartphone Simulator ── */
+        .tpl-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 11.5px;
+            font-weight: 600;
+            background: #ffffff;
+            color: #334155;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            user-select: none;
+        }
+        .tpl-chip:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            transform: translateY(-1px);
+        }
+        .tpl-chip.active {
+            background: #dcfce7;
+            color: #166534;
+            border-color: #86efac;
+            box-shadow: 0 2px 6px rgba(34, 197, 94, 0.2);
+        }
+        .tpl-cat-pill {
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #64748b;
+            transition: all 0.15s ease;
+        }
+        .tpl-cat-pill:hover, .tpl-cat-pill.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+        }
+        .var-badge {
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.12s ease;
+            font-family: monospace;
+            font-size: 10.5px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .var-badge:hover {
+            background: #bae6fd;
+            color: #0284c7;
+            transform: translateY(-1px);
+        }
+        .fmt-btn {
+            padding: 2px 7px;
+            font-size: 11px;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #334155;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .fmt-btn:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        /* Smartphone Mockup Frame */
+        .wa-phone-mockup {
+            background: #111827;
+            border-radius: 36px;
+            padding: 10px;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.35), inset 0 0 0 2px #374151;
+            max-width: 330px;
+            margin: 0 auto;
+        }
+        .wa-phone-screen {
+            background: #efeae2;
+            background-image: radial-gradient(#d5cdc4 0.75px, transparent 0.75px);
+            background-size: 12px 12px;
+            border-radius: 28px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 480px;
+            max-height: 520px;
+        }
+        .wa-phone-statusbar {
+            background: #075E54;
+            color: #ffffff;
+            padding: 4px 14px 2px;
+            font-size: 9px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: system-ui, sans-serif;
+            font-weight: 600;
+        }
+        .wa-phone-appbar {
+            background: #075E54;
+            color: #ffffff;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .wa-phone-chatarea {
+            flex: 1;
+            padding: 12px 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .wa-sim-bubble {
+            background: #ffffff;
+            border-radius: 12px;
+            border-top-left-radius: 2px;
+            padding: 8px 10px 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+            position: relative;
+            max-width: 95%;
+            font-size: 11.5px;
+            line-height: 1.45;
+            color: #111827;
+        }
+        .wa-sim-bubble .sim-header {
+            font-weight: 800;
+            font-size: 12px;
+            color: #075E54;
+            margin-bottom: 5px;
+            border-bottom: 1px dashed #e2e8f0;
+            padding-bottom: 4px;
+        }
+        .wa-sim-bubble .sim-body {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .wa-sim-bubble .sim-footer {
+            font-size: 9.5px;
+            color: #64748b;
+            margin-top: 6px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 4px;
+            font-style: italic;
+        }
+        .wa-sim-bubble .sim-meta {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 3px;
+            font-size: 9px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .wa-sim-btn-pill {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-top: none;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #00a884;
+            text-align: center;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .wa-sim-btn-pill:hover {
+            background: #f8fafc;
+        }
+        .sim-var-highlight {
+            background: #dcfce7;
+            color: #166534;
+            padding: 0 3px;
+            border-radius: 3px;
+            font-weight: 600;
+        }
     </style>
 @endsection
 
@@ -600,6 +797,13 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
+                    <button type="button"
+                        class="btn btn-sm btn-warning text-dark rounded-pill px-3.5 py-2 text-xs fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm"
+                        onclick="openTemplateBuilderModal(event)">
+                        <i class="fas fa-wand-magic-sparkles text-dark"></i>
+                        <span>Template Builder</span>
+                        <span class="badge bg-dark text-white rounded-pill px-1.5 py-0.5 text-xxs ms-0.5" id="headerTemplateCountBadge">{{ isset($templates) ? $templates->count() : 8 }}</span>
+                    </button>
                     <button type="button"
                         class="btn btn-sm btn-dark border border-success-subtle text-white rounded-pill px-3.5 py-2 text-xs fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm"
                         data-bs-toggle="modal" data-bs-target="#modalDaemonTerminal">
@@ -1216,30 +1420,94 @@
                             </div>
 
                             <!-- Broadcast Templates -->
-                            <div>
-                                <label
-                                    class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-1.5 d-block">2.
-                                    Choose Template or Customize</label>
-                                <div class="d-flex flex-wrap gap-1.5 mb-2">
-                                    <span class="preset-chip active bcast-chip" data-bcast="onam">
-                                        🌸 Onam &amp; Vishu
-                                    </span>
-                                    <span class="preset-chip bcast-chip" data-bcast="xmas">
-                                        🎄 Christmas &amp; New Year
-                                    </span>
-                                    <span class="preset-chip bcast-chip" data-bcast="weather">
-                                        ⚠️ Urgent Weather Alert
-                                    </span>
-                                    <span class="preset-chip bcast-chip" data-bcast="student">
-                                        🎓 Student Wing Welcome
-                                    </span>
+                            <div class="p-3 bg-light rounded-3 border border-light-subtle">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-0 d-flex align-items-center gap-1.5">
+                                        <i class="fas fa-layer-group text-primary"></i> 2. Choose WhatsApp Template or Customize
+                                    </label>
+                                    <div class="d-flex gap-1.5">
+                                        <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-0.5 fw-bold" onclick="openTemplateBuilderModal(event)">
+                                            <i class="fas fa-plus me-1"></i> New Template
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-0.5 fw-bold" id="btnEditCurrentTemplateInBuilder" onclick="editSelectedTemplateInBuilder(event)">
+                                            <i class="fas fa-edit me-1"></i> Edit in Builder
+                                        </button>
+                                    </div>
                                 </div>
 
-                                <textarea name="broadcast_message" id="broadcastMessage" rows="4"
-                                    class="form-control bg-light border-0 rounded-3 text-xs p-3" required
-                                    style="resize:none;">🌸 Warmest Onam Greetings from PMCC-UK! May this festive season bring immense joy, health, and prosperity to you and your family. Join our grand celebrations: https://pmccuk.org/events</textarea>
-                                <span class="text-xs text-muted mt-1 d-block">💡 Variable <code>{name}</code> is
-                                    automatically replaced with the recipient's name.</span>
+                                <!-- Category Filter Pills & Search -->
+                                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                                    <div class="d-flex flex-wrap gap-1" id="broadcastTemplateCategoryPills">
+                                        <span class="tpl-cat-pill active" data-category="all" onclick="filterBroadcastTemplates('all', this)">All</span>
+                                        <span class="tpl-cat-pill" data-category="greetings" onclick="filterBroadcastTemplates('greetings', this)">🌸 Greetings</span>
+                                        <span class="tpl-cat-pill" data-category="events" onclick="filterBroadcastTemplates('events', this)">🎟️ Events</span>
+                                        <span class="tpl-cat-pill" data-category="membership" onclick="filterBroadcastTemplates('membership', this)">🆔 Membership</span>
+                                        <span class="tpl-cat-pill" data-category="students" onclick="filterBroadcastTemplates('students', this)">🎓 Students</span>
+                                        <span class="tpl-cat-pill" data-category="alerts" onclick="filterBroadcastTemplates('alerts', this)">⚠️ Alerts</span>
+                                        <span class="tpl-cat-pill" data-category="finance" onclick="filterBroadcastTemplates('finance', this)">💳 Finance</span>
+                                    </div>
+                                    <input type="text" id="tplSearchBroadcastInput" placeholder="Search templates..." class="form-control form-control-sm bg-white border text-xxs py-0.5 px-2" style="max-width:140px;height:24px;" onkeyup="searchBroadcastTemplates(this.value)">
+                                </div>
+
+                                <!-- Template Chips List -->
+                                <div class="d-flex flex-wrap gap-1.5 mb-2.5" id="broadcastTemplateChipsList" style="max-height: 140px; overflow-y: auto;">
+                                    @if(isset($templates) && $templates->isNotEmpty())
+                                        @foreach($templates as $idx => $t)
+                                            <div class="tpl-chip {{ $idx === 0 ? 'active' : '' }} bcast-template-chip"
+                                                data-id="{{ $t->id }}"
+                                                data-slug="{{ $t->slug }}"
+                                                data-category="{{ $t->category }}"
+                                                data-name="{{ $t->name }}"
+                                                data-header-type="{{ $t->header_type }}"
+                                                data-header-content="{{ $t->header_content }}"
+                                                data-body="{{ $t->body }}"
+                                                data-footer="{{ $t->footer }}"
+                                                data-buttons='@json($t->buttons ?: [])'
+                                                onclick="selectBroadcastTemplate(this)">
+                                                <span>{{ $t->name }}</span>
+                                                @if($t->is_system)
+                                                    <span class="badge bg-secondary-subtle text-secondary border text-xxs px-1 py-0 rounded-pill">System</span>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    @else
+                                        <span class="preset-chip active bcast-chip" data-bcast="onam">🌸 Onam &amp; Vishu</span>
+                                        <span class="preset-chip bcast-chip" data-bcast="xmas">🎄 Christmas &amp; New Year</span>
+                                        <span class="preset-chip bcast-chip" data-bcast="weather">⚠️ Urgent Weather Alert</span>
+                                        <span class="preset-chip bcast-chip" data-bcast="student">🎓 Student Wing Welcome</span>
+                                    @endif
+                                </div>
+
+                                <!-- Variable Helper Toolbar -->
+                                <div class="d-flex align-items-center justify-content-between mb-1.5 flex-wrap gap-1">
+                                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                                        <span class="text-xxs text-muted fw-bold uppercase">Insert Token:</span>
+                                        <span class="var-badge" onclick="insertVarInBroadcast('{name}')">{name}</span>
+                                        <span class="var-badge" onclick="insertVarInBroadcast('{first_name}')">{first_name}</span>
+                                        <span class="var-badge" onclick="insertVarInBroadcast('{phone}')">{phone}</span>
+                                        <span class="var-badge" onclick="insertVarInBroadcast('{membership_id}')">{membership_id}</span>
+                                        <span class="var-badge" onclick="insertVarInBroadcast('{event_title}')">{event_title}</span>
+                                        <span class="var-badge" onclick="insertVarInBroadcast('{date}')">{date}</span>
+                                        <span class="var-badge" onclick="insertVarInBroadcast('{time}')">{time}</span>
+                                        <span class="var-badge" onclick="insertVarInBroadcast('{venue}')">{venue}</span>
+                                        <span class="var-badge" onclick="insertVarInBroadcast('{booking_ref}')">{booking_ref}</span>
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <button type="button" class="fmt-btn fw-bold" onclick="formatBroadcastText('*')" title="Bold (*text*)">B</button>
+                                        <button type="button" class="fmt-btn fst-italic" onclick="formatBroadcastText('_')" title="Italic (_text_)">I</button>
+                                        <button type="button" class="fmt-btn text-decoration-line-through" onclick="formatBroadcastText('~')" title="Strikethrough (~text~)">S</button>
+                                        <button type="button" class="fmt-btn font-monospace" onclick="formatBroadcastText('```')" title="Monospace (```text```)">&lt;&gt;</button>
+                                    </div>
+                                </div>
+
+                                <textarea name="broadcast_message" id="broadcastMessage" rows="5"
+                                    class="form-control bg-white border rounded-3 text-xs p-3 font-monospace" required
+                                    style="resize:vertical;">{{ isset($templates) && $templates->isNotEmpty() ? $templates->first()->body : '🌸 Warmest Onam Greetings from PMCC-UK! May this festive season bring immense joy, health, and prosperity to you and your family. Join our grand celebrations: https://pmccuk.org/events' }}</textarea>
+                                
+                                <div class="d-flex justify-content-between align-items-center mt-1 text-xxs text-muted">
+                                    <span>💡 Token <code>{name}</code> is dynamically personalized for every recipient in real-time.</span>
+                                    <span id="bcastCharCounter">0 characters</span>
+                                </div>
                             </div>
 
                             <!-- ── 3. ATTACHMENT STUDIO ── -->
@@ -2304,6 +2572,279 @@
         </div>
     </div>
 
+    <!-- ── MODAL: WHATSAPP INTERACTIVE TEMPLATE BUILDER & SMARTPHONE SIMULATOR ── -->
+    <div class="modal fade" id="modalTemplateBuilder" tabindex="-1" aria-labelledby="modalTemplateBuilderLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                <!-- Modal Header -->
+                <div class="modal-header bg-dark text-white p-3.5 border-0 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2.5">
+                        <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center fw-bold"
+                            style="width:36px;height:36px;font-size:16px;">
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                        </div>
+                        <div>
+                            <h5 class="modal-title fw-black text-white fs-6 mb-0 d-flex align-items-center gap-2">
+                                <span>WhatsApp Template Studio &amp; Smartphone Builder</span>
+                                <span class="badge bg-warning text-dark text-xxs font-monospace px-2 py-0.5 rounded-pill">WYSIWYG</span>
+                            </h5>
+                            <span class="text-white-50 text-xxs">Design high-impact, personalized templates with real-time smartphone rendering</span>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <!-- Modal Body: 2 Columns -->
+                <div class="modal-body p-4 bg-light">
+                    <div class="row g-4">
+                        <!-- Left Column: Template Form & Design Canvas -->
+                        <div class="col-lg-7 d-flex flex-column gap-3">
+                            <!-- Template Selector & Action Bar -->
+                            <div class="p-3 bg-white rounded-3 shadow-sm border">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label text-xs fw-bold text-muted uppercase tracking-wider mb-0">Select Template to Edit</label>
+                                    <div class="d-flex gap-1.5">
+                                        <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 fw-bold" onclick="startNewTemplateInBuilder()">
+                                            <i class="fas fa-plus me-1"></i> New Blank
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 fw-bold" id="btnCloneTpl" onclick="cloneCurrentTemplate()">
+                                            <i class="fas fa-copy me-1"></i> Clone
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline-danger rounded-pill px-2.5 py-1 fw-bold" id="btnDeleteTpl" onclick="deleteCurrentTemplate()">
+                                            <i class="fas fa-trash-alt me-1"></i> Delete
+                                        </button>
+                                    </div>
+                                </div>
+                                <select id="tplStudioSelect" class="form-select form-select-sm text-xs fw-bold bg-light border-0" onchange="onTemplateStudioSelectChanged(this.value)">
+                                    <option value="" disabled selected>-- Choose from Library --</option>
+                                    @if(isset($templates) && $templates->isNotEmpty())
+                                        @foreach($templates as $tpl)
+                                            <option value="{{ $tpl->id }}" data-system="{{ $tpl->is_system ? '1' : '0' }}">{{ $tpl->name }} ({{ ucfirst($tpl->category) }})</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+
+                            <!-- Template Meta Form -->
+                            <div class="p-3 bg-white rounded-3 shadow-sm border d-flex flex-column gap-2.5">
+                                <input type="hidden" id="tplId" value="">
+
+                                <div class="row g-2">
+                                    <div class="col-md-7">
+                                        <label class="form-label text-xs fw-bold text-muted uppercase mb-1">Template Title / Name <span class="text-danger">*</span></label>
+                                        <input type="text" id="tplName" class="form-control form-control-sm text-xs fw-bold" placeholder="e.g. 🌸 Onam Cultural Celebration Invite" required>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label text-xs fw-bold text-muted uppercase mb-1">Category <span class="text-danger">*</span></label>
+                                        <select id="tplCategory" class="form-select form-select-sm text-xs">
+                                            <option value="greetings">🌸 Greetings / Festivals</option>
+                                            <option value="events">🎟️ Events &amp; Passes</option>
+                                            <option value="membership">🆔 Membership &amp; ID Cards</option>
+                                            <option value="students">🎓 International Students</option>
+                                            <option value="alerts">⚠️ Emergency &amp; Weather</option>
+                                            <option value="finance">💳 Finance &amp; Subscriptions</option>
+                                            <option value="general">📢 General Announcements</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Header Block -->
+                                <div class="pt-2 border-top">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="form-label text-xs fw-bold text-muted uppercase mb-0">Header Style</label>
+                                        <div class="d-flex gap-2 text-xxs">
+                                            <label class="d-flex align-items-center gap-1 cursor-pointer">
+                                                <input type="radio" name="tpl_header_type" value="none" checked onchange="onHeaderTypeChanged(this.value)"> None
+                                            </label>
+                                            <label class="d-flex align-items-center gap-1 cursor-pointer">
+                                                <input type="radio" name="tpl_header_type" value="text" onchange="onHeaderTypeChanged(this.value)"> Bold Text
+                                            </label>
+                                            <label class="d-flex align-items-center gap-1 cursor-pointer">
+                                                <input type="radio" name="tpl_header_type" value="image" onchange="onHeaderTypeChanged(this.value)"> Media / Image
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div id="tplHeaderInputContainer" class="d-none mt-1.5">
+                                        <input type="text" id="tplHeaderContent" class="form-control form-control-sm text-xs" placeholder="e.g. 🌸 PMCC-UK ANNUAL CELEBRATION 🌸">
+                                    </div>
+                                </div>
+
+                                <!-- Variable Token Inserter Bar -->
+                                <div class="pt-2 border-top">
+                                    <div class="d-flex justify-content-between align-items-center mb-1.5">
+                                        <span class="text-xxs fw-bold text-muted uppercase tracking-wider">Dynamic Placeholders (Click to insert)</span>
+                                        <span class="text-xxs text-primary">Replaces dynamically per recipient</span>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        <span class="var-badge" onclick="insertVarInBuilder('{name}')"><i class="fas fa-user text-xxs"></i> {name}</span>
+                                        <span class="var-badge" onclick="insertVarInBuilder('{first_name}')"><i class="fas fa-smile text-xxs"></i> {first_name}</span>
+                                        <span class="var-badge" onclick="insertVarInBuilder('{phone}')"><i class="fas fa-phone text-xxs"></i> {phone}</span>
+                                        <span class="var-badge" onclick="insertVarInBuilder('{membership_id}')"><i class="fas fa-id-badge text-xxs"></i> {membership_id}</span>
+                                        <span class="var-badge" onclick="insertVarInBuilder('{event_title}')"><i class="fas fa-calendar-star text-xxs"></i> {event_title}</span>
+                                        <span class="var-badge" onclick="insertVarInBuilder('{date}')"><i class="fas fa-calendar-day text-xxs"></i> {date}</span>
+                                        <span class="var-badge" onclick="insertVarInBuilder('{time}')"><i class="fas fa-clock text-xxs"></i> {time}</span>
+                                        <span class="var-badge" onclick="insertVarInBuilder('{venue}')"><i class="fas fa-map-marker-alt text-xxs"></i> {venue}</span>
+                                        <span class="var-badge" onclick="insertVarInBuilder('{booking_ref}')"><i class="fas fa-ticket text-xxs"></i> {booking_ref}</span>
+                                        <span class="var-badge" onclick="insertVarInBuilder('{link}')"><i class="fas fa-link text-xxs"></i> {link}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Body Textarea with Markdown Toolbar -->
+                                <div>
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="form-label text-xs fw-bold text-muted uppercase mb-0">Message Body <span class="text-danger">*</span></label>
+                                        <div class="d-flex gap-1 align-items-center">
+                                            <span class="text-xxs text-muted me-1">Markdown:</span>
+                                            <button type="button" class="fmt-btn fw-bold" onclick="formatBuilderText('*')" title="Bold (*text*)">B</button>
+                                            <button type="button" class="fmt-btn fst-italic" onclick="formatBuilderText('_')" title="Italic (_text_)">I</button>
+                                            <button type="button" class="fmt-btn text-decoration-line-through" onclick="formatBuilderText('~')" title="Strikethrough (~text~)">S</button>
+                                            <button type="button" class="fmt-btn font-monospace" onclick="formatBuilderText('```')" title="Monospace (```text```)">&lt;&gt;</button>
+                                        </div>
+                                    </div>
+                                    <textarea id="tplBody" rows="7" class="form-control text-xs font-monospace p-2.5" placeholder="Write your personalized WhatsApp message here..." required oninput="syncBuilderPreview()"></textarea>
+                                    <div class="d-flex justify-content-between align-items-center mt-1 text-xxs text-muted">
+                                        <span id="tplBodyWordCount">0 words, 0 characters</span>
+                                        <span>WhatsApp limit: 4,096 chars</span>
+                                    </div>
+                                </div>
+
+                                <!-- Footer Text -->
+                                <div>
+                                    <label class="form-label text-xs fw-bold text-muted uppercase mb-1">Footer Note (Optional)</label>
+                                    <input type="text" id="tplFooter" class="form-control form-control-sm text-xs" placeholder="e.g. Plymouth Malayalee Community Club • Registered Charity" oninput="syncBuilderPreview()">
+                                </div>
+
+                                <!-- Action Buttons Studio -->
+                                <div class="pt-2 border-top">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="form-label text-xs fw-bold text-muted uppercase mb-0 d-flex align-items-center gap-1.5">
+                                            <i class="fas fa-mouse-pointer text-primary"></i> Action Buttons (CTA / Quick Reply)
+                                        </label>
+                                        <div class="dropdown">
+                                            <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2.5 py-0.5 fw-bold dropdown-toggle" data-bs-toggle="dropdown">
+                                                <i class="fas fa-plus me-1"></i> Add Button
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end text-xs shadow-sm">
+                                                <li><a class="dropdown-item py-1.5" href="javascript:void(0)" onclick="addButtonToBuilder('url')"><i class="fas fa-globe text-primary me-2"></i> Website / RSVP Link</a></li>
+                                                <li><a class="dropdown-item py-1.5" href="javascript:void(0)" onclick="addButtonToBuilder('call')"><i class="fas fa-phone-alt text-success me-2"></i> Phone Call Button</a></li>
+                                                <li><a class="dropdown-item py-1.5" href="javascript:void(0)" onclick="addButtonToBuilder('quick_reply')"><i class="fas fa-reply text-warning me-2"></i> Quick Reply Option</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div id="tplButtonsContainer" class="d-flex flex-column gap-1.5">
+                                        <!-- Buttons rendered dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Ultra-Realistic Smartphone Simulator -->
+                        <div class="col-lg-5">
+                            <div class="d-flex flex-column align-items-center">
+                                <!-- Simulator Top Switcher -->
+                                <div class="d-flex justify-content-between align-items-center w-100 mb-2 px-1">
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input" type="checkbox" id="chkSimulateMemberData" checked onchange="syncBuilderPreview()">
+                                        <label class="form-check-label text-xxs fw-bold text-dark" for="chkSimulateMemberData">Simulate Sample Member Data</label>
+                                    </div>
+                                    <span class="badge bg-success-subtle text-success border text-xxs font-monospace">Live Phone Mirror</span>
+                                </div>
+
+                                <!-- Smartphone Device Frame -->
+                                <div class="wa-phone-mockup w-100">
+                                    <div class="wa-phone-screen">
+                                        <!-- Status Bar -->
+                                        <div class="wa-phone-statusbar">
+                                            <span>9:41</span>
+                                            <div class="d-flex align-items-center gap-1.5">
+                                                <i class="fas fa-signal" style="font-size:8px;"></i>
+                                                <i class="fas fa-wifi" style="font-size:8px;"></i>
+                                                <i class="fas fa-battery-full" style="font-size:9px;"></i>
+                                            </div>
+                                        </div>
+
+                                        <!-- WhatsApp App Bar -->
+                                        <div class="wa-phone-appbar">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i class="fas fa-arrow-left" style="font-size:11px;"></i>
+                                                <div class="rounded-circle bg-white text-success d-flex align-items-center justify-content-center fw-bold" style="width:28px;height:28px;font-size:12px;">
+                                                    <i class="fab fa-whatsapp"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="d-flex align-items-center gap-1">
+                                                        <span class="fw-bold text-white text-xs">PMCC-UK</span>
+                                                        <i class="fas fa-check-circle text-warning" style="font-size:10px;"></i>
+                                                    </div>
+                                                    <span class="text-white-50 text-xxs d-block" style="font-size:9px;line-height:1;">Verified Organization</span>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-2 text-white-50" style="font-size:11px;">
+                                                <i class="fas fa-video"></i>
+                                                <i class="fas fa-phone-alt"></i>
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </div>
+                                        </div>
+
+                                        <!-- Chat Canvas with Message Bubble -->
+                                        <div class="wa-phone-chatarea" id="waPhoneChatArea">
+                                            <!-- Date Badge -->
+                                            <div class="text-center">
+                                                <span class="badge bg-secondary-subtle text-secondary px-2 py-0.5 rounded-pill" style="font-size:9px;">TODAY</span>
+                                            </div>
+
+                                            <!-- Chat Bubble -->
+                                            <div class="wa-sim-bubble" id="waSimBubble">
+                                                <div class="sim-header d-none" id="simHeader"></div>
+                                                <div class="sim-body" id="simBody"></div>
+                                                <div class="sim-footer d-none" id="simFooter"></div>
+                                                <div class="sim-meta">
+                                                    <span id="simTime">12:30 PM</span>
+                                                    <span class="wa-double-check text-primary">✓✓</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Action Buttons Attached Under Bubble -->
+                                            <div class="d-flex flex-column gap-1" id="simButtonsContainer">
+                                                <!-- Dynamic simulator buttons rendered here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Test Button Under Phone -->
+                                <div class="mt-2 text-center w-100">
+                                    <button type="button" class="btn btn-xs btn-outline-dark rounded-pill px-3 py-1 text-xxs fw-bold shadow-sm" onclick="sendTestPreviewFromBuilder()">
+                                        <i class="fab fa-whatsapp text-success me-1"></i> Send This Preview to Admin Phone
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer bg-white p-3 border-top d-flex justify-content-between align-items-center">
+                    <div id="tplBuilderAlert" class="text-xs fw-bold text-muted">
+                        <!-- Alert messages appear here -->
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-light btn-sm rounded-pill text-xs px-3" data-bs-dismiss="modal">
+                            Close
+                        </button>
+                        <button type="button" class="btn btn-success btn-sm rounded-pill text-xs px-3.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm" id="btnSaveTemplate" onclick="saveTemplateFromBuilder()">
+                            <i class="fas fa-save"></i>
+                            <span>Save Template</span>
+                        </button>
+                        <button type="button" class="btn btn-warning text-dark btn-sm rounded-pill text-xs px-3.5 fw-bold d-inline-flex align-items-center gap-1.5 shadow-sm" onclick="useTemplateInBroadcastStudio()">
+                            <i class="fas fa-paper-plane text-dark"></i>
+                            <span>Use in Broadcast</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ── JAVASCRIPT ENGINE ── -->
     <script>
         // ── DAEMON WEB TERMINAL HANDLERS ──
@@ -3267,24 +3808,731 @@
                 });
             });
 
-            // Broadcast Presets
-            const bcastPresets = {
-                onam: `🌸 Warmest Onam Greetings from PMCC-UK! May this festive season bring immense joy, health, and prosperity to you and your family. Join our grand celebrations: https://pmccuk.org/events`,
-                xmas: `🎄 Merry Christmas & Happy New Year from the Plymouth Malayalee Community Club! Thank you for being a wonderful part of our community. Wishing you peace and happiness in the year ahead.`,
-                weather: `⚠️ PMCC-UK Urgent Announcement: Due to adverse weather warnings, please note that today's event venue has been updated to Plymouth Guildhall. For assistance, visit https://pmccuk.org`,
-                student: `🎓 Welcome to Plymouth, dear Student! PMCC-UK is delighted to welcome you to the UK. Need help with NHS registration, accommodation, or community support? Visit our Student Corner: https://pmccuk.org/student-corner or text STUDENT to this WhatsApp number anytime!`
+            // ── Dynamic WhatsApp Template Studio & Builder Engine ──
+            let currentTemplates = @json($templates ?? []);
+            let activeBroadcastTemplate = currentTemplates.length ? currentTemplates[0] : null;
+            let builderButtonsList = [];
+            const modalTemplateBuilderEl = document.getElementById('modalTemplateBuilder');
+
+            const samplePreviewVars = {
+                'name': 'Rajesh Nambiar',
+                'first_name': 'Rajesh',
+                'phone': '+44 7901 296858',
+                'membership_id': 'PMCC-2026-1052',
+                'event_title': 'PMCC Grand Cultural Fest 2026',
+                'date': new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+                'time': '10:00 AM',
+                'venue': 'Plymouth Guildhall, Armada Way',
+                'booking_ref': 'BOOK-7842',
+                'link': 'https://pmccuk.org',
+                'year': new Date().getFullYear().toString()
             };
 
-            bcastChips.forEach(chip => {
-                chip.addEventListener('click', function () {
-                    bcastChips.forEach(c => c.classList.remove('active'));
-                    this.classList.add('active');
-                    const bType = this.getAttribute('data-bcast');
-                    if (bcastPresets[bType] && broadcastMessage) {
-                        broadcastMessage.value = bcastPresets[bType];
+            function parseWhatsAppMarkdown(text, simulateData = false) {
+                if (!text) return '';
+                let processed = text;
+                if (simulateData) {
+                    for (const [key, val] of Object.entries(samplePreviewVars)) {
+                        const regex = new RegExp('\\{' + key + '\\}', 'gi');
+                        processed = processed.replace(regex, `<span class="sim-var-highlight">${val}</span>`);
+                    }
+                } else {
+                    processed = escapeHtml(processed);
+                    processed = processed.replace(/\{([a-zA-Z0-9_]+)\}/g, '<span class="sim-var-highlight">{$1}</span>');
+                }
+
+                // Monospace ```code```
+                processed = processed.replace(/```([\s\S]*?)```/g, '<pre class="bg-light p-1 rounded font-monospace my-1 text-dark" style="font-size:10px;"><code>$1</code></pre>');
+                // Bold *text*
+                processed = processed.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>');
+                // Italic _text_
+                processed = processed.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+                // Strike ~text~
+                processed = processed.replace(/~([^~\n]+)~/g, '<del class="text-muted">$1</del>');
+                // Auto-link URLs
+                processed = processed.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" class="text-primary text-decoration-underline">$1</a>');
+
+                return processed;
+            }
+
+            // Sync Broadcast Textarea char count
+            const bcastCharCounter = document.getElementById('bcastCharCounter');
+            broadcastMessage?.addEventListener('input', function() {
+                if (bcastCharCounter) {
+                    bcastCharCounter.textContent = `${this.value.length} characters`;
+                }
+            });
+            if (broadcastMessage && bcastCharCounter) {
+                bcastCharCounter.textContent = `${broadcastMessage.value.length} characters`;
+            }
+
+            // Filter templates in Broadcast Studio by Category
+            window.filterBroadcastTemplates = function(category, element) {
+                document.querySelectorAll('#broadcastTemplateCategoryPills .tpl-cat-pill').forEach(p => p.classList.remove('active'));
+                if (element) element.classList.add('active');
+
+                const chips = document.querySelectorAll('#broadcastTemplateChipsList .bcast-template-chip');
+                chips.forEach(chip => {
+                    const chipCat = chip.getAttribute('data-category');
+                    if (category === 'all' || chipCat === category) {
+                        chip.classList.remove('d-none');
+                    } else {
+                        chip.classList.add('d-none');
                     }
                 });
-            });
+            };
+
+            // Search templates in Broadcast Studio
+            window.searchBroadcastTemplates = function(query) {
+                const q = (query || '').toLowerCase().trim();
+                const chips = document.querySelectorAll('#broadcastTemplateChipsList .bcast-template-chip');
+                chips.forEach(chip => {
+                    const name = (chip.getAttribute('data-name') || '').toLowerCase();
+                    const body = (chip.getAttribute('data-body') || '').toLowerCase();
+                    if (!q || name.includes(q) || body.includes(q)) {
+                        chip.classList.remove('d-none');
+                    } else {
+                        chip.classList.add('d-none');
+                    }
+                });
+            };
+
+            // Select template in Broadcast Studio
+            window.selectBroadcastTemplate = function(chip) {
+                document.querySelectorAll('#broadcastTemplateChipsList .bcast-template-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+
+                const tId = chip.getAttribute('data-id');
+                const tName = chip.getAttribute('data-name');
+                const tBody = chip.getAttribute('data-body');
+                const tHeader = chip.getAttribute('data-header-content');
+                const tFooter = chip.getAttribute('data-footer');
+                const rawButtons = chip.getAttribute('data-buttons');
+
+                activeBroadcastTemplate = currentTemplates.find(t => String(t.id) === String(tId)) || {
+                    id: tId,
+                    name: tName,
+                    body: tBody,
+                    header_content: tHeader,
+                    footer: tFooter,
+                    buttons: rawButtons ? JSON.parse(rawButtons) : []
+                };
+
+                if (broadcastMessage) {
+                    broadcastMessage.value = tBody;
+                    if (bcastCharCounter) {
+                        bcastCharCounter.textContent = `${broadcastMessage.value.length} characters`;
+                    }
+                }
+            };
+
+            // Insert Variable into Broadcast Textarea
+            window.insertVarInBroadcast = function(varName) {
+                if (!broadcastMessage) return;
+                const start = broadcastMessage.selectionStart || 0;
+                const end = broadcastMessage.selectionEnd || 0;
+                const val = broadcastMessage.value;
+                broadcastMessage.value = val.substring(0, start) + varName + val.substring(end);
+                broadcastMessage.focus();
+                broadcastMessage.selectionStart = broadcastMessage.selectionEnd = start + varName.length;
+                if (bcastCharCounter) {
+                    bcastCharCounter.textContent = `${broadcastMessage.value.length} characters`;
+                }
+            };
+
+            // Format Broadcast text with markdown wrapper
+            window.formatBroadcastText = function(wrapper) {
+                if (!broadcastMessage) return;
+                const start = broadcastMessage.selectionStart || 0;
+                const end = broadcastMessage.selectionEnd || 0;
+                const val = broadcastMessage.value;
+                const selected = val.substring(start, end) || 'text';
+                const formatted = wrapper + selected + wrapper;
+                broadcastMessage.value = val.substring(0, start) + formatted + val.substring(end);
+                broadcastMessage.focus();
+                broadcastMessage.selectionStart = start + wrapper.length;
+                broadcastMessage.selectionEnd = start + wrapper.length + selected.length;
+                if (bcastCharCounter) {
+                    bcastCharCounter.textContent = `${broadcastMessage.value.length} characters`;
+                }
+            };
+
+            // Open Template Builder Modal
+            window.openTemplateBuilderModal = function(e, templateId = null) {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+
+                if (templateId) {
+                    const t = currentTemplates.find(item => String(item.id) === String(templateId));
+                    if (t) loadTemplateIntoBuilder(t);
+                    else startNewTemplateInBuilder();
+                } else if (activeBroadcastTemplate) {
+                    loadTemplateIntoBuilder(activeBroadcastTemplate);
+                } else if (currentTemplates.length > 0) {
+                    loadTemplateIntoBuilder(currentTemplates[0]);
+                } else {
+                    startNewTemplateInBuilder();
+                }
+
+                if (modalTemplateBuilderEl) {
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalTemplateBuilderEl);
+                    modal.show();
+                }
+            };
+
+            // Edit Selected Template in Builder
+            window.editSelectedTemplateInBuilder = function(e) {
+                if (activeBroadcastTemplate && activeBroadcastTemplate.id) {
+                    openTemplateBuilderModal(e, activeBroadcastTemplate.id);
+                } else {
+                    openTemplateBuilderModal(e);
+                }
+            };
+
+            // Start New Template
+            window.startNewTemplateInBuilder = function() {
+                const tplIdEl = document.getElementById('tplId');
+                const tplNameEl = document.getElementById('tplName');
+                const tplCatEl = document.getElementById('tplCategory');
+                const tplBodyEl = document.getElementById('tplBody');
+                const tplFooterEl = document.getElementById('tplFooter');
+                const tplSelectEl = document.getElementById('tplStudioSelect');
+                const btnDeleteTpl = document.getElementById('btnDeleteTpl');
+                const btnCloneTpl = document.getElementById('btnCloneTpl');
+
+                if (tplIdEl) tplIdEl.value = '';
+                if (tplNameEl) tplNameEl.value = '';
+                if (tplCatEl) tplCatEl.value = 'general';
+                if (tplBodyEl) tplBodyEl.value = "Hello {name},\n\nWe have an exciting update from Plymouth Malayalee Community Club!\n\nBest regards,\nPMCC-UK Executive Team";
+                if (tplFooterEl) tplFooterEl.value = 'PMCC-UK • Plymouth Malayalee Community Club';
+                if (tplSelectEl) tplSelectEl.value = '';
+
+                // Header
+                const noneRadio = document.querySelector('input[name="tpl_header_type"][value="none"]');
+                if (noneRadio) noneRadio.checked = true;
+                onHeaderTypeChanged('none');
+
+                builderButtonsList = [];
+                renderBuilderButtons();
+
+                if (btnDeleteTpl) btnDeleteTpl.disabled = true;
+                if (btnCloneTpl) btnCloneTpl.disabled = true;
+
+                syncBuilderPreview();
+            };
+
+            // Handle Studio Select Dropdown Change
+            window.onTemplateStudioSelectChanged = function(templateId) {
+                const t = currentTemplates.find(item => String(item.id) === String(templateId));
+                if (t) {
+                    loadTemplateIntoBuilder(t);
+                }
+            };
+
+            // Load template into Builder form
+            window.loadTemplateIntoBuilder = function(tpl) {
+                if (!tpl) return;
+                const tplIdEl = document.getElementById('tplId');
+                const tplNameEl = document.getElementById('tplName');
+                const tplCatEl = document.getElementById('tplCategory');
+                const tplBodyEl = document.getElementById('tplBody');
+                const tplFooterEl = document.getElementById('tplFooter');
+                const tplHeaderContent = document.getElementById('tplHeaderContent');
+                const tplSelectEl = document.getElementById('tplStudioSelect');
+                const btnDeleteTpl = document.getElementById('btnDeleteTpl');
+                const btnCloneTpl = document.getElementById('btnCloneTpl');
+
+                if (tplIdEl) tplIdEl.value = tpl.id || '';
+                if (tplNameEl) tplNameEl.value = tpl.name || '';
+                if (tplCatEl) tplCatEl.value = tpl.category || 'general';
+                if (tplBodyEl) tplBodyEl.value = tpl.body || '';
+                if (tplFooterEl) tplFooterEl.value = tpl.footer || '';
+                if (tplSelectEl && tpl.id) tplSelectEl.value = tpl.id;
+
+                const headerType = tpl.header_type || 'none';
+                const rad = document.querySelector(`input[name="tpl_header_type"][value="${headerType}"]`);
+                if (rad) rad.checked = true;
+                onHeaderTypeChanged(headerType);
+                if (tplHeaderContent) tplHeaderContent.value = tpl.header_content || '';
+
+                builderButtonsList = Array.isArray(tpl.buttons) ? [...tpl.buttons] : [];
+                renderBuilderButtons();
+
+                if (btnDeleteTpl) btnDeleteTpl.disabled = !!tpl.is_system;
+                if (btnCloneTpl) btnCloneTpl.disabled = !tpl.id;
+
+                syncBuilderPreview();
+            };
+
+            // Header Type Switcher
+            window.onHeaderTypeChanged = function(type) {
+                const container = document.getElementById('tplHeaderInputContainer');
+                const input = document.getElementById('tplHeaderContent');
+                if (!container) return;
+
+                if (type === 'none') {
+                    container.classList.add('d-none');
+                } else if (type === 'text') {
+                    container.classList.remove('d-none');
+                    if (input) input.placeholder = 'e.g. 🌸 PMCC-UK ANNUAL CELEBRATION 🌸 (Bold headline)';
+                } else {
+                    container.classList.remove('d-none');
+                    if (input) input.placeholder = 'e.g. Media image URL (https://pmccuk.org/images/fest.jpg)';
+                }
+                syncBuilderPreview();
+            };
+
+            // Insert Variable into Builder Body
+            window.insertVarInBuilder = function(varName) {
+                const textarea = document.getElementById('tplBody');
+                if (!textarea) return;
+                const start = textarea.selectionStart || 0;
+                const end = textarea.selectionEnd || 0;
+                const val = textarea.value;
+                textarea.value = val.substring(0, start) + varName + val.substring(end);
+                textarea.focus();
+                textarea.selectionStart = textarea.selectionEnd = start + varName.length;
+                syncBuilderPreview();
+            };
+
+            // Format Builder Text
+            window.formatBuilderText = function(wrapper) {
+                const textarea = document.getElementById('tplBody');
+                if (!textarea) return;
+                const start = textarea.selectionStart || 0;
+                const end = textarea.selectionEnd || 0;
+                const val = textarea.value;
+                const selected = val.substring(start, end) || 'text';
+                const formatted = wrapper + selected + wrapper;
+                textarea.value = val.substring(0, start) + formatted + val.substring(end);
+                textarea.focus();
+                textarea.selectionStart = start + wrapper.length;
+                textarea.selectionEnd = start + wrapper.length + selected.length;
+                syncBuilderPreview();
+            };
+
+            // Button Studio: Add Button
+            window.addButtonToBuilder = function(type) {
+                if (builderButtonsList.length >= 3) {
+                    alert('WhatsApp allows up to 3 interactive buttons per message.');
+                    return;
+                }
+
+                let text = 'Open Website';
+                let val = 'https://pmccuk.org';
+                if (type === 'call') {
+                    text = 'Call PMCC Helpdesk';
+                    val = '+447901296858';
+                } else if (type === 'quick_reply') {
+                    text = 'Attending with Family';
+                    val = 'Attending';
+                }
+
+                builderButtonsList.push({ type: type, text: text, value: val });
+                renderBuilderButtons();
+                syncBuilderPreview();
+            };
+
+            // Button Studio: Remove Button
+            window.removeButtonFromBuilder = function(index) {
+                builderButtonsList.splice(index, 1);
+                renderBuilderButtons();
+                syncBuilderPreview();
+            };
+
+            // Button Studio: Render Input Rows
+            function renderBuilderButtons() {
+                const container = document.getElementById('tplButtonsContainer');
+                if (!container) return;
+
+                if (builderButtonsList.length === 0) {
+                    container.innerHTML = '<span class="text-xxs text-muted fst-italic">No action buttons added yet. Click "+ Add Button" above to attach quick links or phone dials.</span>';
+                    return;
+                }
+
+                let html = '';
+                builderButtonsList.forEach((btn, idx) => {
+                    let icon = 'fa-globe text-primary';
+                    let placeholder = 'https://pmccuk.org/events';
+                    if (btn.type === 'call') {
+                        icon = 'fa-phone-alt text-success';
+                        placeholder = '+447901296858';
+                    } else if (btn.type === 'quick_reply') {
+                        icon = 'fa-reply text-warning';
+                        placeholder = 'Reply text payload';
+                    }
+
+                    html += `
+                        <div class="d-flex align-items-center gap-1.5 p-1.5 bg-light rounded-2 border">
+                            <span class="badge bg-white text-dark border p-1" style="width:24px;text-align:center;">
+                                <i class="fas ${icon}"></i>
+                            </span>
+                            <input type="text" class="form-control form-control-sm text-xxs py-0.5 px-2 bg-white" placeholder="Button Label"
+                                value="${escapeHtml(btn.text || '')}"
+                                oninput="builderButtonsList[${idx}].text = this.value; syncBuilderPreview();" style="width:130px;">
+                            <input type="text" class="form-control form-control-sm text-xxs py-0.5 px-2 bg-white flex-grow-1" placeholder="${placeholder}"
+                                value="${escapeHtml(btn.value || '')}"
+                                oninput="builderButtonsList[${idx}].value = this.value; syncBuilderPreview();">
+                            <button type="button" class="btn btn-xs btn-outline-danger p-1" onclick="removeButtonFromBuilder(${idx})" title="Remove button">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            }
+
+            // Sync Simulator Preview
+            window.syncBuilderPreview = function() {
+                const bodyText = document.getElementById('tplBody')?.value || '';
+                const headerContent = document.getElementById('tplHeaderContent')?.value || '';
+                const headerType = document.querySelector('input[name="tpl_header_type"]:checked')?.value || 'none';
+                const footerText = document.getElementById('tplFooter')?.value || '';
+                const simulateData = document.getElementById('chkSimulateMemberData')?.checked ?? true;
+
+                // Sync word/char counter
+                const wordCountEl = document.getElementById('tplBodyWordCount');
+                if (wordCountEl) {
+                    const words = bodyText.trim() ? bodyText.trim().split(/\s+/).length : 0;
+                    wordCountEl.textContent = `${words} words, ${bodyText.length} characters`;
+                }
+
+                // Header
+                const simHeader = document.getElementById('simHeader');
+                if (simHeader) {
+                    if (headerType === 'text' && headerContent.trim()) {
+                        simHeader.classList.remove('d-none');
+                        simHeader.innerHTML = escapeHtml(headerContent);
+                    } else if (headerType === 'image') {
+                        simHeader.classList.remove('d-none');
+                        simHeader.innerHTML = `<div class="bg-light rounded p-2 text-center text-muted mb-1 border"><i class="fas fa-image fs-4 text-primary d-block mb-1"></i><span class="text-xxs">${escapeHtml(headerContent || 'Image Attachment')}</span></div>`;
+                    } else {
+                        simHeader.classList.add('d-none');
+                        simHeader.innerHTML = '';
+                    }
+                }
+
+                // Body
+                const simBody = document.getElementById('simBody');
+                if (simBody) {
+                    simBody.innerHTML = parseWhatsAppMarkdown(bodyText || 'Your message will appear here...', simulateData);
+                }
+
+                // Footer
+                const simFooter = document.getElementById('simFooter');
+                if (simFooter) {
+                    if (footerText.trim()) {
+                        simFooter.classList.remove('d-none');
+                        simFooter.textContent = footerText;
+                    } else {
+                        simFooter.classList.add('d-none');
+                        simFooter.textContent = '';
+                    }
+                }
+
+                // Time
+                const simTime = document.getElementById('simTime');
+                if (simTime) {
+                    simTime.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                }
+
+                // Simulator Buttons Attached Under Bubble
+                const simButtonsContainer = document.getElementById('simButtonsContainer');
+                if (simButtonsContainer) {
+                    if (builderButtonsList.length === 0) {
+                        simButtonsContainer.innerHTML = '';
+                    } else {
+                        let btnHtml = '';
+                        builderButtonsList.forEach(btn => {
+                            let icon = 'fa-external-link-alt';
+                            if (btn.type === 'call') icon = 'fa-phone-alt';
+                            else if (btn.type === 'quick_reply') icon = 'fa-reply';
+
+                            btnHtml += `
+                                <div class="wa-sim-btn-pill">
+                                    <i class="fas ${icon}"></i>
+                                    <span>${escapeHtml(btn.text || 'Action')}</span>
+                                </div>
+                            `;
+                        });
+                        simButtonsContainer.innerHTML = btnHtml;
+                    }
+                }
+            };
+
+            // Save Template via AJAX
+            window.saveTemplateFromBuilder = function() {
+                const tplId = document.getElementById('tplId')?.value;
+                const name = document.getElementById('tplName')?.value.trim();
+                const category = document.getElementById('tplCategory')?.value;
+                const headerType = document.querySelector('input[name="tpl_header_type"]:checked')?.value || 'none';
+                const headerContent = document.getElementById('tplHeaderContent')?.value.trim();
+                const body = document.getElementById('tplBody')?.value.trim();
+                const footer = document.getElementById('tplFooter')?.value.trim();
+                const btnSave = document.getElementById('btnSaveTemplate');
+                const alertEl = document.getElementById('tplBuilderAlert');
+
+                if (!name) {
+                    alert('Please enter a Template Title.');
+                    document.getElementById('tplName')?.focus();
+                    return;
+                }
+                if (!body) {
+                    alert('Please enter the Message Body.');
+                    document.getElementById('tplBody')?.focus();
+                    return;
+                }
+
+                if (btnSave) {
+                    btnSave.disabled = true;
+                    btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+                }
+
+                fetch('{{ route('admin.whatsapp.templates.save') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: tplId || null,
+                        name: name,
+                        category: category,
+                        header_type: headerType,
+                        header_content: headerContent,
+                        body: body,
+                        footer: footer,
+                        buttons: builderButtonsList
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (btnSave) {
+                        btnSave.disabled = false;
+                        btnSave.innerHTML = '<i class="fas fa-save me-1"></i> Save Template';
+                    }
+
+                    if (data.success) {
+                        const savedTpl = data.template;
+                        document.getElementById('tplId').value = savedTpl.id;
+
+                        // Update local cache
+                        const existingIdx = currentTemplates.findIndex(t => String(t.id) === String(savedTpl.id));
+                        if (existingIdx >= 0) {
+                            currentTemplates[existingIdx] = savedTpl;
+                        } else {
+                            currentTemplates.unshift(savedTpl);
+                        }
+
+                        // Refresh Template selector in Builder
+                        refreshStudioSelectDropdown(savedTpl.id);
+                        // Refresh Broadcast Chips list
+                        renderBroadcastTemplateChips();
+
+                        if (alertEl) {
+                            alertEl.className = 'text-xs fw-bold text-success';
+                            alertEl.innerHTML = `<i class="fas fa-check-circle me-1"></i> ${data.message}`;
+                            setTimeout(() => { alertEl.innerHTML = ''; }, 4000);
+                        }
+                    } else {
+                        if (alertEl) {
+                            alertEl.className = 'text-xs fw-bold text-danger';
+                            alertEl.innerHTML = `<i class="fas fa-exclamation-circle me-1"></i> ${data.message || 'Error saving template.'}`;
+                        }
+                    }
+                })
+                .catch(err => {
+                    if (btnSave) {
+                        btnSave.disabled = false;
+                        btnSave.innerHTML = '<i class="fas fa-save me-1"></i> Save Template';
+                    }
+                    if (alertEl) {
+                        alertEl.className = 'text-xs fw-bold text-danger';
+                        alertEl.innerHTML = `<i class="fas fa-wifi me-1"></i> Network error: ${err}`;
+                    }
+                });
+            };
+
+            // Delete Current Template
+            window.deleteCurrentTemplate = function() {
+                const tplId = document.getElementById('tplId')?.value;
+                if (!tplId) return;
+
+                if (!confirm('Are you sure you want to permanently delete this template?')) {
+                    return;
+                }
+
+                fetch(`{{ url('admin/whatsapp/templates') }}/${tplId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        currentTemplates = currentTemplates.filter(t => String(t.id) !== String(tplId));
+                        refreshStudioSelectDropdown();
+                        renderBroadcastTemplateChips();
+                        startNewTemplateInBuilder();
+                        alert('Template deleted successfully.');
+                    } else {
+                        alert(data.message || 'Failed to delete template.');
+                    }
+                })
+                .catch(err => alert('Network error: ' + err));
+            };
+
+            // Clone Current Template
+            window.cloneCurrentTemplate = function() {
+                const tplId = document.getElementById('tplId')?.value;
+                if (!tplId) return;
+
+                fetch(`{{ url('admin/whatsapp/templates') }}/${tplId}/clone`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        currentTemplates.unshift(data.template);
+                        refreshStudioSelectDropdown(data.template.id);
+                        renderBroadcastTemplateChips();
+                        loadTemplateIntoBuilder(data.template);
+                        alert(data.message);
+                    } else {
+                        alert(data.message || 'Failed to clone template.');
+                    }
+                })
+                .catch(err => alert('Network error: ' + err));
+            };
+
+            // Use in Broadcast Studio
+            window.useTemplateInBroadcastStudio = function() {
+                const body = document.getElementById('tplBody')?.value || '';
+                const name = document.getElementById('tplName')?.value || 'Selected Template';
+
+                if (broadcastMessage) {
+                    broadcastMessage.value = body;
+                    if (bcastCharCounter) {
+                        bcastCharCounter.textContent = `${broadcastMessage.value.length} characters`;
+                    }
+                }
+
+                if (modalTemplateBuilderEl) {
+                    const modal = bootstrap.Modal.getInstance(modalTemplateBuilderEl);
+                    if (modal) modal.hide();
+                }
+
+                // Scroll to broadcast message studio
+                const bcastCard = document.getElementById('formBroadcast');
+                if (bcastCard) {
+                    bcastCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    broadcastMessage?.focus();
+                }
+            };
+
+            // Send Test Preview from Builder directly to Admin Phone
+            window.sendTestPreviewFromBuilder = function() {
+                const body = document.getElementById('tplBody')?.value || '';
+                const simulateData = document.getElementById('chkSimulateMemberData')?.checked ?? true;
+                if (!body.trim()) {
+                    alert('Please enter a message body first.');
+                    return;
+                }
+
+                let finalMessage = body;
+                if (simulateData) {
+                    for (const [key, val] of Object.entries(samplePreviewVars)) {
+                        finalMessage = finalMessage.replace(new RegExp('\\{' + key + '\\}', 'gi'), val);
+                    }
+                }
+
+                // Add buttons as text links if present
+                if (builderButtonsList.length > 0) {
+                    const btnLines = [];
+                    builderButtonsList.forEach(btn => {
+                        if (btn.type === 'url') btnLines.push(`👉 *${btn.text}*: ${btn.value}`);
+                        else if (btn.type === 'call') btnLines.push(`📞 *${btn.text}*: ${btn.value}`);
+                        else btnLines.push(`💬 [${btn.text}]`);
+                    });
+                    finalMessage += "\n\n" + btnLines.join("\n");
+                }
+
+                const testPhone = prompt('Enter admin phone number to send this live WhatsApp preview:', '{{ $settings['admin_numbers'] ? explode(',', $settings['admin_numbers'])[0] : '' }}');
+                if (!testPhone || !testPhone.trim()) return;
+
+                fetch('{{ route('admin.whatsapp.send-test') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        phone: testPhone.trim(),
+                        message: finalMessage
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                    } else {
+                        alert('❌ ' + data.message);
+                    }
+                })
+                .catch(err => alert('Network error: ' + err));
+            };
+
+            // Refresh studio dropdown helper
+            function refreshStudioSelectDropdown(selectedId = null) {
+                const sel = document.getElementById('tplStudioSelect');
+                if (!sel) return;
+
+                let html = '<option value="" disabled>-- Choose from Library --</option>';
+                currentTemplates.forEach(t => {
+                    const isSel = selectedId && String(t.id) === String(selectedId) ? 'selected' : '';
+                    html += `<option value="${t.id}" data-system="${t.is_system ? '1' : '0'}" ${isSel}>${escapeHtml(t.name)} (${t.category})</option>`;
+                });
+                sel.innerHTML = html;
+            }
+
+            // Render Broadcast template chips helper
+            function renderBroadcastTemplateChips() {
+                const container = document.getElementById('broadcastTemplateChipsList');
+                if (!container) return;
+
+                let html = '';
+                currentTemplates.forEach((t, idx) => {
+                    const isActive = (activeBroadcastTemplate && String(activeBroadcastTemplate.id) === String(t.id)) || (!activeBroadcastTemplate && idx === 0) ? 'active' : '';
+                    html += `
+                        <div class="tpl-chip ${isActive} bcast-template-chip"
+                            data-id="${t.id}"
+                            data-slug="${t.slug}"
+                            data-category="${t.category}"
+                            data-name="${escapeHtml(t.name)}"
+                            data-header-type="${t.header_type || 'none'}"
+                            data-header-content="${escapeHtml(t.header_content || '')}"
+                            data-body="${escapeHtml(t.body || '')}"
+                            data-footer="${escapeHtml(t.footer || '')}"
+                            data-buttons='${escapeHtml(JSON.stringify(t.buttons || []))}'
+                            onclick="selectBroadcastTemplate(this)">
+                            <span>${escapeHtml(t.name)}</span>
+                            ${t.is_system ? '<span class="badge bg-secondary-subtle text-secondary border text-xxs px-1 py-0 rounded-pill">System</span>' : ''}
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+
+                // Update badge count
+                const countBadge = document.getElementById('headerTemplateCountBadge');
+                if (countBadge) countBadge.textContent = currentTemplates.length;
+            }
 
             // ── Attachment Studio ──
             window.switchAttachTab = function(tabName, btn) {

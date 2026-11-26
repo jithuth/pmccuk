@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Services\OpenWaService;
 use App\Models\WhatsAppScheduledBroadcast;
+use App\Models\WhatsAppTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class WhatsAppController extends Controller
@@ -59,8 +61,9 @@ class WhatsAppController extends Controller
         ];
 
         $scheduledBroadcasts = WhatsAppScheduledBroadcast::orderBy('created_at', 'desc')->take(25)->get();
+        $templates = WhatsAppTemplate::orderBy('is_system', 'desc')->orderBy('name', 'asc')->get();
 
-        return view('admin.whatsapp.index', compact('status', 'settings', 'counts', 'favorites', 'scheduledBroadcasts'));
+        return view('admin.whatsapp.index', compact('status', 'settings', 'counts', 'favorites', 'scheduledBroadcasts', 'templates'));
     }
 
     /**
@@ -1090,6 +1093,231 @@ class WhatsAppController extends Controller
             'success' => $res['success'] ?? true,
             'output' => $res['output'] ?? 'Executed.',
             'command' => $command
+        ]);
+    }
+
+    /**
+     * Get list of WhatsApp templates (optionally filtered by category or search)
+     */
+    public function getTemplates(Request $request)
+    {
+        $query = WhatsAppTemplate::query();
+
+        if ($request->filled('category') && $request->input('category') !== 'all') {
+            $query->where('category', $request->input('category'));
+        }
+
+        if ($request->filled('search')) {
+            $s = trim($request->input('search'));
+            $query->where(function ($q) use ($s) {
+                $q->where('name', 'like', "%{$s}%")
+                    ->orWhere('body', 'like', "%{$s}%")
+                    ->orWhere('header_content', 'like', "%{$s}%")
+                    ->orWhere('category', 'like', "%{$s}%");
+            });
+        }
+
+        $templates = $query->orderBy('is_system', 'desc')->orderBy('name', 'asc')->get();
+
+        return response()->json([
+            'success' => true,
+            'templates' => $templates,
+            'count' => $templates->count()
+        ]);
+    }
+
+    /**
+     * Get single WhatsApp template
+     */
+    public function getTemplate($id)
+    {
+        $template = WhatsAppTemplate::findOrFail($id);
+
+        return response()->json([
+            'success' => true,
+            'template' => $template,
+            'compiled_preview' => $template->compileFullWhatsAppMessage(),
+            'rendered_body' => $template->renderBody()
+        ]);
+    }
+
+    /**
+     * Save or update WhatsApp template
+     */
+    public function saveTemplate(Request $request)
+    {
+        $request->validate([
+            'id' => 'nullable|integer',
+            'name' => 'required|string|max:150',
+            'category' => 'required|string|max:50',
+            'header_type' => 'required|string|in:none,text,image,document,video',
+            'header_content' => 'nullable|string|max:500',
+            'body' => 'required|string|max:4000',
+            'footer' => 'nullable|string|max:255',
+            'buttons' => 'nullable',
+            'sample_data' => 'nullable'
+        ]);
+
+        $id = $request->input('id');
+        $name = trim($request->input('name'));
+        $category = strtolower(trim($request->input('category')));
+        $headerType = $request->input('header_type', 'none');
+        $headerContent = trim($request->input('header_content', ''));
+        $body = trim($request->input('body'));
+        $footer = trim($request->input('footer', ''));
+
+        // Parse buttons
+        $rawButtons = $request->input('buttons');
+        $buttons = [];
+        if (!empty($rawButtons)) {
+            $buttons = is_array($rawButtons) ? $rawButtons : (json_decode($rawButtons, true) ?: []);
+        }
+
+        // Parse sample data
+        $rawSample = $request->input('sample_data');
+        $sampleData = [];
+        if (!empty($rawSample)) {
+            $sampleData = is_array($rawSample) ? $rawSample : (json_decode($rawSample, true) ?: []);
+        }
+
+        if ($id) {
+            $template = WhatsAppTemplate::findOrFail($id);
+            $template->name = $name;
+            $template->category = $category;
+            $template->header_type = $headerType;
+            $template->header_content = $headerContent;
+            $template->body = $body;
+            $template->footer = $footer;
+            $template->buttons = $buttons;
+            if (!empty($sampleData)) {
+                $template->sample_data = $sampleData;
+            }
+            $template->save();
+
+            $msg = "Template '{$name}' updated successfully.";
+        } else {
+            $baseSlug = Str::slug($name);
+            $slug = $baseSlug;
+            $counter = 1;
+            while (WhatsAppTemplate::where('slug', $slug)->exists()) {
+                $slug = $baseSlug . '-' . (++$counter);
+            }
+
+            $template = WhatsAppTemplate::create([
+                'name' => $name,
+                'slug' => $slug,
+                'category' => $category,
+                'header_type' => $headerType,
+                'header_content' => $headerContent,
+                'body' => $body,
+                'footer' => $footer,
+                'buttons' => $buttons,
+                'sample_data' => $sampleData,
+                'is_system' => false,
+                'created_by' => auth()->id()
+            ]);
+
+            $msg = "Template '{$name}' created successfully.";
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $msg,
+            'template' => $template,
+            'compiled_preview' => $template->compileFullWhatsAppMessage(),
+            'rendered_body' => $template->renderBody()
+        ]);
+    }
+
+    /**
+     * Delete a custom WhatsApp template
+     */
+    public function deleteTemplate($id)
+    {
+        $template = WhatsAppTemplate::findOrFail($id);
+        $name = $template->name;
+
+        // Prevent deleting core system templates unless forced
+        if ($template->is_system) {
+            return response()->json([
+                'success' => false,
+                'message' => "The template '{$name}' is a core system preset and cannot be deleted. You can clone and modify a custom copy instead."
+            ], 403);
+        }
+
+        $template->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Template '{$name}' deleted successfully."
+        ]);
+    }
+
+    /**
+     * Clone an existing template
+     */
+    public function cloneTemplate($id)
+    {
+        $template = WhatsAppTemplate::findOrFail($id);
+
+        $copyName = "Copy of " . $template->name;
+        $baseSlug = Str::slug($copyName);
+        $slug = $baseSlug . '-' . rand(100, 999);
+
+        $clone = WhatsAppTemplate::create([
+            'name' => $copyName,
+            'slug' => $slug,
+            'category' => $template->category,
+            'header_type' => $template->header_type,
+            'header_content' => $template->header_content,
+            'body' => $template->body,
+            'footer' => $template->footer,
+            'buttons' => $template->buttons,
+            'sample_data' => $template->sample_data,
+            'is_system' => false,
+            'created_by' => auth()->id()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Template cloned as '{$copyName}'.",
+            'template' => $clone
+        ]);
+    }
+
+    /**
+     * Live preview rendering of template with custom variables
+     */
+    public function previewTemplate(Request $request)
+    {
+        $body = $request->input('body', '');
+        $headerType = $request->input('header_type', 'none');
+        $headerContent = $request->input('header_content', '');
+        $footer = $request->input('footer', '');
+        $buttons = $request->input('buttons', []);
+        if (is_string($buttons)) {
+            $buttons = json_decode($buttons, true) ?: [];
+        }
+
+        $variables = $request->input('variables', []);
+        if (is_string($variables)) {
+            $variables = json_decode($variables, true) ?: [];
+        }
+
+        $mock = new WhatsAppTemplate([
+            'header_type' => $headerType,
+            'header_content' => $headerContent,
+            'body' => $body,
+            'footer' => $footer,
+            'buttons' => $buttons,
+            'sample_data' => $variables
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'rendered_body' => $mock->renderBody($variables),
+            'compiled_preview' => $mock->compileFullWhatsAppMessage($variables),
+            'raw_preview' => $mock->compileFullWhatsAppMessage([])
         ]);
     }
 }
