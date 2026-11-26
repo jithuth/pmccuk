@@ -3811,7 +3811,7 @@
             // ── Dynamic WhatsApp Template Studio & Builder Engine ──
             let currentTemplates = @json($templates ?? []);
             let activeBroadcastTemplate = currentTemplates.length ? currentTemplates[0] : null;
-            let builderButtonsList = [];
+            window.builderButtonsList = [];
             const modalTemplateBuilderEl = document.getElementById('modalTemplateBuilder');
 
             const samplePreviewVars = {
@@ -3918,8 +3918,51 @@
                     buttons: rawButtons ? JSON.parse(rawButtons) : []
                 };
 
+                // Compile full body including footer and action button links
+                let fullMsg = tBody;
+                if (tFooter && !fullMsg.includes(tFooter)) {
+                    fullMsg += "\n\n_" + tFooter + "_";
+                }
+                const btns = activeBroadcastTemplate.buttons;
+                if (Array.isArray(btns) && btns.length > 0) {
+                    const btnLines = [];
+                    btns.forEach(b => {
+                        const bText = (b.text || '').trim();
+                        const bVal = (b.value || '').trim();
+                        if (bText || bVal) {
+                            if (b.type === 'url') {
+                                btnLines.push(`👉 *${bText || 'Link'}*: ${bVal}`);
+                                // Also populate URL attachment
+                                if (/^https?:\/\//i.test(bVal) && typeof urlsData !== 'undefined') {
+                                    const already = urlsData.some(u => u && u.url === bVal);
+                                    if (!already) {
+                                        const uIdx = urlsData.length;
+                                        urlsData.push({ url: bVal, title: bText || bVal });
+                                        const uChip = document.createElement('span');
+                                        uChip.className = 'badge bg-success-subtle text-success border d-inline-flex align-items-center gap-1.5 px-2 py-1.5 text-xxs rounded-pill';
+                                        uChip.id = 'urlChip-' + uIdx;
+                                        uChip.innerHTML = `<i class="fas fa-link"></i> <span class="fw-bold">${escapeHtml(bText || bVal)}</span> <button type="button" class="btn btn-xs p-0 text-danger" onclick="removeUrl(${uIdx})"><i class="fas fa-times"></i></button>`;
+                                        document.getElementById('urlChips')?.appendChild(uChip);
+                                        document.getElementById('urlsPayload').value = JSON.stringify(urlsData);
+                                        if (typeof updateAttachBadge === 'function') {
+                                            updateAttachBadge('url', urlsData.filter(Boolean).length);
+                                        }
+                                    }
+                                }
+                            } else if (b.type === 'call') {
+                                btnLines.push(`📞 *${bText || 'Call'}*: ${bVal}`);
+                            } else {
+                                btnLines.push(`💬 [${bText}]`);
+                            }
+                        }
+                    });
+                    if (btnLines.length > 0 && !fullMsg.includes(btnLines[0])) {
+                        fullMsg += "\n\n" + btnLines.join("\n");
+                    }
+                }
+
                 if (broadcastMessage) {
-                    broadcastMessage.value = tBody;
+                    broadcastMessage.value = fullMsg;
                     if (bcastCharCounter) {
                         bcastCharCounter.textContent = `${broadcastMessage.value.length} characters`;
                     }
@@ -4014,7 +4057,7 @@
                 if (noneRadio) noneRadio.checked = true;
                 onHeaderTypeChanged('none');
 
-                builderButtonsList = [];
+                window.builderButtonsList = [];
                 renderBuilderButtons();
 
                 if (btnDeleteTpl) btnDeleteTpl.disabled = true;
@@ -4057,7 +4100,7 @@
                 onHeaderTypeChanged(headerType);
                 if (tplHeaderContent) tplHeaderContent.value = tpl.header_content || '';
 
-                builderButtonsList = Array.isArray(tpl.buttons) ? [...tpl.buttons] : [];
+                window.builderButtonsList = Array.isArray(tpl.buttons) ? JSON.parse(JSON.stringify(tpl.buttons)) : [];
                 renderBuilderButtons();
 
                 if (btnDeleteTpl) btnDeleteTpl.disabled = !!tpl.is_system;
@@ -4113,9 +4156,50 @@
                 syncBuilderPreview();
             };
 
+            // Button Studio: DOM Scraper & Global State Sync
+            window.getBuilderButtonsFromInputs = function() {
+                const container = document.getElementById('tplButtonsContainer');
+                if (!container) {
+                    return Array.isArray(window.builderButtonsList) ? window.builderButtonsList : [];
+                }
+                const rows = container.querySelectorAll('.tpl-btn-row');
+                if (!rows || rows.length === 0) {
+                    return [];
+                }
+                const result = [];
+                rows.forEach((row, idx) => {
+                    const type = row.getAttribute('data-type') || (window.builderButtonsList && window.builderButtonsList[idx]?.type) || 'url';
+                    const textInput = row.querySelector('.tpl-btn-text');
+                    const valInput = row.querySelector('.tpl-btn-val');
+                    const text = textInput ? textInput.value : '';
+                    const val = valInput ? valInput.value : '';
+                    result.push({ type: type, text: text, value: val });
+                });
+                window.builderButtonsList = result;
+                return result;
+            };
+
+            window.updateBuilderButtonText = function(idx, text) {
+                if (window.builderButtonsList && window.builderButtonsList[idx]) {
+                    window.builderButtonsList[idx].text = text;
+                }
+                window.syncBuilderPreview();
+            };
+
+            window.updateBuilderButtonValue = function(idx, val) {
+                if (window.builderButtonsList && window.builderButtonsList[idx]) {
+                    window.builderButtonsList[idx].value = val;
+                }
+                window.syncBuilderPreview();
+            };
+
             // Button Studio: Add Button
             window.addButtonToBuilder = function(type) {
-                if (builderButtonsList.length >= 3) {
+                window.getBuilderButtonsFromInputs();
+                if (!Array.isArray(window.builderButtonsList)) {
+                    window.builderButtonsList = [];
+                }
+                if (window.builderButtonsList.length >= 3) {
                     alert('WhatsApp allows up to 3 interactive buttons per message.');
                     return;
                 }
@@ -4130,30 +4214,33 @@
                     val = 'Attending';
                 }
 
-                builderButtonsList.push({ type: type, text: text, value: val });
-                renderBuilderButtons();
-                syncBuilderPreview();
+                window.builderButtonsList.push({ type: type, text: text, value: val });
+                window.renderBuilderButtons();
+                window.syncBuilderPreview();
             };
 
             // Button Studio: Remove Button
             window.removeButtonFromBuilder = function(index) {
-                builderButtonsList.splice(index, 1);
-                renderBuilderButtons();
-                syncBuilderPreview();
+                window.getBuilderButtonsFromInputs();
+                if (Array.isArray(window.builderButtonsList)) {
+                    window.builderButtonsList.splice(index, 1);
+                }
+                window.renderBuilderButtons();
+                window.syncBuilderPreview();
             };
 
             // Button Studio: Render Input Rows
-            function renderBuilderButtons() {
+            window.renderBuilderButtons = function() {
                 const container = document.getElementById('tplButtonsContainer');
                 if (!container) return;
 
-                if (builderButtonsList.length === 0) {
+                if (!Array.isArray(window.builderButtonsList) || window.builderButtonsList.length === 0) {
                     container.innerHTML = '<span class="text-xxs text-muted fst-italic">No action buttons added yet. Click "+ Add Button" above to attach quick links or phone dials.</span>';
                     return;
                 }
 
                 let html = '';
-                builderButtonsList.forEach((btn, idx) => {
+                window.builderButtonsList.forEach((btn, idx) => {
                     let icon = 'fa-globe text-primary';
                     let placeholder = 'https://pmccuk.org/events';
                     if (btn.type === 'call') {
@@ -4165,17 +4252,17 @@
                     }
 
                     html += `
-                        <div class="d-flex align-items-center gap-1.5 p-1.5 bg-light rounded-2 border">
+                        <div class="d-flex align-items-center gap-1.5 p-1.5 bg-light rounded-2 border tpl-btn-row" data-type="${btn.type}">
                             <span class="badge bg-white text-dark border p-1" style="width:24px;text-align:center;">
                                 <i class="fas ${icon}"></i>
                             </span>
-                            <input type="text" class="form-control form-control-sm text-xxs py-0.5 px-2 bg-white" placeholder="Button Label"
+                            <input type="text" class="form-control form-control-sm text-xxs py-0.5 px-2 bg-white tpl-btn-text" placeholder="Button Label"
                                 value="${escapeHtml(btn.text || '')}"
-                                oninput="builderButtonsList[${idx}].text = this.value; syncBuilderPreview();" style="width:130px;">
-                            <input type="text" class="form-control form-control-sm text-xxs py-0.5 px-2 bg-white flex-grow-1" placeholder="${placeholder}"
+                                oninput="window.updateBuilderButtonText(${idx}, this.value)" style="width:130px;">
+                            <input type="text" class="form-control form-control-sm text-xxs py-0.5 px-2 bg-white flex-grow-1 tpl-btn-val" placeholder="${placeholder}"
                                 value="${escapeHtml(btn.value || '')}"
-                                oninput="builderButtonsList[${idx}].value = this.value; syncBuilderPreview();">
-                            <button type="button" class="btn btn-xs btn-outline-danger p-1" onclick="removeButtonFromBuilder(${idx})" title="Remove button">
+                                oninput="window.updateBuilderButtonValue(${idx}, this.value)">
+                            <button type="button" class="btn btn-xs btn-outline-danger p-1" onclick="window.removeButtonFromBuilder(${idx})" title="Remove button">
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
@@ -4183,7 +4270,7 @@
                 });
 
                 container.innerHTML = html;
-            }
+            };
 
             // Sync Simulator Preview
             window.syncBuilderPreview = function() {
@@ -4242,19 +4329,29 @@
                 // Simulator Buttons Attached Under Bubble
                 const simButtonsContainer = document.getElementById('simButtonsContainer');
                 if (simButtonsContainer) {
-                    if (builderButtonsList.length === 0) {
+                    const currentBtns = window.getBuilderButtonsFromInputs();
+                    if (!currentBtns || currentBtns.length === 0) {
                         simButtonsContainer.innerHTML = '';
                     } else {
                         let btnHtml = '';
-                        builderButtonsList.forEach(btn => {
+                        currentBtns.forEach(btn => {
                             let icon = 'fa-external-link-alt';
-                            if (btn.type === 'call') icon = 'fa-phone-alt';
-                            else if (btn.type === 'quick_reply') icon = 'fa-reply';
+                            let titleTip = btn.value || btn.text || 'Action';
+                            let clickAction = '';
+                            if (btn.type === 'call') {
+                                icon = 'fa-phone-alt';
+                                titleTip = 'Call: ' + (btn.value || '');
+                            } else if (btn.type === 'quick_reply') {
+                                icon = 'fa-reply';
+                                titleTip = 'Quick Reply: ' + (btn.value || '');
+                            } else if (btn.type === 'url' && btn.value) {
+                                clickAction = `onclick="window.open('${escapeHtml(btn.value)}', '_blank')"`;
+                            }
 
                             btnHtml += `
-                                <div class="wa-sim-btn-pill">
-                                    <i class="fas ${icon}"></i>
-                                    <span>${escapeHtml(btn.text || 'Action')}</span>
+                                <div class="wa-sim-btn-pill" title="${escapeHtml(titleTip)}" ${clickAction}>
+                                    <i class="fas ${icon} me-1"></i>
+                                    <span>${escapeHtml(btn.text || 'Action Button')}</span>
                                 </div>
                             `;
                         });
@@ -4286,6 +4383,8 @@
                     return;
                 }
 
+                const currentButtons = window.getBuilderButtonsFromInputs();
+
                 if (btnSave) {
                     btnSave.disabled = true;
                     btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
@@ -4305,7 +4404,7 @@
                         header_content: headerContent,
                         body: body,
                         footer: footer,
-                        buttons: builderButtonsList
+                        buttons: currentButtons
                     })
                 })
                 .then(res => res.json())
@@ -4415,10 +4514,53 @@
             // Use in Broadcast Studio
             window.useTemplateInBroadcastStudio = function() {
                 const body = document.getElementById('tplBody')?.value || '';
-                const name = document.getElementById('tplName')?.value || 'Selected Template';
+                const footer = document.getElementById('tplFooter')?.value || '';
+                const buttons = window.getBuilderButtonsFromInputs();
+
+                let fullMsg = body;
+                if (footer && !fullMsg.includes(footer)) {
+                    fullMsg += "\n\n_" + footer + "_";
+                }
+
+                if (Array.isArray(buttons) && buttons.length > 0) {
+                    const btnLines = [];
+                    buttons.forEach(b => {
+                        const bText = (b.text || '').trim();
+                        const bVal = (b.value || '').trim();
+                        if (bText || bVal) {
+                            if (b.type === 'url') {
+                                btnLines.push(`👉 *${bText || 'Link'}*: ${bVal}`);
+                                // Also populate URL attachment
+                                if (/^https?:\/\//i.test(bVal) && typeof urlsData !== 'undefined') {
+                                    const already = urlsData.some(u => u && u.url === bVal);
+                                    if (!already) {
+                                        const uIdx = urlsData.length;
+                                        urlsData.push({ url: bVal, title: bText || bVal });
+                                        const uChip = document.createElement('span');
+                                        uChip.className = 'badge bg-success-subtle text-success border d-inline-flex align-items-center gap-1.5 px-2 py-1.5 text-xxs rounded-pill';
+                                        uChip.id = 'urlChip-' + uIdx;
+                                        uChip.innerHTML = `<i class="fas fa-link"></i> <span class="fw-bold">${escapeHtml(bText || bVal)}</span> <button type="button" class="btn btn-xs p-0 text-danger" onclick="removeUrl(${uIdx})"><i class="fas fa-times"></i></button>`;
+                                        document.getElementById('urlChips')?.appendChild(uChip);
+                                        document.getElementById('urlsPayload').value = JSON.stringify(urlsData);
+                                        if (typeof updateAttachBadge === 'function') {
+                                            updateAttachBadge('url', urlsData.filter(Boolean).length);
+                                        }
+                                    }
+                                }
+                            } else if (b.type === 'call') {
+                                btnLines.push(`📞 *${bText || 'Call'}*: ${bVal}`);
+                            } else {
+                                btnLines.push(`💬 [${bText}]`);
+                            }
+                        }
+                    });
+                    if (btnLines.length > 0 && !fullMsg.includes(btnLines[0])) {
+                        fullMsg += "\n\n" + btnLines.join("\n");
+                    }
+                }
 
                 if (broadcastMessage) {
-                    broadcastMessage.value = body;
+                    broadcastMessage.value = fullMsg;
                     if (bcastCharCounter) {
                         bcastCharCounter.textContent = `${broadcastMessage.value.length} characters`;
                     }
@@ -4440,6 +4582,7 @@
             // Send Test Preview from Builder directly to Admin Phone
             window.sendTestPreviewFromBuilder = function() {
                 const body = document.getElementById('tplBody')?.value || '';
+                const footer = document.getElementById('tplFooter')?.value || '';
                 const simulateData = document.getElementById('chkSimulateMemberData')?.checked ?? true;
                 if (!body.trim()) {
                     alert('Please enter a message body first.');
@@ -4453,15 +4596,25 @@
                     }
                 }
 
-                // Add buttons as text links if present
-                if (builderButtonsList.length > 0) {
+                if (footer && !finalMessage.includes(footer)) {
+                    finalMessage += "\n\n_" + footer + "_";
+                }
+
+                const buttons = window.getBuilderButtonsFromInputs();
+                if (buttons.length > 0) {
                     const btnLines = [];
-                    builderButtonsList.forEach(btn => {
-                        if (btn.type === 'url') btnLines.push(`👉 *${btn.text}*: ${btn.value}`);
-                        else if (btn.type === 'call') btnLines.push(`📞 *${btn.text}*: ${btn.value}`);
-                        else btnLines.push(`💬 [${btn.text}]`);
+                    buttons.forEach(btn => {
+                        const bText = (btn.text || '').trim();
+                        const bVal = (btn.value || '').trim();
+                        if (bText || bVal) {
+                            if (btn.type === 'url') btnLines.push(`👉 *${btn.text}*: ${btn.value}`);
+                            else if (btn.type === 'call') btnLines.push(`📞 *${btn.text}*: ${btn.value}`);
+                            else btnLines.push(`💬 [${btn.text}]`);
+                        }
                     });
-                    finalMessage += "\n\n" + btnLines.join("\n");
+                    if (btnLines.length > 0) {
+                        finalMessage += "\n\n" + btnLines.join("\n");
+                    }
                 }
 
                 const testPhone = prompt('Enter admin phone number to send this live WhatsApp preview:', '{{ $settings['admin_numbers'] ? explode(',', $settings['admin_numbers'])[0] : '' }}');
