@@ -289,7 +289,7 @@ class WhatsAppController extends Controller
                 $recipients[] = [
                     'phone' => $m->mobile_number,
                     'name' => trim((string) $m->full_name) ?: 'Community Member',
-                    'membership_id' => $m->membership_id,
+                    'membership_id' => $m->membership_id_assigned,
                 ];
             }
         } elseif ($audience === 'attendees') {

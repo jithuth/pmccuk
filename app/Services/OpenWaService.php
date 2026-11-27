@@ -308,14 +308,14 @@ class OpenWaService
         $map = [];
         $activeMembers = Member::where('status', 'active')
             ->whereNotNull('mobile_number')
-            ->get(['id', 'full_name', 'mobile_number', 'membership_id']);
+            ->get(['id', 'full_name', 'mobile_number', 'membership_id_assigned']);
 
         foreach ($activeMembers as $m) {
             $canonical = self::formatPhone($m->mobile_number);
             if ($canonical && !isset($map[$canonical])) {
                 $map[$canonical] = [
                     'name' => trim((string) $m->full_name) ?: 'Community Member',
-                    'membership_id' => $m->membership_id,
+                    'membership_id' => $m->membership_id_assigned,
                 ];
             }
         }
@@ -345,7 +345,7 @@ class OpenWaService
                 $member = self::findMemberByPhone($phone);
                 if ($member && trim((string) $member->full_name) !== '') {
                     $fullName = trim((string) $member->full_name);
-                    $membershipId = $member->membership_id;
+                    $membershipId = $member->membership_id_assigned;
                     $isMember = true;
                 }
             }
