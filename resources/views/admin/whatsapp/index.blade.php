@@ -4590,9 +4590,14 @@
                 }
 
                 let finalMessage = body;
+                // Keep recipient-specific placeholders ({name}, {first_name}, {phone}, {membership_id})
+                // so the backend dynamically resolves them for the target phone number (or 'Community Member').
                 if (simulateData) {
+                    const recipientKeys = ['name', 'first_name', 'phone', 'membership_id'];
                     for (const [key, val] of Object.entries(samplePreviewVars)) {
-                        finalMessage = finalMessage.replace(new RegExp('\\{' + key + '\\}', 'gi'), val);
+                        if (!recipientKeys.includes(key)) {
+                            finalMessage = finalMessage.replace(new RegExp('\\{' + key + '\\}', 'gi'), val);
+                        }
                     }
                 }
 

@@ -98,18 +98,28 @@ class WhatsAppController extends Controller
     {
         $request->validate([
             'phone' => 'required|string|min:8|max:20',
-            'message' => 'required|string|max:1000',
+            'message' => 'required|string|max:4000',
         ]);
 
         $phone = $request->input('phone');
         $message = $request->input('message');
 
-        $sent = OpenWaService::sendText($phone, $message);
+        // Resolve member name dynamically from sending phone number, or fallback to 'Community Member'
+        $recipientInfo = OpenWaService::resolveRecipientByPhone($phone);
+        $personalizedMessage = OpenWaService::personalizeMessage(
+            $message,
+            $recipientInfo['name'],
+            $phone,
+            $recipientInfo['membership_id']
+        );
+
+        $sent = OpenWaService::sendText($phone, $personalizedMessage);
 
         if ($sent) {
             return response()->json([
                 'success' => true,
-                'message' => "Test message successfully dispatched to " . OpenWaService::formatPhone($phone)
+                'resolved_name' => $recipientInfo['name'],
+                'message' => "Test message successfully dispatched to {$recipientInfo['name']} (" . OpenWaService::formatPhone($phone) . ")"
             ]);
         }
 
@@ -268,7 +278,9 @@ class WhatsAppController extends Controller
         $message = trim($request->input('message'));
         $recipients = [];
 
-        // 1. Resolve recipients
+        // 1. Resolve recipients (with active member lookup for dynamic name personalization)
+        $memberMap = OpenWaService::buildMemberPhoneMap();
+
         if ($audience === 'members') {
             $members = \App\Models\Member::where('status', 'active')
                 ->whereNotNull('mobile_number')
@@ -276,7 +288,8 @@ class WhatsAppController extends Controller
             foreach ($members as $m) {
                 $recipients[] = [
                     'phone' => $m->mobile_number,
-                    'name' => $m->full_name
+                    'name' => trim((string) $m->full_name) ?: 'Community Member',
+                    'membership_id' => $m->membership_id,
                 ];
             }
         } elseif ($audience === 'attendees') {
@@ -284,17 +297,21 @@ class WhatsAppController extends Controller
                 ->whereNotNull('phone')
                 ->get();
             foreach ($bookings as $b) {
+                $resolved = OpenWaService::resolveRecipientByPhone($b->phone, $memberMap);
                 $recipients[] = [
                     'phone' => $b->phone,
-                    'name' => $b->full_name
+                    'name' => trim((string) $b->full_name) ?: $resolved['name'],
+                    'membership_id' => $resolved['membership_id'],
                 ];
             }
         } elseif ($audience === 'students') {
             $students = \App\Models\StudentRequest::whereNotNull('phone')->get();
             foreach ($students as $s) {
+                $resolved = OpenWaService::resolveRecipientByPhone($s->phone, $memberMap);
                 $recipients[] = [
                     'phone' => $s->phone,
-                    'name' => $s->full_name ?? 'Student'
+                    'name' => trim((string) ($s->full_name ?? '')) ?: $resolved['name'],
+                    'membership_id' => $resolved['membership_id'],
                 ];
             }
         } elseif ($audience === 'executives') {
@@ -312,9 +329,12 @@ class WhatsAppController extends Controller
                     }
                 }
                 if (!empty($item['phone'])) {
+                    $resolved = OpenWaService::resolveRecipientByPhone($item['phone'], $memberMap);
+                    $execName = trim((string) ($item['name'] ?? ''));
                     $recipients[] = [
                         'phone' => $item['phone'],
-                        'name' => $item['name'] ?? 'Executive Member'
+                        'name' => $execName !== '' ? $execName : $resolved['name'],
+                        'membership_id' => $resolved['membership_id'],
                     ];
                 }
             }
@@ -324,7 +344,12 @@ class WhatsAppController extends Controller
             foreach ($lines as $line) {
                 $num = trim($line);
                 if (!empty($num)) {
-                    $recipients[] = ['phone' => $num, 'name' => 'Community Member'];
+                    $resolved = OpenWaService::resolveRecipientByPhone($num, $memberMap);
+                    $recipients[] = [
+                        'phone' => $num,
+                        'name' => $resolved['name'],
+                        'membership_id' => $resolved['membership_id'],
+                    ];
                 }
             }
         }
@@ -732,12 +757,14 @@ class WhatsAppController extends Controller
             $r = $recipients[$idx];
             $phone = $r['phone'];
             $name = $r['name'] ?? 'Community Member';
+            $membershipId = $r['membership_id'] ?? null;
 
             $res = OpenWaService::dispatchBroadcastBundle(
                 $phone,
                 $name,
                 $broadcast->message,
-                $broadcast->attachments ?: []
+                $broadcast->attachments ?: [],
+                $membershipId
             );
 
             $isOk = is_array($res) ? ($res['success'] ?? false) : (bool)$res;

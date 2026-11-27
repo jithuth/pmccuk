@@ -300,6 +300,90 @@ class OpenWaService
     }
 
     /**
+     * Build an O(1) lookup map of active members keyed by canonical phone number.
+     * Useful for fast bulk broadcast recipient name resolution.
+     */
+    public static function buildMemberPhoneMap(): array
+    {
+        $map = [];
+        $activeMembers = Member::where('status', 'active')
+            ->whereNotNull('mobile_number')
+            ->get(['id', 'full_name', 'mobile_number', 'membership_id']);
+
+        foreach ($activeMembers as $m) {
+            $canonical = self::formatPhone($m->mobile_number);
+            if ($canonical && !isset($map[$canonical])) {
+                $map[$canonical] = [
+                    'name' => trim((string) $m->full_name) ?: 'Community Member',
+                    'membership_id' => $m->membership_id,
+                ];
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * Resolve recipient name & metadata by phone number.
+     * Returns 'Community Member' for both {name} and {first_name} when the phone does not belong to an active member.
+     */
+    public static function resolveRecipientByPhone(?string $phone, ?array $preloadedMap = null): array
+    {
+        $canonical = self::formatPhone($phone);
+        $fullName = 'Community Member';
+        $membershipId = null;
+        $isMember = false;
+
+        if ($canonical) {
+            if (is_array($preloadedMap)) {
+                if (isset($preloadedMap[$canonical])) {
+                    $fullName = trim((string) ($preloadedMap[$canonical]['name'] ?? '')) ?: 'Community Member';
+                    $membershipId = $preloadedMap[$canonical]['membership_id'] ?? null;
+                    $isMember = ($fullName !== 'Community Member');
+                }
+            } else {
+                $member = self::findMemberByPhone($phone);
+                if ($member && trim((string) $member->full_name) !== '') {
+                    $fullName = trim((string) $member->full_name);
+                    $membershipId = $member->membership_id;
+                    $isMember = true;
+                }
+            }
+        }
+
+        $firstName = $isMember
+            ? (explode(' ', $fullName)[0] ?: $fullName)
+            : 'Community Member';
+
+        return [
+            'name' => $fullName,
+            'first_name' => $firstName,
+            'membership_id' => $membershipId,
+            'is_member' => $isMember,
+        ];
+    }
+
+    /**
+     * Replace dynamic template placeholders ({name}, {first_name}, {phone}, {membership_id}, {year})
+     * safely with member details or 'Community Member' fallback for non-members.
+     */
+    public static function personalizeMessage(string $message, ?string $recipientName, ?string $recipientPhone = null, ?string $membershipId = null): string
+    {
+        $trimmed = trim((string) $recipientName);
+        $isGeneric = ($trimmed === '' || strcasecmp($trimmed, 'Community Member') === 0);
+
+        $fullName = $isGeneric ? 'Community Member' : $trimmed;
+        $firstName = $isGeneric ? 'Community Member' : (explode(' ', $fullName)[0] ?: $fullName);
+        $displayPhone = $recipientPhone ? (self::formatPhoneDisplay($recipientPhone) ?: $recipientPhone) : '';
+
+        return str_ireplace(
+            ['{name}', '{first_name}', '{phone}', '{membership_id}', '{year}'],
+            [$fullName, $firstName, $displayPhone, $membershipId ?: 'N/A', date('Y')],
+            $message
+        );
+    }
+
+    /**
      * Fetch connection status from WhatsApp microservice daemon
      */
     public static function getStatus(): array
@@ -900,7 +984,7 @@ class OpenWaService
      * - Multiple documents (PDF, Docx, etc.)
      * - Multiple contact cards (vCards)
      */
-    public static function dispatchBroadcastBundle(string $recipientPhone, string $recipientName, string $message, array $attachments = []): array
+    public static function dispatchBroadcastBundle(string $recipientPhone, string $recipientName, string $message, array $attachments = [], ?string $membershipId = null): array
     {
         $formatted = self::formatPhone($recipientPhone);
         if (!$formatted) {
@@ -908,8 +992,7 @@ class OpenWaService
         }
 
         // 1. Personalize text and append URL blocks if present
-        $body = str_replace('{name}', $recipientName, $message);
-        $body = str_replace('{first_name}', explode(' ', trim($recipientName))[0] ?: $recipientName, $body);
+        $body = self::personalizeMessage($message, $recipientName, $formatted, $membershipId);
 
         $urls = $attachments['urls'] ?? [];
         if (!empty($urls) && is_array($urls)) {
@@ -1324,11 +1407,15 @@ class OpenWaService
                 continue;
             }
 
-            // Optional personalizations
-            $personalized = $message;
-            if (is_array($item) && !empty($item['name'])) {
-                $personalized = str_replace('{name}', $item['name'], $personalized);
+            // Personalize with member lookup fallback to 'Community Member'
+            $itemName = is_array($item) ? ($item['name'] ?? null) : null;
+            $itemMembershipId = is_array($item) ? ($item['membership_id'] ?? null) : null;
+            if (empty($itemName)) {
+                $resolved = self::resolveRecipientByPhone($phone);
+                $itemName = $resolved['name'];
+                $itemMembershipId = $resolved['membership_id'];
             }
+            $personalized = self::personalizeMessage($message, $itemName, $phone, $itemMembershipId);
 
             $success = false;
             if ($filePath && file_exists($filePath)) {

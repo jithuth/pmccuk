@@ -114,6 +114,7 @@ class ProcessScheduledWhatsAppBroadcasts extends Command
 
                 $phone = $r['phone'] ?? null;
                 $name = $r['name'] ?? 'Community Member';
+                $membershipId = $r['membership_id'] ?? null;
 
                 if (!$phone) {
                     $recipients[$idx]['status'] = 'failed';
@@ -127,7 +128,8 @@ class ProcessScheduledWhatsAppBroadcasts extends Command
                     $phone,
                     $name,
                     $broadcast->message,
-                    $broadcast->attachments ?? []
+                    $broadcast->attachments ?? [],
+                    $membershipId
                 );
 
                 $isOk = is_array($res) ? ($res['success'] ?? false) : (bool)$res;
